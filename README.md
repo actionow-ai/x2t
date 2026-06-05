@@ -39,7 +39,13 @@ pnpm dev            # http://localhost:3000
 # 6. 另开一个终端跑抓取 Worker
 pnpm poll:once      # 抓一轮
 pnpm poll           # 按 POLL_INTERVAL_MS 持续轮询
+
+# 7. 分析 Worker（不填 key 用 mock；填 LLM_API_KEY 转真：OpenAI 官方 / DeepSeek 等）
+pnpm analyze:once   # 分析一批 pending
+pnpm analyze        # 持续分析
 ```
+
+> **接真实 LLM（OpenAI 系列 / DeepSeek）**：在 `.env` 填 `LLM_API_KEY`；DeepSeek 另设 `LLM_BASE_URL=https://api.deepseek.com`、`LLM_MODEL=deepseek-chat`。行情接 Finnhub：填 `FINNHUB_API_KEY`。
 
 ## 架构（三带）
 
