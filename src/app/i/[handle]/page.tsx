@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
 import { FollowButton } from "@/components/FollowButton";
+import { getCurrentUserId } from "@/lib/auth";
 import { formatDateTime } from "@/lib/time";
 import { notFound } from "next/navigation";
 
@@ -27,6 +28,11 @@ export default async function InfluencerPage({
 
   const name = influencer.displayName ?? influencer.handle;
 
+  const userId = await getCurrentUserId();
+  const followed = userId
+    ? !!(await prisma.follow.findUnique({ where: { userId_influencerId: { userId, influencerId: influencer.id } } }))
+    : false;
+
   return (
     <>
       <div className="inf-header">
@@ -49,7 +55,7 @@ export default async function InfluencerPage({
             </div>
           )}
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem", flexWrap: "wrap" }}>
-            <FollowButton influencerId={influencer.id} />
+            <FollowButton influencerId={influencer.id} isLoggedIn={!!userId} initiallyFollowed={followed} />
             <a className="btn ghost" href={`/i/${influencer.handle}/rss`}>🔗 RSS</a>
           </div>
         </div>

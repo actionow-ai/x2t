@@ -15,11 +15,13 @@
     "poll": "tsx scripts/poll.ts",
     "poll:once": "tsx scripts/poll.ts --once",
     "analyze": "tsx scripts/analyze.ts",
-    "analyze:once": "tsx scripts/analyze.ts --once"
+    "analyze:once": "tsx scripts/analyze.ts --once",
+    "digest": "tsx scripts/digest.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",
     "next": "^15.1.6",
+    "nodemailer": "^6.9.16",
     "openai": "^4.77.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "@types/web-push": "^3.6.4",

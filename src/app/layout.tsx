@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
+import { FollowSync } from "@/components/FollowSync";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,7 +9,9 @@ export const metadata: Metadata = {
   description: "订阅金融博主，第一时间拿到信号与 AI 分析。非投资建议。",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
+
   return (
     <html lang="zh-CN">
       <body>
@@ -20,6 +24,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/">信号流</Link>
               <Link href="/graph">图谱</Link>
               <Link href="/submit">提交帖子</Link>
+              {user ? (
+                <form action="/api/auth/logout" method="post" style={{ display: "inline" }}>
+                  <button
+                    type="submit"
+                    style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", font: "inherit", padding: 0 }}
+                    title={user.email}
+                  >
+                    登出
+                  </button>
+                </form>
+              ) : (
+                <Link href="/login">登录</Link>
+              )}
             </nav>
           </div>
         </header>
@@ -29,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main>
           <div className="container">{children}</div>
         </main>
+        {user && <FollowSync />}
       </body>
     </html>
   );
