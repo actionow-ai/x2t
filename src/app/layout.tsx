@@ -18,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <nav className="nav">
               <Link href="/">信号流</Link>
+              <Link href="/graph">图谱</Link>
               <Link href="/submit">提交帖子</Link>
             </nav>
           </div>

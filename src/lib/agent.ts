@@ -2,6 +2,8 @@ import { prisma } from "./db";
 import { getLlmProvider } from "./llm";
 import { getExternalDataCached } from "./marketdata";
 import { analysisSchema } from "./agent-schema";
+import { detectFlips } from "./stance";
+import { notifyFlip } from "./push";
 
 const CASHTAG = /\$([A-Za-z]{1,6})\b/g;
 
@@ -79,6 +81,14 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
       });
       await tx.post.update({ where: { id: post.id }, data: { analysisStatus: "done" } });
     });
+
+    // 转向检测 → 「立场转向」推送（失败不影响分析）
+    try {
+      const flips = await detectFlips(post.id);
+      if (flips.length) await notifyFlip(post.id, flips);
+    } catch (err) {
+      console.error("[agent] 转向通知失败:", err instanceof Error ? err.message : err);
+    }
 
     return { ok: true, tickers: parsed.tickers.length };
   } catch (err) {
