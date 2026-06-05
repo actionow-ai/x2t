@@ -20,9 +20,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <header className="site-header">
           <div className="inner">
             <Link href="/" className="brand">
-              X2T<span className="dot" />
+              X2<span className="dot">T</span>
             </Link>
-            <span className="live">Live</span>
+            <span className="masthead-tag">Signals</span>
             <nav className="nav">
               <Link href="/">信号流</Link>
               <Link href="/graph">图谱</Link>
