@@ -19,7 +19,7 @@ export default async function InfluencerPage({
       posts: {
         orderBy: { postedAt: "desc" },
         take: 50,
-        include: { influencer: true, analysis: true },
+        include: { influencer: true, analysis: true, tickers: true },
       },
     },
   });

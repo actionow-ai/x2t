@@ -9,7 +9,7 @@ export default async function FeedPage() {
   const posts = await prisma.post.findMany({
     orderBy: { postedAt: "desc" },
     take: 50,
-    include: { influencer: true, analysis: true },
+    include: { influencer: true, analysis: true, tickers: true },
   });
 
   return (

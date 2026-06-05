@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CashtagText } from "./CashtagText";
+import { StanceBadge, TickerBadge, stanceText } from "./StanceBadge";
 import { relativeTime } from "@/lib/time";
 
 type PostCardData = {
@@ -9,6 +10,7 @@ type PostCardData = {
   postedAt: Date;
   influencer: { handle: string; displayName: string | null; avatarUrl: string | null };
   analysis?: { summary: string; overallStance: string } | null;
+  tickers?: { symbol: string; stance: string }[];
 };
 
 export function PostCard({ post }: { post: PostCardData }) {
@@ -41,6 +43,12 @@ export function PostCard({ post }: { post: PostCardData }) {
       {post.analysis && (
         <div className="ai-box">
           <div className="ai-label">🤖 AI 分析</div>
+          <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", marginBottom: "0.4rem" }}>
+            <StanceBadge stance={post.analysis.overallStance} label={`整体${stanceText(post.analysis.overallStance)}`} />
+            {post.tickers?.map((t) => (
+              <TickerBadge key={t.symbol} symbol={t.symbol} stance={t.stance} />
+            ))}
+          </div>
           <div style={{ fontSize: "0.85rem" }}>{post.analysis.summary}</div>
         </div>
       )}

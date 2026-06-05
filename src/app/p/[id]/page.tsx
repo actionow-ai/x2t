@@ -1,26 +1,37 @@
 import { prisma } from "@/lib/db";
 import { CashtagText } from "@/components/CashtagText";
+import { StanceBadge, stanceText } from "@/components/StanceBadge";
 import { formatDateTime } from "@/lib/time";
+import type { ExternalData } from "@/lib/marketdata";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function PostDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const post = await prisma.post.findUnique({
     where: { id },
-    include: { influencer: true, analysis: true, tickers: true },
+    include: { influencer: true, analysis: true, tickers: { include: { security: true } } },
   });
   if (!post) notFound();
 
   const inf = post.influencer;
   const name = inf.displayName ?? inf.handle;
+
+  // 外部数据：从缓存取每只票最新 bundle
+  const symbols = post.tickers.map((t) => t.symbol);
+  const caches = symbols.length
+    ? await prisma.externalDataCache.findMany({
+        where: { symbol: { in: symbols }, dataType: "bundle" },
+        orderBy: { fetchedAt: "desc" },
+      })
+    : [];
+  const dataBySymbol = new Map<string, ExternalData>();
+  for (const c of caches) if (!dataBySymbol.has(c.symbol)) dataBySymbol.set(c.symbol, c.payload as ExternalData);
+
+  const keyPoints = (post.analysis?.keyPoints as string[] | undefined) ?? [];
 
   return (
     <article className="post-card">
@@ -30,33 +41,93 @@ export default async function PostDetailPage({
           <Link href={`/i/${inf.handle}`}>
             <div className="pc-name">{name}</div>
           </Link>
-          <div className="pc-handle">
-            @{inf.handle} · {formatDateTime(post.postedAt)}
-          </div>
+          <div className="pc-handle">@{inf.handle} · {formatDateTime(post.postedAt)}</div>
         </div>
       </div>
 
       <div className="pc-text">
         <CashtagText text={post.contentText} />
       </div>
-
       <div className="pc-src">
-        {post.url && (
-          <a href={post.url} target="_blank" rel="noreferrer">查看原帖 ↗</a>
-        )}
+        {post.url && <a href={post.url} target="_blank" rel="noreferrer">查看原帖 ↗</a>}
         <span>非投资建议</span>
       </div>
 
-      <div className="ai-box">
-        <div className="ai-label">🤖 AI 分析</div>
-        {post.analysis ? (
-          <div style={{ fontSize: "0.85rem" }}>{post.analysis.summary}</div>
-        ) : (
-          <div style={{ color: "var(--text-tertiary)", fontSize: "0.82rem" }}>
-            分析将在 M3（Agent 切片）接入：自动抽取 ticker / 方向 + 摘要 + 外部数据（行情 / 新闻 / 财报…）。
+      {post.analysis ? (
+        <div className="ai-box">
+          <div className="ai-label">🤖 AI 分析</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+            <StanceBadge stance={post.analysis.overallStance} label={`整体${stanceText(post.analysis.overallStance)}`} />
+            {typeof post.analysis.confidence === "number" && (
+              <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                置信度 {Math.round(post.analysis.confidence * 100)}%
+              </span>
+            )}
+            {post.analysis.model && (
+              <span style={{ fontSize: "0.66rem", color: "var(--text-tertiary)", marginLeft: "auto" }}>{post.analysis.model}</span>
+            )}
           </div>
-        )}
-      </div>
+
+          <div style={{ fontSize: "0.86rem", lineHeight: 1.5, marginBottom: "0.6rem" }}>{post.analysis.summary}</div>
+
+          {post.tickers.length > 0 && (
+            <>
+              <div className="label-sm">涉及标的（{post.tickers.length}）</div>
+              {post.tickers.map((t) => {
+                const ext = dataBySymbol.get(t.symbol);
+                return (
+                  <div key={t.symbol} className="tcard">
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.3rem" }}>
+                      <StanceBadge stance={t.stance} />
+                      <strong>${t.symbol}</strong>
+                      {ext?.profile?.name && (
+                        <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginLeft: "auto" }}>{ext.profile.name}</span>
+                      )}
+                    </div>
+                    {t.rationale && <div style={{ fontSize: "0.78rem", marginBottom: "0.3rem" }}>{t.rationale}</div>}
+                    {ext?.quote && (
+                      <div className="ext-line">
+                        📈 ${ext.quote.price}{" "}
+                        <span className={ext.quote.changePct >= 0 ? "up" : "dn"}>
+                          {ext.quote.changePct >= 0 ? "▲" : "▼"}
+                          {Math.abs(ext.quote.changePct)}%
+                        </span>
+                      </div>
+                    )}
+                    {ext?.news && ext.news.length > 0 && (
+                      <div className="ext-line">📰 {ext.news.slice(0, 2).map((n) => n.headline).join(" · ")}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {keyPoints.length > 0 && (
+            <>
+              <div className="label-sm">关键要点</div>
+              <ul style={{ margin: "0 0 0.3rem 1.1rem" }}>
+                {keyPoints.map((k, i) => (
+                  <li key={i} style={{ fontSize: "0.8rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>{k}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "0.5rem" }}>
+            ⚠️ 对公开帖子与公开市场数据的客观摘要，非投资建议；数据可能延迟。
+          </div>
+        </div>
+      ) : (
+        <div className="ai-box">
+          <div className="ai-label">🤖 AI 分析</div>
+          <div style={{ color: "var(--text-tertiary)", fontSize: "0.82rem" }}>
+            {post.analysisStatus === "failed"
+              ? "分析失败，稍后重试。"
+              : "分析处理中…（运行 pnpm analyze:once）"}
+          </div>
+        </div>
+      )}
     </article>
   );
 }
