@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { storePost } from "@/lib/ingest";
+import { notifyNewPost } from "@/lib/push";
 import { redirect } from "next/navigation";
 
 export async function submitPost(formData: FormData) {
@@ -20,12 +21,18 @@ export async function submitPost(formData: FormData) {
     update: displayName ? { displayName } : {},
   });
 
-  await storePost(influencer.id, {
+  const stored = await storePost(influencer.id, {
     platformPostId: `manual-${Date.now()}`,
     url: url ?? undefined,
     contentText,
     postedAt: new Date(),
   });
+
+  try {
+    await notifyNewPost(stored.id);
+  } catch {
+    /* 推送失败不阻塞提交 */
+  }
 
   redirect("/");
 }

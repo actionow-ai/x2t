@@ -1,5 +1,12 @@
 import { ingestAll } from "../src/lib/ingest";
 
+// 加载 .env 到 process.env（Worker 进程不像 Next app 那样自动加载；web-push 的 VAPID 需要）
+try {
+  process.loadEnvFile();
+} catch {
+  /* .env 不存在时忽略 */
+}
+
 // 轮询 Worker —— 设计文档 §4。独立进程，与 web app 同库不同进程。
 //   pnpm poll:once   抓一轮退出
 //   pnpm poll        按 POLL_INTERVAL_MS 持续轮询

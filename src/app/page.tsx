@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
+import { PushToggle } from "@/components/PushToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,11 @@ export default async function FeedPage() {
     <>
       <h1 className="page-title">信号流</h1>
       <p className="page-sub">你关注的金融博主，最新帖子。</p>
+
+      <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap" }}>
+        <PushToggle />
+        <a className="btn ghost" href="/rss/all">🔗 全站 RSS</a>
+      </div>
 
       {posts.length === 0 ? (
         <div className="empty">

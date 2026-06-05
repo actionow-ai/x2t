@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { getConnector } from "./connectors";
+import { notifyNewPost } from "./push";
 import type { NormalizedPost } from "./connectors/types";
 
 /**
@@ -42,14 +43,14 @@ export async function ingestInfluencer(influencerId: string): Promise<{ fetched:
       sourceConfig: config,
     });
 
-    let created = 0;
+    const createdIds: string[] = [];
     for (const p of posts) {
       const existing = await prisma.post.findUnique({
         where: { influencerId_platformPostId: { influencerId: inf.id, platformPostId: p.platformPostId } },
         select: { id: true },
       });
-      await storePost(inf.id, p);
-      if (!existing) created++;
+      const stored = await storePost(inf.id, p);
+      if (!existing) createdIds.push(stored.id);
     }
 
     await prisma.influencer.update({
@@ -57,7 +58,16 @@ export async function ingestInfluencer(influencerId: string): Promise<{ fetched:
       data: { lastFetchedAt: new Date(), fetchError: null },
     });
 
-    return { fetched: posts.length, created };
+    // 「新帖」事件 → web-push（失败不影响抓取）
+    for (const id of createdIds) {
+      try {
+        await notifyNewPost(id);
+      } catch (err) {
+        console.error(`[notify] post ${id} 推送失败:`, err instanceof Error ? err.message : err);
+      }
+    }
+
+    return { fetched: posts.length, created: createdIds.length };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await prisma.influencer.update({ where: { id: inf.id }, data: { fetchError: message } });

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
+import { FollowButton } from "@/components/FollowButton";
 import { formatDateTime } from "@/lib/time";
 import { notFound } from "next/navigation";
 
@@ -47,6 +48,10 @@ export default async function InfluencerPage({
               抓取异常：{influencer.fetchError}
             </div>
           )}
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem", flexWrap: "wrap" }}>
+            <FollowButton influencerId={influencer.id} />
+            <a className="btn ghost" href={`/i/${influencer.handle}/rss`}>🔗 RSS</a>
+          </div>
         </div>
       </div>
 
