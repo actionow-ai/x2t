@@ -1,0 +1,181 @@
+// X2T 数据模型 —— 对应设计文档 §5
+// M1 实际用到：Influencer / Post / Security / PostTicker(可选)
+// 其余表为后续里程碑（M3 分析、M5 账号）预建，schema 一次定齐。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Platform {
+  twitter
+  manual
+}
+
+enum AnalysisStatus {
+  pending
+  done
+  failed
+}
+
+enum Stance {
+  bullish
+  bearish
+  neutral
+}
+
+// ---------- 内容核心 ----------
+
+model Influencer {
+  id           String   @id @default(cuid())
+  handle       String
+  platform     Platform @default(twitter)
+  displayName  String?
+  avatarUrl    String?
+  bio          String?
+  sourceConfig Json // { connector: "rss", feedUrl, ... }
+  active       Boolean  @default(true)
+  // 抓取健康状态（连续失败时标记）
+  lastFetchedAt DateTime?
+  fetchError    String?
+  createdAt    DateTime @default(now())
+
+  posts   Post[]
+  follows Follow[]
+
+  @@unique([platform, handle])
+}
+
+model Post {
+  id             String         @id @default(cuid())
+  influencerId   String
+  platformPostId String // 去重键：同 platform 内唯一
+  url            String?
+  contentText    String
+  mediaJson      Json?
+  postedAt       DateTime
+  fetchedAt      DateTime       @default(now())
+  rawJson        Json?
+  analysisStatus AnalysisStatus @default(pending)
+
+  influencer Influencer    @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+  analysis   PostAnalysis?
+  tickers    PostTicker[]
+  deliveries Delivery[]
+
+  @@unique([influencerId, platformPostId]) // 幂等去重
+  @@index([postedAt])
+  @@index([analysisStatus])
+}
+
+model PostAnalysis {
+  id            String   @id @default(cuid())
+  postId        String   @unique
+  summary       String
+  keyPoints     Json // string[]
+  overallStance Stance
+  confidence    Float?
+  model         String?
+  createdAt     DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Security {
+  symbol    String  @id
+  name      String?
+  exchange  String?
+  assetType String?
+  sector    String?
+
+  postTickers PostTicker[]
+  dataCache   ExternalDataCache[]
+}
+
+model PostTicker {
+  id        String  @id @default(cuid())
+  postId    String
+  symbol    String
+  stance    Stance
+  rationale String?
+
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  security Security @relation(fields: [symbol], references: [symbol])
+
+  @@unique([postId, symbol])
+  @@index([symbol])
+}
+
+model ExternalDataCache {
+  id        String   @id @default(cuid())
+  symbol    String
+  dataType  String // quote | news | financials | analyst | ...
+  payload   Json
+  fetchedAt DateTime @default(now())
+  expiresAt DateTime // TTL 控成本
+
+  security Security @relation(fields: [symbol], references: [symbol])
+
+  @@index([symbol, dataType])
+  @@index([expiresAt])
+}
+
+// ---------- 用户 · 订阅 · 推送 ----------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  follows           Follow[]
+  pushSubscriptions PushSubscription[]
+}
+
+model Follow {
+  userId       String
+  influencerId String
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  influencer Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+
+  @@id([userId, influencerId])
+}
+
+model PushSubscription {
+  id           String   @id @default(cuid())
+  endpoint     String   @unique
+  keysJson     Json // { p256dh, auth }
+  userId       String? // 可空 = 匿名也能订阅推送
+  followFilter Json? // 匿名关注列表镜像
+  createdAt    DateTime @default(now())
+
+  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  deliveries Delivery[]
+}
+
+model Delivery {
+  id                 String   @id @default(cuid())
+  postId             String
+  pushSubscriptionId String?
+  channel            String // webpush | email
+  status             String   @default("sent")
+  sentAt             DateTime @default(now())
+
+  post             Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  pushSubscription PushSubscription? @relation(fields: [pushSubscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, pushSubscriptionId, channel]) // 防重复推送
+}
+
+model MagicLink {
+  token     String    @id
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}

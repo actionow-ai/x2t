@@ -1,0 +1,24 @@
+# 本机开发依赖：Postgres
+# 端口用非标准 55432 避让（宿主机 55432 -> 容器 5432），
+# 避免与开发机上其他 Postgres 冲突 —— 团队规则 TEA-40。
+services:
+  db:
+    image: postgres:16
+    container_name: x2t-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: x2t
+      POSTGRES_PASSWORD: x2t
+      POSTGRES_DB: x2t
+    ports:
+      - "55432:5432" # 非标准避让端口
+    volumes:
+      - x2t_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U x2t -d x2t"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  x2t_pgdata:

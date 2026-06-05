@@ -1,0 +1,141 @@
+/* X2T 主题 —— 直接沿用设计阶段 mockup 的配色（OS 自适应明暗） */
+:root {
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e5e5e7;
+  --border: #d1d1d6;
+  --text-primary: #1d1d1f;
+  --text-secondary: #86868b;
+  --text-tertiary: #aeaeb2;
+  --accent: #0071e3;
+  --success: #34c759;
+  --error: #ff3b30;
+  --warning: #ff9f0a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1d1d1f;
+    --bg-secondary: #2d2d2f;
+    --bg-tertiary: #3d3d3f;
+    --border: #424245;
+    --text-primary: #f5f5f7;
+    --text-secondary: #86868b;
+    --text-tertiary: #636366;
+    --accent: #0a84ff;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: none; }
+
+.container { max-width: 640px; margin: 0 auto; padding: 0 1rem; }
+
+/* header */
+.site-header {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: saturate(180%) blur(8px);
+}
+.site-header .inner { max-width: 640px; margin: 0 auto; padding: 0.7rem 1rem; display: flex; align-items: center; gap: 1rem; }
+.brand { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em; }
+.brand .dot { color: var(--accent); }
+.nav { display: flex; gap: 1rem; margin-left: auto; font-size: 0.85rem; color: var(--text-secondary); }
+.nav a:hover { color: var(--accent); }
+
+/* disclaimer */
+.disclaimer-bar {
+  background: var(--bg-tertiary); color: var(--text-secondary);
+  font-size: 0.72rem; text-align: center; padding: 0.35rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+main { padding: 1.25rem 0 4rem; }
+
+.page-title { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.25rem; }
+.page-sub { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem; }
+
+/* feed */
+.feed { display: flex; flex-direction: column; gap: 0.85rem; }
+
+/* post card (富卡片 B) */
+.post-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+}
+.pc-top { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.55rem; }
+.pc-av {
+  width: 2.4rem; height: 2.4rem; border-radius: 50%;
+  background: var(--bg-tertiary); flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  overflow: hidden;
+}
+.pc-av img { width: 100%; height: 100%; object-fit: cover; }
+.pc-name { font-weight: 600; font-size: 0.9rem; }
+.pc-handle { font-size: 0.74rem; color: var(--text-secondary); }
+.pc-time { margin-left: auto; font-size: 0.74rem; color: var(--text-tertiary); white-space: nowrap; }
+.pc-text { font-size: 0.92rem; line-height: 1.5; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
+.pc-src { margin-top: 0.6rem; display: flex; gap: 0.8rem; font-size: 0.74rem; color: var(--text-tertiary); align-items: center; }
+.pc-src a { color: var(--accent); }
+
+/* cashtag */
+.cashtag {
+  color: var(--accent); font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 5px; padding: 0 0.25rem;
+}
+
+/* ai box (M3 接入；M1 不渲染) */
+.ai-box {
+  margin-top: 0.7rem; background: var(--bg-primary);
+  border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.8rem;
+}
+.ai-box .ai-label { font-size: 0.6rem; color: var(--accent); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.4rem; }
+
+.badge { font-size: 0.66rem; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 20px; white-space: nowrap; display: inline-block; }
+.badge.bull { background: rgba(52,199,89,0.16); color: var(--success); border: 1px solid var(--success); }
+.badge.bear { background: rgba(255,59,48,0.14); color: var(--error); border: 1px solid var(--error); }
+.badge.neutral { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border); }
+
+/* influencer header */
+.inf-header { display: flex; gap: 1rem; align-items: flex-start; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; margin-bottom: 1.25rem; }
+.inf-av { width: 3.6rem; height: 3.6rem; border-radius: 50%; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 1.7rem; flex: 0 0 auto; }
+.inf-name { font-size: 1.1rem; font-weight: 700; }
+.inf-handle { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.35rem; }
+.inf-bio { font-size: 0.82rem; line-height: 1.45; margin-bottom: 0.5rem; }
+.inf-meta { font-size: 0.76rem; color: var(--text-secondary); }
+.btn { display: inline-block; font-size: 0.78rem; border-radius: 8px; padding: 0.32rem 0.7rem; cursor: pointer; }
+.btn.primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
+.btn.ghost { border: 1px solid var(--border); color: var(--text-secondary); background: transparent; }
+
+/* directory */
+.dir-grid { display: grid; grid-template-columns: 1fr; gap: 0.7rem; }
+.dir-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 0.8rem; display: flex; align-items: center; gap: 0.7rem; }
+.dir-card:hover { border-color: var(--accent); }
+
+/* forms */
+.form { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.form label { font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.3rem; }
+.form input, .form textarea {
+  width: 100%; background: var(--bg-primary); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; font-size: 0.88rem; font-family: inherit;
+}
+.form textarea { min-height: 110px; resize: vertical; }
+.hint { font-size: 0.72rem; color: var(--text-tertiary); }
+
+/* empty state */
+.empty { text-align: center; color: var(--text-tertiary); padding: 3rem 1rem; border: 1px dashed var(--border); border-radius: 14px; font-size: 0.9rem; }
+.empty code { background: var(--bg-tertiary); padding: 0.1rem 0.4rem; border-radius: 5px; }
