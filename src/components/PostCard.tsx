@@ -18,7 +18,7 @@ export function PostCard({ post }: { post: PostCardData }) {
   const name = inf.displayName ?? inf.handle;
 
   return (
-    <article className="post-card">
+    <article className="post-card" data-stance={post.analysis?.overallStance}>
       <div className="pc-top">
         <Link href={`/i/${inf.handle}`} className="pc-av">
           {inf.avatarUrl ? <img src={inf.avatarUrl} alt={name} /> : "📈"}
