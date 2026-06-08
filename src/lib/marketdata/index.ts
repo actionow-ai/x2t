@@ -1,7 +1,7 @@
 import { prisma } from "../db";
 import type { MarketDataProvider, ExternalData } from "./types";
 import { createMockMarketData } from "./mock";
-import { createFinnhub } from "./finnhub";
+import { createFinnhub, finnhubConfigured, finnhubEarnings } from "./finnhub";
 import { exaConfigured, exaNews } from "./exa";
 import { alphaVantageConfigured, avSentiment } from "./alphavantage";
 import { fmpConfigured, fmpEvents } from "./fmp";
@@ -79,10 +79,17 @@ export async function getExternalDataCached(symbol: string): Promise<ExternalDat
   const sentTtl = Number(process.env.SENTIMENT_TTL_MS ?? 43_200_000); // 12h:迁就 AV 25/day
   const evtTtl = Number(process.env.EVENTS_TTL_MS ?? 43_200_000); // 12h
 
+  // 事件源:优先 Finnhub earnings(免费档含),FMP 仅作降级(其免费档不含财报)
+  const eventsFetcher = finnhubConfigured()
+    ? () => finnhubEarnings(sym)
+    : fmpConfigured()
+      ? () => fmpEvents(sym)
+      : null;
+
   const [bundle, sentiment, events] = await Promise.all([
     cachedCategory<ExternalData>(sym, "bundle", bundleTtl, () => fetchBundle(sym)),
     alphaVantageConfigured() ? cachedCategory(sym, "sentiment", sentTtl, () => avSentiment(sym)) : Promise.resolve(null),
-    fmpConfigured() ? cachedCategory(sym, "events", evtTtl, () => fmpEvents(sym)) : Promise.resolve(null),
+    eventsFetcher ? cachedCategory(sym, "events", evtTtl, eventsFetcher) : Promise.resolve(null),
   ]);
 
   const result: ExternalData = { ...(bundle ?? {}) };
