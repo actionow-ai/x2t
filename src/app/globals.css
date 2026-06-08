@@ -105,6 +105,10 @@ main { padding: 1.75rem 0 5rem; }
 }
 .nav .tab:hover { color: var(--ink); border-color: var(--border-soft); }
 .nav .tab.active { color: var(--ink); background: var(--lime); border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.lang-switch { display: inline-flex; border: 2px solid var(--ink); margin-left: 0.4rem; align-self: center; }
+.lang-switch .lang-btn { font-family: var(--mono); font-weight: 700; font-size: 0.66rem; padding: 0.28rem 0.46rem; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; border: 0; border-right: 2px solid var(--ink); }
+.lang-switch .lang-btn:last-child { border-right: 0; }
+.lang-switch .lang-btn.on { background: var(--lime); color: var(--ink); }
 
 /* ===================== DISCLAIMER ===================== */
 .disclaimer-bar {

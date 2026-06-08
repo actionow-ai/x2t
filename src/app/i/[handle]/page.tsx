@@ -4,6 +4,8 @@ import { FollowButton } from "@/components/FollowButton";
 import { AvatarInner } from "@/components/Avatar";
 import { getCurrentUserId } from "@/lib/auth";
 import { formatDateTime } from "@/lib/time";
+import { getLocale } from "@/lib/i18n-server";
+import { getDict } from "@/lib/i18n";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,8 @@ export default async function InfluencerPage({
   params: Promise<{ handle: string }>;
 }) {
   const { handle } = await params;
+  const locale = await getLocale();
+  const t = getDict(locale);
 
   const influencer = await prisma.influencer.findFirst({
     where: { handle },
@@ -45,29 +49,27 @@ export default async function InfluencerPage({
           </div>
           {influencer.bio && <div className="inf-bio">{influencer.bio}</div>}
           <div className="inf-meta">
-            {influencer.posts.length} 帖
-            {influencer.lastFetchedAt
-              ? ` · 最近抓取 ${formatDateTime(influencer.lastFetchedAt)}`
-              : ""}
+            {influencer.posts.length} {t.influencer.postsWord}
+            {influencer.lastFetchedAt ? ` · ${t.influencer.lastFetch} ${formatDateTime(influencer.lastFetchedAt)}` : ""}
           </div>
           {influencer.fetchError && (
             <div className="inf-meta" style={{ color: "var(--error)", marginTop: "0.3rem" }}>
-              抓取异常：{influencer.fetchError}
+              {t.influencer.fetchError}：{influencer.fetchError}
             </div>
           )}
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem", flexWrap: "wrap" }}>
             <FollowButton influencerId={influencer.id} isLoggedIn={!!userId} initiallyFollowed={followed} />
-            <a className="btn ghost" href={`/i/${influencer.handle}/rss`}>RSS</a>
+            <a className="btn ghost" href={`/i/${influencer.handle}/rss`}>{t.influencer.rss}</a>
           </div>
         </div>
       </div>
 
       {influencer.posts.length === 0 ? (
-        <div className="empty">该博主还没有帖子。</div>
+        <div className="empty">{t.influencer.noPosts}</div>
       ) : (
         <div className="feed">
           {influencer.posts.map((p) => (
-            <PostCard key={p.id} post={p} />
+            <PostCard key={p.id} post={p} locale={locale} />
           ))}
         </div>
       )}

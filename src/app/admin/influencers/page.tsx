@@ -1,12 +1,15 @@
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { getLocale } from "@/lib/i18n-server";
+import { getDict } from "@/lib/i18n";
 import { addInfluencer, toggleInfluencer, deleteInfluencer } from "../actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminInfluencers() {
   if (!(await isAdmin())) notFound();
+  const t = getDict(await getLocale()).admin;
 
   const list = await prisma.influencer.findMany({
     orderBy: { createdAt: "asc" },
@@ -15,8 +18,8 @@ export default async function AdminInfluencers() {
 
   return (
     <>
-      <h1 className="page-title">博主管理</h1>
-      <p className="page-sub">添加 / 启停 / 删除博主源</p>
+      <h1 className="page-title">{t.cardInf}</h1>
+      <p className="page-sub">{t.infSub}</p>
 
       <form className="form" action={addInfluencer} style={{ marginBottom: "1.5rem" }}>
         <div>
@@ -24,14 +27,14 @@ export default async function AdminInfluencers() {
           <input name="handle" required placeholder="serenity" />
         </div>
         <div>
-          <label>显示名</label>
+          <label>{t.displayName}</label>
           <input name="displayName" placeholder="Serenity" />
         </div>
         <div>
           <label>RSS feedUrl</label>
           <input name="feedUrl" placeholder="https://rsshub.app/twitter/user/serenity" />
         </div>
-        <button className="btn primary" type="submit" style={{ alignSelf: "flex-start" }}>添加 / 更新</button>
+        <button className="btn primary" type="submit" style={{ alignSelf: "flex-start" }}>{t.addUpdate}</button>
       </form>
 
       <div className="dir-grid">
@@ -43,17 +46,17 @@ export default async function AdminInfluencers() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontWeight: 800 }}>{name}</strong>
                 <div style={{ fontFamily: "var(--mono)", fontSize: "0.7rem", color: "var(--text-secondary)" }}>
-                  @{inf.handle} · {inf._count.posts} 帖 · {inf.active ? "active" : "停用"}
-                  {inf.fetchError ? " · 抓取异常" : ""}
+                  @{inf.handle} · {inf._count.posts} {t.postsWord} · {inf.active ? "active" : t.inactive}
+                  {inf.fetchError ? ` · ${t.fetchError}` : ""}
                 </div>
               </div>
               <form action={toggleInfluencer}>
                 <input type="hidden" name="id" value={inf.id} />
-                <button className="btn ghost" type="submit">{inf.active ? "停用" : "启用"}</button>
+                <button className="btn ghost" type="submit">{inf.active ? t.disable : t.enable}</button>
               </form>
               <form action={deleteInfluencer}>
                 <input type="hidden" name="id" value={inf.id} />
-                <button className="btn ghost" type="submit">删除</button>
+                <button className="btn ghost" type="submit">{t.delete}</button>
               </form>
             </div>
           );

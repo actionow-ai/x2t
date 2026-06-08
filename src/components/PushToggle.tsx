@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { getFollows, urlBase64ToUint8Array, postSubscription } from "@/lib/follow-client";
+import { useT } from "./LangProvider";
 
 const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 type State = "idle" | "on" | "unsupported" | "denied" | "working";
 
 export function PushToggle() {
+  const t = useT();
   const [state, setState] = useState<State>("idle");
 
   useEffect(() => {
@@ -47,18 +49,18 @@ export function PushToggle() {
     }
   }
 
-  if (state === "unsupported") return <span className="hint">浏览器不支持推送</span>;
-  if (state === "denied") return <span className="hint">推送权限被拒绝</span>;
+  if (state === "unsupported") return <span className="hint">{t.push.unsupported}</span>;
+  if (state === "denied") return <span className="hint">{t.push.denied}</span>;
   if (state === "on") {
     return (
       <span className="btn ghost" style={{ cursor: "default" }}>
-        推送已开启
+        {t.push.on}
       </span>
     );
   }
   return (
     <button className="btn primary" onClick={enable} disabled={state === "working"}>
-      {state === "working" ? "开启中…" : "开启推送"}
+      {state === "working" ? t.push.enabling : t.push.enable}
     </button>
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/components/LangProvider";
 
 export default function LoginPage() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [devLink, setDevLink] = useState<string | null>(null);
@@ -30,31 +32,31 @@ export default function LoginPage() {
 
   return (
     <>
-      <h1 className="page-title">登录 / 注册</h1>
-      <p className="page-sub">邮箱魔法链接登录，无需密码。登录后关注列表云同步、可收邮件摘要。</p>
+      <h1 className="page-title">{t.login.title}</h1>
+      <p className="page-sub">{t.login.sub}</p>
 
       {state === "sent" ? (
         <div className="form">
           <p>
-            ✅ 登录链接已发送到 <strong>{email}</strong>（15 分钟内有效）。
+            ✅ {t.login.sentTo} <strong>{email}</strong>（{t.login.validFor}）。
           </p>
           {devLink && (
             <p className="hint">
-              开发模式（未配 SMTP）：
-              <a href={devLink} style={{ color: "var(--accent)" }}>点此直接登录 →</a>
+              {t.login.devMode}
+              <a href={devLink} style={{ color: "var(--accent)" }}>{t.login.devLinkGo}</a>
             </p>
           )}
         </div>
       ) : (
         <form className="form" onSubmit={submit}>
           <div>
-            <label>邮箱</label>
+            <label>{t.login.emailLabel}</label>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
           </div>
           <button className="btn primary" type="submit" disabled={state === "sending"} style={{ alignSelf: "flex-start" }}>
-            {state === "sending" ? "发送中…" : "发送登录链接"}
+            {state === "sending" ? t.login.sending : t.login.button}
           </button>
-          {state === "error" && <p className="hint" style={{ color: "var(--error)" }}>出错了，请重试。</p>}
+          {state === "error" && <p className="hint" style={{ color: "var(--error)" }}>{t.login.error}</p>}
         </form>
       )}
     </>

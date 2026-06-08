@@ -2,36 +2,38 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const TABS = [
-  { href: "/", label: "信号流" },
-  { href: "/graph", label: "图谱" },
-  { href: "/following", label: "关注" },
-  { href: "/submit", label: "提交" },
-];
+import { useT } from "./LangProvider";
 
 export function NavTabs({ userEmail, isAdmin = false }: { userEmail: string | null; isAdmin?: boolean }) {
   const pathname = usePathname();
+  const t = useT();
   const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  const tabs = [
+    { href: "/", label: t.nav.signals },
+    { href: "/graph", label: t.nav.graph },
+    { href: "/following", label: t.nav.following },
+    { href: "/submit", label: t.nav.submit },
+  ];
 
   return (
     <nav className="nav">
-      {TABS.map((t) => (
-        <Link key={t.href} href={t.href} className={active(t.href) ? "tab active" : "tab"}>
-          {t.label}
+      {tabs.map((tab) => (
+        <Link key={tab.href} href={tab.href} className={active(tab.href) ? "tab active" : "tab"}>
+          {tab.label}
         </Link>
       ))}
       {isAdmin && (
         <Link href="/admin" className={active("/admin") ? "tab active" : "tab"}>
-          管理
+          {t.nav.admin}
         </Link>
       )}
       {userEmail ? (
         <form action="/api/auth/logout" method="post">
-          <button type="submit" className="tab" title={userEmail}>登出</button>
+          <button type="submit" className="tab" title={userEmail}>{t.nav.logout}</button>
         </form>
       ) : (
-        <Link href="/login" className={active("/login") ? "tab active" : "tab"}>登录</Link>
+        <Link href="/login" className={active("/login") ? "tab active" : "tab"}>{t.nav.login}</Link>
       )}
     </nav>
   );

@@ -1,17 +1,19 @@
 import Link from "next/link";
+import { getDict, type Locale } from "@/lib/i18n";
 
-export function stanceMeta(stance: string): { cls: string; text: string; arrow: string } {
-  if (stance === "bullish") return { cls: "bull", text: "看多", arrow: "▲" };
-  if (stance === "bearish") return { cls: "bear", text: "看空", arrow: "▼" };
-  return { cls: "neutral", text: "中性", arrow: "—" };
+export function stanceMeta(stance: string, locale: Locale = "zh"): { cls: string; text: string; arrow: string } {
+  const s = getDict(locale).stance;
+  if (stance === "bullish") return { cls: "bull", text: s.bullish, arrow: "▲" };
+  if (stance === "bearish") return { cls: "bear", text: s.bearish, arrow: "▼" };
+  return { cls: "neutral", text: s.neutral, arrow: "—" };
 }
 
-export function stanceText(stance: string): string {
-  return stanceMeta(stance).text;
+export function stanceText(stance: string, locale: Locale = "zh"): string {
+  return stanceMeta(stance, locale).text;
 }
 
-export function StanceBadge({ stance, label }: { stance: string; label?: string }) {
-  const s = stanceMeta(stance);
+export function StanceBadge({ stance, label, locale = "zh" }: { stance: string; label?: string; locale?: Locale }) {
+  const s = stanceMeta(stance, locale);
   return (
     <span className={`badge ${s.cls}`}>
       {s.arrow} {label ?? s.text}

@@ -4,6 +4,7 @@ import { CashtagText } from "./CashtagText";
 import { StanceBadge, stanceText } from "./StanceBadge";
 import { AvatarInner } from "./Avatar";
 import { formatDateTime } from "@/lib/time";
+import { getDict, type Locale } from "@/lib/i18n";
 import Link from "next/link";
 
 // 取一条帖子的完整详情数据（post + 每只票的外部数据缓存）。供整页详情 + 双栏右侧共用。
@@ -29,10 +30,14 @@ export async function getPostDetail(id: string) {
 
 type Detail = NonNullable<Awaited<ReturnType<typeof getPostDetail>>>;
 
-export function PostDetail({ post, dataBySymbol }: Detail) {
+export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { locale?: Locale }) {
   const inf = post.influencer;
   const name = inf.displayName ?? inf.handle;
-  const keyPoints = (post.analysis?.keyPoints as string[] | undefined) ?? [];
+  const t = getDict(locale);
+  const en = locale === "en";
+  const kpRaw = en && post.analysis?.keyPointsEn ? post.analysis.keyPointsEn : post.analysis?.keyPoints;
+  const keyPoints = (kpRaw as string[] | undefined) ?? [];
+  const summary = post.analysis ? (en && post.analysis.summaryEn ? post.analysis.summaryEn : post.analysis.summary) : "";
 
   return (
     <article className="post-card">
@@ -50,18 +55,18 @@ export function PostDetail({ post, dataBySymbol }: Detail) {
         <CashtagText text={post.contentText} />
       </div>
       <div className="pc-src">
-        {post.url && <a href={post.url} target="_blank" rel="noreferrer">查看原帖 ↗</a>}
-        <span>非投资建议</span>
+        {post.url && <a href={post.url} target="_blank" rel="noreferrer">{t.common.originalPost} ↗</a>}
+        <span>{t.common.notFinancialAdvice}</span>
       </div>
 
       {post.analysis ? (
         <div className="ai-box">
-          <div className="ai-label">AI 分析</div>
+          <div className="ai-label">{t.post.ai}</div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
-            <StanceBadge stance={post.analysis.overallStance} label={`整体${stanceText(post.analysis.overallStance)}`} />
+            <StanceBadge stance={post.analysis.overallStance} locale={locale} label={`${t.stance.overallPrefix}${stanceText(post.analysis.overallStance, locale)}`} />
             {typeof post.analysis.confidence === "number" && (
               <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                置信度 {Math.round(post.analysis.confidence * 100)}%
+                {t.post.confidence} {Math.round(post.analysis.confidence * 100)}%
               </span>
             )}
             {post.analysis.model && (
@@ -69,26 +74,28 @@ export function PostDetail({ post, dataBySymbol }: Detail) {
             )}
           </div>
 
-          <div style={{ fontSize: "0.86rem", lineHeight: 1.5, marginBottom: "0.6rem" }}>{post.analysis.summary}</div>
+          <div style={{ fontSize: "0.86rem", lineHeight: 1.5, marginBottom: "0.6rem" }}>{summary}</div>
 
           {post.tickers.length > 0 && (
             <>
-              <div className="label-sm">涉及标的（{post.tickers.length}）</div>
-              {post.tickers.map((t) => {
-                const ext = dataBySymbol.get(t.symbol);
+              <div className="label-sm">{t.post.tickers}（{post.tickers.length}）</div>
+              {post.tickers.map((tk) => {
+                const ext = dataBySymbol.get(tk.symbol);
                 return (
-                  <div key={t.symbol} className="tcard">
+                  <div key={tk.symbol} className="tcard">
                     <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.3rem" }}>
-                      <StanceBadge stance={t.stance} />
-                      <strong>${t.symbol}</strong>
+                      <StanceBadge stance={tk.stance} locale={locale} />
+                      <strong>${tk.symbol}</strong>
                       {ext?.profile?.name && (
                         <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginLeft: "auto" }}>{ext.profile.name}</span>
                       )}
                     </div>
-                    {t.rationale && <div style={{ fontSize: "0.78rem", marginBottom: "0.3rem" }}>{t.rationale}</div>}
+                    {(en && tk.rationaleEn ? tk.rationaleEn : tk.rationale) && (
+                      <div style={{ fontSize: "0.78rem", marginBottom: "0.3rem" }}>{en && tk.rationaleEn ? tk.rationaleEn : tk.rationale}</div>
+                    )}
                     {ext?.quote && (
                       <div className="ext-line">
-                        行情 ${ext.quote.price}{" "}
+                        {t.post.quote} ${ext.quote.price}{" "}
                         <span className={ext.quote.changePct >= 0 ? "up" : "dn"}>
                           {ext.quote.changePct >= 0 ? "▲" : "▼"}
                           {Math.abs(ext.quote.changePct)}%
@@ -96,7 +103,7 @@ export function PostDetail({ post, dataBySymbol }: Detail) {
                       </div>
                     )}
                     {ext?.news && ext.news.length > 0 && (
-                      <div className="ext-line">新闻 {ext.news.slice(0, 2).map((n) => n.headline).join(" · ")}</div>
+                      <div className="ext-line">{t.post.news} {ext.news.slice(0, 2).map((n) => n.headline).join(" · ")}</div>
                     )}
                   </div>
                 );
@@ -106,7 +113,7 @@ export function PostDetail({ post, dataBySymbol }: Detail) {
 
           {keyPoints.length > 0 && (
             <>
-              <div className="label-sm">关键要点</div>
+              <div className="label-sm">{t.post.keyPoints}</div>
               <ul style={{ margin: "0 0 0.3rem 1.1rem" }}>
                 {keyPoints.map((k, i) => (
                   <li key={i} style={{ fontSize: "0.8rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>{k}</li>
@@ -116,14 +123,14 @@ export function PostDetail({ post, dataBySymbol }: Detail) {
           )}
 
           <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "0.5rem" }}>
-            对公开帖子与公开市场数据的客观摘要，非投资建议；数据可能延迟。
+            {t.post.disclaimer}
           </div>
         </div>
       ) : (
         <div className="ai-box">
-          <div className="ai-label">AI 分析</div>
+          <div className="ai-label">{t.post.ai}</div>
           <div style={{ color: "var(--text-tertiary)", fontSize: "0.82rem" }}>
-            {post.analysisStatus === "failed" ? "分析失败，稍后重试。" : "分析处理中…（运行 pnpm analyze:once）"}
+            {post.analysisStatus === "failed" ? t.post.failedHint : t.post.analyzingHint}
           </div>
         </div>
       )}

@@ -31,8 +31,9 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
     const llm = getLlmProvider();
     const system =
       "你是金融信号分析助手。只输出一个 JSON 对象，对公开帖子与公开市场数据做客观摘要，不给买卖建议。" +
-      "字段：overallStance(bullish|bearish|neutral)、confidence(0..1 数字)、summary(string)、" +
-      "keyPoints(string[])、tickers(数组，每项 {symbol, stance(bullish|bearish|neutral), rationale})。";
+      "每个文本字段都要给中文与英文两版（En 后缀为英文）。字段：overallStance(bullish|bearish|neutral)、confidence(0..1 数字)、" +
+      "summary(中文摘要)、summaryEn(English summary)、keyPoints(中文要点数组)、keyPointsEn(English key points array)、" +
+      "tickers(数组，每项 {symbol, stance(bullish|bearish|neutral), rationale(中文理由), rationaleEn(English rationale)})。";
     const user = JSON.stringify({
       post: post.contentText,
       author: post.influencer.displayName ?? post.influencer.handle,
@@ -57,8 +58,8 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
         await tx.security.upsert({ where: { symbol }, create: { symbol }, update: {} });
         await tx.postTicker.upsert({
           where: { postId_symbol: { postId: post.id, symbol } },
-          create: { postId: post.id, symbol, stance: t.stance, rationale: t.rationale },
-          update: { stance: t.stance, rationale: t.rationale },
+          create: { postId: post.id, symbol, stance: t.stance, rationale: t.rationale, rationaleEn: t.rationaleEn },
+          update: { stance: t.stance, rationale: t.rationale, rationaleEn: t.rationaleEn },
         });
       }
       await tx.postAnalysis.upsert({
@@ -66,14 +67,18 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
         create: {
           postId: post.id,
           summary: parsed.summary,
+          summaryEn: parsed.summaryEn,
           keyPoints: parsed.keyPoints,
+          keyPointsEn: parsed.keyPointsEn,
           overallStance: parsed.overallStance,
           confidence: parsed.confidence,
           model: llm.name,
         },
         update: {
           summary: parsed.summary,
+          summaryEn: parsed.summaryEn,
           keyPoints: parsed.keyPoints,
+          keyPointsEn: parsed.keyPointsEn,
           overallStance: parsed.overallStance,
           confidence: parsed.confidence,
           model: llm.name,

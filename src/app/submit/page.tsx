@@ -1,32 +1,36 @@
 import { submitPost } from "./actions";
+import { getLocale } from "@/lib/i18n-server";
+import { getDict } from "@/lib/i18n";
 
-export default function SubmitPage() {
+export default async function SubmitPage() {
+  const t = getDict(await getLocale());
+
   return (
     <>
-      <h1 className="page-title">手动提交一条帖子</h1>
-      <p className="page-sub">人工提交兜底——自动抓取覆盖不到时，手动把博主的一条帖子录入。</p>
+      <h1 className="page-title">{t.submit.title}</h1>
+      <p className="page-sub">{t.submit.sub}</p>
 
       <form className="form" action={submitPost}>
         <div>
-          <label>博主 handle *</label>
+          <label>{t.submit.handleLabel} *</label>
           <input name="handle" placeholder="serenity" required />
         </div>
         <div>
-          <label>博主显示名</label>
+          <label>{t.submit.displayNameLabel}</label>
           <input name="displayName" placeholder="Serenity" />
         </div>
         <div>
-          <label>帖子内容 *</label>
+          <label>{t.submit.contentLabel} *</label>
           <textarea name="contentText" placeholder="Loading up on $NVDA here. Target 1200." required />
         </div>
         <div>
-          <label>原帖链接</label>
+          <label>{t.submit.urlLabel}</label>
           <input name="url" placeholder="https://x.com/..." />
         </div>
         <button className="btn primary" type="submit" style={{ alignSelf: "flex-start" }}>
-          提交
+          {t.submit.button}
         </button>
-        <p className="hint">以 platform=manual 录入，提交后出现在信号流里。</p>
+        <p className="hint">{t.submit.hint}</p>
       </form>
     </>
   );

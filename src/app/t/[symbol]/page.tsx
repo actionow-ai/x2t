@@ -1,6 +1,8 @@
 import { getStockConsensus } from "@/lib/stance";
 import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
 import { relativeTime } from "@/lib/time";
+import { getLocale } from "@/lib/i18n-server";
+import { getDict } from "@/lib/i18n";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +15,8 @@ const COLOR: Record<string, string> = {
 
 export default async function StockPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await params;
+  const locale = await getLocale();
+  const t = getDict(locale);
   const c = await getStockConsensus(symbol);
 
   const cx = 170;
@@ -35,12 +39,12 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
         )}
       </h1>
       <p className="page-sub">
-        谁在聊 ${c.symbol} · 共识{" "}
-        <StanceBadge stance={overall} label={`▲${c.bullish} ▼${c.bearish} —${c.neutral}`} />
+        {t.consensus.whoTalking} ${c.symbol} · {t.consensus.consensusWord}{" "}
+        <StanceBadge stance={overall} locale={locale} label={`▲${c.bullish} ▼${c.bearish} —${c.neutral}`} />
       </p>
 
       {n === 0 ? (
-        <div className="empty">还没有博主点评 ${c.symbol}。</div>
+        <div className="empty">{t.consensus.noOne} ${c.symbol}。</div>
       ) : (
         <>
           <div className="post-card" style={{ padding: "0.4rem" }}>
@@ -60,7 +64,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
                 ${c.symbol}
               </text>
               <text x={cx} y={cy + 15} textAnchor="middle" style={{ fill: "var(--text-secondary)", fontSize: 9 }}>
-                {c.bullish}多·{c.bearish}空
+                ▲{c.bullish} ▼{c.bearish}
               </text>
               {nodes.map((nd) => (
                 <g key={`n-${nd.influencerId}`}>
@@ -76,7 +80,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
             </svg>
           </div>
 
-          <div className="label-sm">博主立场（每人最新）</div>
+          <div className="label-sm">{t.consensus.latestStance}</div>
           <div className="feed">
             {c.stances.map((s) => (
               <div key={s.influencerId} className="dir-card">
@@ -89,13 +93,13 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
                   </Link>
                   <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)" }}>{relativeTime(s.postedAt)}</div>
                 </div>
-                <StanceBadge stance={s.stance} />
+                <StanceBadge stance={s.stance} locale={locale} />
                 {s.flipped && (
                   <span
                     className="badge"
                     style={{ background: "var(--bg-tertiary)", color: "var(--warning)", border: "1px solid var(--warning)" }}
                   >
-                    ⇄ {s.prevStance && stanceMeta(s.prevStance).text}→{stanceMeta(s.stance).text}
+                    ⇄ {s.prevStance && stanceMeta(s.prevStance, locale).text}→{stanceMeta(s.stance, locale).text}
                   </span>
                 )}
               </div>

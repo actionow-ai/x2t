@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { isFollowing, toggleFollow, syncFollowFilter } from "@/lib/follow-client";
+import { useT } from "./LangProvider";
 
 export function FollowButton({
   influencerId,
@@ -12,6 +13,7 @@ export function FollowButton({
   isLoggedIn?: boolean;
   initiallyFollowed?: boolean;
 }) {
+  const t = useT();
   const [following, setFollowing] = useState(isLoggedIn ? initiallyFollowed : false);
   // 登录态：服务端已给出初始值，立即 ready；匿名态：挂载后读 localStorage
   const [ready, setReady] = useState(isLoggedIn);
@@ -49,7 +51,7 @@ export function FollowButton({
 
   return (
     <button className={following ? "btn ghost" : "btn primary"} onClick={onClick}>
-      {following ? "✓ 已关注" : "☆ 关注"}
+      {following ? `✓ ${t.influencer.following}` : `☆ ${t.influencer.follow}`}
     </button>
   );
 }

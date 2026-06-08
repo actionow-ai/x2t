@@ -3,11 +3,14 @@ import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { deletePost, reanalyzePost } from "../actions";
 import { formatDateTime } from "@/lib/time";
+import { getLocale } from "@/lib/i18n-server";
+import { getDict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPosts() {
   if (!(await isAdmin())) notFound();
+  const t = getDict(await getLocale()).admin;
 
   const posts = await prisma.post.findMany({
     orderBy: { postedAt: "desc" },
@@ -17,8 +20,8 @@ export default async function AdminPosts() {
 
   return (
     <>
-      <h1 className="page-title">帖子管理</h1>
-      <p className="page-sub">最近 {posts.length} 条 · 删除 / 重新分析</p>
+      <h1 className="page-title">{t.cardPosts}</h1>
+      <p className="page-sub">{t.recent} {posts.length} · {t.postsSub}</p>
 
       <div className="dir-grid">
         {posts.map((p) => (
@@ -36,15 +39,15 @@ export default async function AdminPosts() {
             </div>
             <form action={reanalyzePost}>
               <input type="hidden" name="id" value={p.id} />
-              <button className="btn ghost" type="submit">重新分析</button>
+              <button className="btn ghost" type="submit">{t.reanalyze}</button>
             </form>
             <form action={deletePost}>
               <input type="hidden" name="id" value={p.id} />
-              <button className="btn ghost" type="submit">删除</button>
+              <button className="btn ghost" type="submit">{t.delete}</button>
             </form>
           </div>
         ))}
-        {posts.length === 0 && <div className="empty">还没有帖子。</div>}
+        {posts.length === 0 && <div className="empty">{t.noPosts}</div>}
       </div>
     </>
   );

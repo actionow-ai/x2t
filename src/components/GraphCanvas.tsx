@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
+import type { Dict } from "@/lib/i18n";
 
 type Inf = { id: string; handle: string; displayName: string | null; avatarUrl: string | null };
 type Edge = { influencerId: string; symbol: string; stance: string; ts: number; flipped: boolean };
@@ -22,26 +24,27 @@ function recency(ts: number): { opacity: number; width: number } {
   return { opacity: 0.2, width: 2 };
 }
 
-// 时间窗细粒度档位：天 → 小时 → 分钟（idx 0=全部，越大越窄）
+// 时间窗细粒度档位：天 → 小时 → 分钟（idx 0=全部，越大越窄）。label 用字典键。
 const MIN = 60_000, HR = 3_600_000, DAY = 86_400_000;
-const STOPS = [
-  { label: "全部", ms: Number.POSITIVE_INFINITY },
-  { label: "近30天", ms: 30 * DAY },
-  { label: "近14天", ms: 14 * DAY },
-  { label: "近7天", ms: 7 * DAY },
-  { label: "近3天", ms: 3 * DAY },
-  { label: "近48小时", ms: 48 * HR },
-  { label: "近24小时", ms: 24 * HR },
-  { label: "近12小时", ms: 12 * HR },
-  { label: "近6小时", ms: 6 * HR },
-  { label: "近3小时", ms: 3 * HR },
-  { label: "近1小时", ms: HR },
-  { label: "近30分钟", ms: 30 * MIN },
-  { label: "近15分钟", ms: 15 * MIN },
+const STOPS: { key: keyof Dict["graph"]; ms: number }[] = [
+  { key: "winAll", ms: Number.POSITIVE_INFINITY },
+  { key: "win30d", ms: 30 * DAY },
+  { key: "win14d", ms: 14 * DAY },
+  { key: "win7d", ms: 7 * DAY },
+  { key: "win3d", ms: 3 * DAY },
+  { key: "win48h", ms: 48 * HR },
+  { key: "win24h", ms: 24 * HR },
+  { key: "win12h", ms: 12 * HR },
+  { key: "win6h", ms: 6 * HR },
+  { key: "win3h", ms: 3 * HR },
+  { key: "win1h", ms: HR },
+  { key: "win30m", ms: 30 * MIN },
+  { key: "win15m", ms: 15 * MIN },
 ];
 
 export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges: Edge[] }) {
   const router = useRouter();
+  const t = useT();
   const [winIdx, setWinIdx] = useState(0);
   const [stance, setStance] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -89,7 +92,7 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
     <>
       <div className="graph-controls">
         <div className="graph-slider">
-          <label className="slider-readout" htmlFor="win"><b>{STOPS[winIdx].label}</b>{fEdges.length} 关系</label>
+          <label className="slider-readout" htmlFor="win"><b>{t.graph[STOPS[winIdx].key]}</b> {fEdges.length} {t.graph.relationsWord}</label>
           <input
             id="win"
             type="range"
@@ -98,26 +101,26 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
             step={1}
             value={winIdx}
             onChange={(e) => setWinIdx(Number(e.target.value))}
-            aria-label="时间窗"
+            aria-label={t.graph.winAll}
           />
-          <div className="slider-ends"><span>全部</span><span>15 分钟</span></div>
+          <div className="slider-ends"><span>{t.graph.winAll}</span><span>{t.graph.endNarrow}</span></div>
         </div>
         <div className="seg">
-          <button className={`segbtn${stance === null ? " on" : ""}`} onClick={() => setStance(null)}>全部</button>
-          <button className={`segbtn${stance === "bullish" ? " on" : ""}`} onClick={() => setStance("bullish")}>看多</button>
-          <button className={`segbtn${stance === "bearish" ? " on" : ""}`} onClick={() => setStance("bearish")}>看空</button>
-          <button className={`segbtn${stance === "neutral" ? " on" : ""}`} onClick={() => setStance("neutral")}>中性</button>
+          <button className={`segbtn${stance === null ? " on" : ""}`} onClick={() => setStance(null)}>{t.graph.all}</button>
+          <button className={`segbtn${stance === "bullish" ? " on" : ""}`} onClick={() => setStance("bullish")}>{t.stance.bullish}</button>
+          <button className={`segbtn${stance === "bearish" ? " on" : ""}`} onClick={() => setStance("bearish")}>{t.stance.bearish}</button>
+          <button className={`segbtn${stance === "neutral" ? " on" : ""}`} onClick={() => setStance("neutral")}>{t.stance.neutral}</button>
         </div>
         {pinned && (
-          <button className="segbtn" onClick={() => setPinned(null)}>清除聚焦 ✕</button>
+          <button className="segbtn" onClick={() => setPinned(null)}>{t.graph.clearFocus} ✕</button>
         )}
       </div>
 
       {fEdges.length === 0 ? (
-        <div className="empty">该筛选条件下没有关系。</div>
+        <div className="empty">{t.graph.emptyFilter}</div>
       ) : (
         <div className="graph-frame">
-          <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="关系图谱" style={{ width: "100%", minWidth: 660, height: "auto", display: "block" }}>
+          <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t.graph.title} style={{ width: "100%", minWidth: 660, height: "auto", display: "block" }}>
             <defs>
               {infList.filter((i) => i.avatarUrl).map((i) => {
                 const p = infPos.get(i.id)!;
@@ -129,8 +132,8 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
               })}
             </defs>
 
-            <text x={leftX} y={26} textAnchor="middle" style={{ fill: "var(--text-tertiary)", fontSize: 11, fontWeight: 700, letterSpacing: 2 }}>博主</text>
-            <text x={rightX} y={26} textAnchor="middle" style={{ fill: "var(--text-tertiary)", fontSize: 11, fontWeight: 700, letterSpacing: 2 }}>股票</text>
+            <text x={leftX} y={26} textAnchor="middle" style={{ fill: "var(--text-tertiary)", fontSize: 11, fontWeight: 700, letterSpacing: 2 }}>{t.graph.infCol}</text>
+            <text x={rightX} y={26} textAnchor="middle" style={{ fill: "var(--text-tertiary)", fontSize: 11, fontWeight: 700, letterSpacing: 2 }}>{t.graph.secCol}</text>
 
             {fEdges.map((e, i) => {
               const a = infPos.get(e.influencerId);
@@ -217,12 +220,12 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
       )}
 
       <div className="graph-legend">
-        <span className="badge bull">▲ 看多</span>
-        <span className="badge bear">▼ 看空</span>
-        <span className="badge neutral">— 中性</span>
-        <span className="hint" style={{ marginLeft: "auto" }}>{infList.length} 博主 · {secList.length} 股票 · {fEdges.length} 关系</span>
+        <span className="badge bull">▲ {t.stance.bullish}</span>
+        <span className="badge bear">▼ {t.stance.bearish}</span>
+        <span className="badge neutral">— {t.stance.neutral}</span>
+        <span className="hint" style={{ marginLeft: "auto" }}>{infList.length} {t.graph.influencersWord} · {secList.length} {t.graph.stocksWord} · {fEdges.length} {t.graph.relationsWord}</span>
       </div>
-      <p className="hint" style={{ marginTop: "0.6rem" }}>边越新越粗越亮、越旧越淡 · 蓝色虚线 ⇄ = 近期转向 · 悬停高亮 · 点博主聚焦 · 点股票看共识</p>
+      <p className="hint" style={{ marginTop: "0.6rem" }}>{t.graph.hint}</p>
     </>
   );
 }

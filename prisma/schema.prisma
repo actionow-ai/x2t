@@ -80,8 +80,10 @@ model Post {
 model PostAnalysis {
   id            String   @id @default(cuid())
   postId        String   @unique
-  summary       String
-  keyPoints     Json // string[]
+  summary       String // 中文
+  summaryEn     String? // English
+  keyPoints     Json // string[] 中文
+  keyPointsEn   Json? // string[] English
   overallStance Stance
   confidence    Float?
   model         String?
@@ -102,11 +104,12 @@ model Security {
 }
 
 model PostTicker {
-  id        String  @id @default(cuid())
-  postId    String
-  symbol    String
-  stance    Stance
-  rationale String?
+  id          String  @id @default(cuid())
+  postId      String
+  symbol      String
+  stance      Stance
+  rationale   String? // 中文
+  rationaleEn String? // English
 
   post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   security Security @relation(fields: [symbol], references: [symbol])
