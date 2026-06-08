@@ -253,12 +253,17 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
   font-family: var(--mono); font-size: 0.74rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.04em;
   border: 2px solid var(--ink); padding: 0.45rem 0.85rem; cursor: pointer;
-  box-shadow: 3px 3px 0 var(--ink); transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+  box-shadow: var(--shadow); transition: transform 0.1s, box-shadow 0.1s, background 0.12s;
 }
-.btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
-.btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+/* neo-brutalism 标准交互：悬停抬起（阴影变大），按下整体压到阴影位置（阴影归零）。 */
+.btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
+.btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--ink); }
 .btn.primary { background: var(--blue); color: #fff; }
 .btn.ghost { background: var(--bg-secondary); color: var(--ink); }
+/* 键盘可见焦点：粗描边（无障碍 + 风格一致）。 */
+.btn:focus-visible, .nav .tab:focus-visible, .segbtn:focus-visible, .lang-btn:focus-visible, .form input:focus-visible, .form textarea:focus-visible {
+  outline: 3px solid var(--blue); outline-offset: 2px;
+}
 
 /* ===================== INFLUENCER HEADER ===================== */
 .inf-header {
