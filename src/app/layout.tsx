@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { FollowSync } from "@/components/FollowSync";
 import { TickerTape } from "@/components/TickerTape";
 import { PageFx } from "@/components/PageFx";
+import { NavTabs } from "@/components/NavTabs";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,18 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <div className="inner">
             <Link href="/" className="brand">X2T</Link>
             <span className="masthead-tag">Signals · Intelligence</span>
-            <nav className="nav">
-              <Link href="/">信号流</Link>
-              <Link href="/graph">图谱</Link>
-              <Link href="/submit">提交</Link>
-              {user ? (
-                <form action="/api/auth/logout" method="post" style={{ display: "inline" }}>
-                  <button type="submit" title={user.email}>登出</button>
-                </form>
-              ) : (
-                <Link href="/login">登录</Link>
-              )}
-            </nav>
+            <NavTabs userEmail={user?.email ?? null} />
           </div>
         </header>
         <div className="disclaimer-bar">非投资建议 · 仅聚合公开内容与公开市场数据 · NOT FINANCIAL ADVICE</div>

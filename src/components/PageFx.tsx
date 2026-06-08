@@ -17,7 +17,7 @@ export function PageFx({ children }: { children: React.ReactNode }) {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       gsap.from(".page-title", { y: 26, opacity: 0, duration: 0.55, ease: "power4.out", clearProps: "all" });
       gsap.from(".page-sub", { y: 12, opacity: 0, duration: 0.5, ease: "power3.out", delay: 0.08, clearProps: "all" });
-      gsap.from(".post-card, .dir-card, .inf-header, .form, .empty, .ai-box", {
+      gsap.from(".post-card, .dir-card, .inf-header, .form, .empty", {
         y: 20,
         opacity: 0,
         duration: 0.5,
