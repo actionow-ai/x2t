@@ -8,6 +8,9 @@ import { getDict, type Locale } from "@/lib/i18n";
 type PostCardData = {
   id: string;
   contentText: string;
+  contentZh?: string | null;
+  contentEn?: string | null;
+  lang?: string | null;
   url: string | null;
   postedAt: Date;
   influencer: { handle: string; displayName: string | null; avatarUrl: string | null };
@@ -19,7 +22,9 @@ export function PostCard({ post, selected, locale = "zh" }: { post: PostCardData
   const inf = post.influencer;
   const name = inf.displayName ?? inf.handle;
   const t = getDict(locale);
-  const summary = post.analysis ? (locale === "en" && post.analysis.summaryEn ? post.analysis.summaryEn : post.analysis.summary) : "";
+  const en = locale === "en";
+  const content = (en ? post.contentEn : post.contentZh) || post.contentText;
+  const summary = post.analysis ? (en && post.analysis.summaryEn ? post.analysis.summaryEn : post.analysis.summary) : "";
 
   return (
     <article className="post-card" data-stance={post.analysis?.overallStance} data-selected={selected ? "" : undefined}>
@@ -40,7 +45,7 @@ export function PostCard({ post, selected, locale = "zh" }: { post: PostCardData
 
       <Link href={`/p/${post.id}`}>
         <div className="pc-text pc-text--clamp">
-          <CashtagText text={post.contentText} />
+          <CashtagText text={content} />
         </div>
       </Link>
 

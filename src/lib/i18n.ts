@@ -63,6 +63,8 @@ const zh = {
     analyzingHint: "分析处理中…",
     failedHint: "分析失败，稍后重试。",
     notFound: "帖子不存在",
+    original: "原文",
+    translated: "译",
   },
   push: {
     enable: "开启推送",
@@ -230,6 +232,8 @@ const en: Dict = {
     analyzingHint: "Analyzing…",
     failedHint: "Analysis failed, will retry.",
     notFound: "Post not found",
+    original: "Original",
+    translated: "translated",
   },
   push: {
     enable: "Enable push",

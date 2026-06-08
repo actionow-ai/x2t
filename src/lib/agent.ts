@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import { getLlmProvider } from "./llm";
 import { getExternalDataCached } from "./marketdata";
 import { analysisSchema } from "./agent-schema";
+import { translateBundle, type TranslateResult } from "./translate";
 import { detectFlips } from "./stance";
 import { notifyFlip } from "./push";
 
@@ -27,13 +28,12 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
       externalData[sym] = await getExternalDataCached(sym);
     }
 
-    // 3. LLM 结构化分析
+    // 3. LLM 结构化分析（按帖子【原始语种】输出，并标注 lang）
     const llm = getLlmProvider();
     const system =
-      "你是金融信号分析助手。只输出一个 JSON 对象，对公开帖子与公开市场数据做客观摘要，不给买卖建议。" +
-      "每个文本字段都要给中文与英文两版（En 后缀为英文）。字段：overallStance(bullish|bearish|neutral)、confidence(0..1 数字)、" +
-      "summary(中文摘要)、summaryEn(English summary)、keyPoints(中文要点数组)、keyPointsEn(English key points array)、" +
-      "tickers(数组，每项 {symbol, stance(bullish|bearish|neutral), rationale(中文理由), rationaleEn(English rationale)})。";
+      "你是金融信号分析助手。用【帖子的原始语种】分析并输出，对公开帖子与公开市场数据做客观摘要，不给买卖建议。" +
+      "只输出一个 JSON 对象。字段：lang(帖子语种代码，如 en/zh/ja)、overallStance(bullish|bearish|neutral)、confidence(0..1 数字)、" +
+      "summary(原始语种摘要)、keyPoints(原始语种要点数组)、tickers(数组，每项 {symbol, stance(bullish|bearish|neutral), rationale(原始语种理由)})。";
     const user = JSON.stringify({
       post: post.contentText,
       author: post.influencer.displayName ?? post.influencer.handle,
@@ -50,41 +50,50 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
       parsed = analysisSchema.parse(JSON.parse(raw2));
     }
 
-    // 5. 落库（事务）
+    const lang = (parsed.lang || "en").toLowerCase().slice(0, 8);
+    const isZh = lang.startsWith("zh");
+    const isEn = lang.startsWith("en");
+
+    // 5. flash 翻译：内容 + 分析 → 中/英（原语种槽用 agent 原文覆盖；翻译失败回退原文）
+    let tr: TranslateResult | null = null;
+    try {
+      tr = await translateBundle({
+        lang,
+        content: post.contentText,
+        summary: parsed.summary,
+        keyPoints: parsed.keyPoints,
+        tickers: parsed.tickers.map((t) => ({ symbol: t.symbol.replace(/^\$/, "").toUpperCase(), rationale: t.rationale })),
+      });
+    } catch (e) {
+      console.error("[agent] 翻译失败:", e instanceof Error ? e.message : e);
+    }
+    const contentZh = isZh ? post.contentText : tr?.contentZh ?? post.contentText;
+    const contentEn = isEn ? post.contentText : tr?.contentEn ?? post.contentText;
+    const summaryZh = isZh ? parsed.summary : tr?.summaryZh ?? parsed.summary;
+    const summaryEn = isEn ? parsed.summary : tr?.summaryEn ?? parsed.summary;
+    const keyPointsZh = isZh ? parsed.keyPoints : tr?.keyPointsZh ?? parsed.keyPoints;
+    const keyPointsEn = isEn ? parsed.keyPoints : tr?.keyPointsEn ?? parsed.keyPoints;
+
+    // 6. 落库（事务）。summary=中文槽，summaryEn=英文槽；Post.lang/contentZh/contentEn 存原文与两版翻译
     await prisma.$transaction(async (tx) => {
       for (const t of parsed.tickers) {
         const symbol = t.symbol.replace(/^\$/, "").toUpperCase();
         if (!symbol) continue;
+        const rz = isZh ? t.rationale : tr?.rationales[symbol]?.zh || t.rationale;
+        const re = isEn ? t.rationale : tr?.rationales[symbol]?.en || t.rationale;
         await tx.security.upsert({ where: { symbol }, create: { symbol }, update: {} });
         await tx.postTicker.upsert({
           where: { postId_symbol: { postId: post.id, symbol } },
-          create: { postId: post.id, symbol, stance: t.stance, rationale: t.rationale, rationaleEn: t.rationaleEn },
-          update: { stance: t.stance, rationale: t.rationale, rationaleEn: t.rationaleEn },
+          create: { postId: post.id, symbol, stance: t.stance, rationale: rz, rationaleEn: re },
+          update: { stance: t.stance, rationale: rz, rationaleEn: re },
         });
       }
       await tx.postAnalysis.upsert({
         where: { postId: post.id },
-        create: {
-          postId: post.id,
-          summary: parsed.summary,
-          summaryEn: parsed.summaryEn,
-          keyPoints: parsed.keyPoints,
-          keyPointsEn: parsed.keyPointsEn,
-          overallStance: parsed.overallStance,
-          confidence: parsed.confidence,
-          model: llm.name,
-        },
-        update: {
-          summary: parsed.summary,
-          summaryEn: parsed.summaryEn,
-          keyPoints: parsed.keyPoints,
-          keyPointsEn: parsed.keyPointsEn,
-          overallStance: parsed.overallStance,
-          confidence: parsed.confidence,
-          model: llm.name,
-        },
+        create: { postId: post.id, lang, summary: summaryZh, summaryEn, keyPoints: keyPointsZh, keyPointsEn, overallStance: parsed.overallStance, confidence: parsed.confidence, model: llm.name },
+        update: { lang, summary: summaryZh, summaryEn, keyPoints: keyPointsZh, keyPointsEn, overallStance: parsed.overallStance, confidence: parsed.confidence, model: llm.name },
       });
-      await tx.post.update({ where: { id: post.id }, data: { analysisStatus: "done" } });
+      await tx.post.update({ where: { id: post.id }, data: { lang, contentZh, contentEn, analysisStatus: "done" } });
     });
 
     // 转向检测 → 「立场转向」推送（失败不影响分析）

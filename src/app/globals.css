@@ -215,6 +215,9 @@ main { padding: 1.75rem 0 5rem; }
 .pc-text { font-size: 1.06rem; font-weight: 500; line-height: 1.5; color: var(--ink); white-space: pre-wrap; word-break: break-word; padding-left: 0.3rem; }
 /* 列表卡片正文最多 3 行，其余隐藏（点击进详情看全文）。详情页 .pc-text 不带此类，显示全文。 */
 .pc-text--clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+/* 原文折叠（详情页：译文为主，原文可展开） */
+.orig-text { margin: 0.5rem 0 0 0.3rem; }
+.orig-text > summary { font-family: var(--mono); font-weight: 700; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--blue); cursor: pointer; }
 .pc-src { margin: 0.8rem 0 0 0.3rem; display: flex; gap: 0.9rem; align-items: center; font-family: var(--mono); font-weight: 700; font-size: 0.66rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
 .pc-src a { color: var(--blue); }
 .pc-src a:hover { text-decoration: underline; }

@@ -60,7 +60,10 @@ model Post {
   influencerId   String
   platformPostId String // 去重键：同 platform 内唯一
   url            String?
-  contentText    String
+  contentText    String // 原文
+  lang           String? // 原文语种代码 en/zh/ja…
+  contentZh      String? // 中文版（原文为中文则=原文）
+  contentEn      String? // 英文版（原文为英文则=原文）
   mediaJson      Json?
   postedAt       DateTime
   fetchedAt      DateTime       @default(now())
@@ -80,6 +83,7 @@ model Post {
 model PostAnalysis {
   id            String   @id @default(cuid())
   postId        String   @unique
+  lang          String? // 分析/帖子原始语种
   summary       String // 中文
   summaryEn     String? // English
   keyPoints     Json // string[] 中文

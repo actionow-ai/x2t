@@ -17,19 +17,17 @@ export function createMockLlm(): LlmProvider {
         symbol,
         stance: overall,
         rationale: "（mock：基于关键词的占位分析）",
-        rationaleEn: "(mock: keyword-based placeholder)",
       }));
 
       const zh = overall === "bullish" ? "偏多" : overall === "bearish" ? "偏空" : "中性";
-      const en = overall === "bullish" ? "bullish" : overall === "bearish" ? "bearish" : "neutral";
       const syms = tickers.map((t) => t.symbol).join(", ");
+      // mock 默认按中文输出（lang=zh）；翻译由 flash 层完成（无 key 时回退原文）。
       return JSON.stringify({
+        lang: "zh",
         overallStance: overall,
         confidence: 0.5,
         summary: `（mock 分析）整体${zh}${tickers.length ? `，涉及 ${syms}` : ""}。接入真实 LLM 后此处为模型摘要。`,
-        summaryEn: `(mock analysis) overall ${en}${tickers.length ? `, mentions ${syms}` : ""}. Real summary after an LLM key is set.`,
         keyPoints: ["mock 要点：填入 LLM_API_KEY 后由模型抽取真实要点"],
-        keyPointsEn: ["mock point: set LLM_API_KEY for real model-extracted key points"],
         tickers,
       });
     },
