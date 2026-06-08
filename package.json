@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.0.9",
   "scripts": {
     "dev": "next dev -p 53000",
     "build": "next build",
@@ -17,6 +18,8 @@
     "poll:once": "tsx scripts/poll.ts --once",
     "analyze": "tsx scripts/analyze.ts",
     "analyze:once": "tsx scripts/analyze.ts --once",
+    "worker": "tsx scripts/worker.ts",
+    "worker:once": "tsx scripts/worker.ts --once",
     "digest": "tsx scripts/digest.ts"
   },
   "dependencies": {

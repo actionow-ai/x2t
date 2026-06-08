@@ -20,32 +20,33 @@ Next.js (App Router) + TypeScript · Postgres + Prisma · 独立轮询/分析 Wo
 ## 本机开发
 
 ```bash
-# 1. 起 Postgres（非标准端口 55432 避让，避免与其他项目冲突）
-docker compose up -d db
+# 1. 起依赖：Postgres（55432）+ 自建 RSSHub（51200，统一抓取网关，端口均非标准避让）
+docker compose up -d db rsshub
 
-# 2. 配置环境变量
+# 2. 配置环境变量（首次）
 cp .env.example .env
+# 生成会话密钥后填入 AUTH_SECRET：openssl rand -hex 32
 
 # 3. 安装依赖 + 建表
 pnpm install
 pnpm db:push
 
-# 4. 灌入示例博主源
+# 4. 灌入示例博主源（+ 可选图谱演示数据）
 pnpm db:seed
+pnpm db:seed:graph   # 可选：关系图谱演示数据
 
 # 5. 启动 Web（聚合 feed）
-pnpm dev            # http://localhost:53000（非标准避让端口，避免与其它本地服务冲突）
+pnpm dev             # http://localhost:53000（非标准避让端口）
 
-# 6. 另开一个终端跑抓取 Worker
-pnpm poll:once      # 抓一轮
-pnpm poll           # 按 POLL_INTERVAL_MS 持续轮询
-
-# 7. 分析 Worker（不填 key 用 mock；填 LLM_API_KEY 转真：OpenAI 官方 / DeepSeek 等）
-pnpm analyze:once   # 分析一批 pending
-pnpm analyze        # 持续分析
+# 6. 后台管道（二选一）
+pnpm worker          # 推荐：一个进程循环「抓取 + 分析」
+pnpm worker:once     #   或：跑一轮退出（适合 cron）
+# 也可分开跑：pnpm poll / pnpm analyze（各自持续）
 ```
 
 > **接真实 LLM（OpenAI 系列 / DeepSeek）**：在 `.env` 填 `LLM_API_KEY`；DeepSeek 另设 `LLM_BASE_URL=https://api.deepseek.com`、`LLM_MODEL=deepseek-chat`。行情接 Finnhub：填 `FINNHUB_API_KEY`。
+>
+> **让它真正可用（从 mock 到真实）+ 部署上线**：见 **[DEPLOY.md](DEPLOY.md)** —— 哪些 key 让什么变真、自建 RSSHub 抓 X、`docker compose` 一键上线。
 
 ## 架构（三带）
 

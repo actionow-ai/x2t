@@ -13,6 +13,11 @@ datasource db {
 
 enum Platform {
   twitter
+  reddit
+  news
+  substack
+  youtube
+  rss
   manual
 }
 

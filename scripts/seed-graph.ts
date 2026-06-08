@@ -85,6 +85,9 @@ async function main() {
 
   for (const d of DATA) {
     const avatarUrl = `https://api.dicebear.com/9.x/shapes/svg?seed=${d.handle}`;
+    // macrojane / quantcat 仅用于图谱演示（帖子由本脚本直接写入），不参与真实轮询。
+    // serenity / marcotrades 是真实 X 源（由 seed.ts 配 RSSHub feedPath），保持 active。
+    const demoOnly = d.handle === "macrojane" || d.handle === "quantcat";
     const inf = await prisma.influencer.upsert({
       where: { platform_handle: { platform: "twitter", handle: d.handle } },
       create: {
@@ -92,9 +95,12 @@ async function main() {
         platform: "twitter",
         displayName: d.name,
         avatarUrl,
-        sourceConfig: { connector: "rss", feedUrl: `https://rsshub.app/twitter/user/${d.handle}` },
+        active: !demoOnly,
+        sourceConfig: demoOnly
+          ? { connector: "manual" }
+          : { connector: "rss", feedPath: `/twitter/user/${d.handle}` },
       },
-      update: { displayName: d.name, avatarUrl },
+      update: { displayName: d.name, avatarUrl, ...(demoOnly ? { active: false } : {}) },
     });
 
     for (const c of d.calls) {
