@@ -4,13 +4,23 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Inf = { id: string; handle: string; displayName: string | null; avatarUrl: string | null };
-type Edge = { influencerId: string; symbol: string; stance: string; ts: number };
+type Edge = { influencerId: string; symbol: string; stance: string; ts: number; flipped: boolean };
 
 const STANCE_COLOR: Record<string, string> = {
   bullish: "var(--success)",
   bearish: "var(--error)",
   neutral: "var(--lime)",
 };
+
+// 时效性：边越新越粗越亮，越旧越淡
+function recency(ts: number): { opacity: number; width: number } {
+  const age = Date.now() - ts;
+  const D = 86_400_000;
+  if (age < D) return { opacity: 0.95, width: 4.5 };
+  if (age < 7 * D) return { opacity: 0.72, width: 3.5 };
+  if (age < 30 * D) return { opacity: 0.42, width: 2.5 };
+  return { opacity: 0.2, width: 2 };
+}
 
 const WINDOWS = [
   { k: "all", label: "全部", ms: Number.POSITIVE_INFINITY },
@@ -107,16 +117,33 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
               if (!a || !b) return null;
               const x1 = a.x + rInf, x2 = b.x - chipW / 2, mx = (x1 + x2) / 2;
               const on = edgeOn(e);
+              const r = recency(e.ts);
               return (
                 <path
                   key={i}
                   d={`M ${x1} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${x2} ${b.y}`}
                   fill="none"
                   stroke={STANCE_COLOR[e.stance]}
-                  strokeWidth={on ? 4 : 2.5}
-                  opacity={on ? 0.9 : 0.1}
+                  strokeWidth={on ? r.width : 2}
+                  opacity={on ? r.opacity : 0.07}
+                  strokeDasharray={e.flipped ? "9 5" : undefined}
                   strokeLinecap="round"
                 />
+              );
+            })}
+
+            {/* 转向标记：近期立场翻转的边 */}
+            {fEdges.map((e, i) => {
+              if (!e.flipped || !edgeOn(e)) return null;
+              const a = infPos.get(e.influencerId);
+              const b = secPos.get(e.symbol);
+              if (!a || !b) return null;
+              const mx = (a.x + rInf + b.x - chipW / 2) / 2, my = (a.y + b.y) / 2;
+              return (
+                <g key={`flip-${i}`} style={{ pointerEvents: "none" }}>
+                  <circle cx={mx} cy={my} r={9.5} fill="var(--bg-secondary)" stroke="var(--blue)" strokeWidth={2} />
+                  <text x={mx} y={my + 4} textAnchor="middle" style={{ fill: "var(--blue)", fontSize: 12, fontWeight: 800 }}>⇄</text>
+                </g>
               );
             })}
 
@@ -174,7 +201,7 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
         <span className="badge neutral">— 中性</span>
         <span className="hint" style={{ marginLeft: "auto" }}>{infList.length} 博主 · {secList.length} 股票 · {fEdges.length} 关系</span>
       </div>
-      <p className="hint" style={{ marginTop: "0.6rem" }}>悬停高亮关联 · 点博主锁定聚焦 · 点股票看共识</p>
+      <p className="hint" style={{ marginTop: "0.6rem" }}>边越新越粗越亮、越旧越淡 · 蓝色虚线 ⇄ = 近期转向 · 悬停高亮 · 点博主聚焦 · 点股票看共识</p>
     </>
   );
 }

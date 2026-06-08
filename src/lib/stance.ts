@@ -76,7 +76,7 @@ export async function getStockConsensus(symbol: string, windowDays?: number): Pr
 export type GraphData = {
   influencers: { id: string; handle: string; displayName: string | null; avatarUrl: string | null; count: number }[];
   securities: { symbol: string; count: number }[];
-  edges: { influencerId: string; symbol: string; stance: Stance; ts: number }[];
+  edges: { influencerId: string; symbol: string; stance: Stance; ts: number; flipped: boolean }[];
 };
 
 /** 全景图谱数据：每个 (博主×票) 取最新立场作为一条边。 */
@@ -86,8 +86,8 @@ export async function getGraphData(): Promise<GraphData> {
     orderBy: { post: { postedAt: "desc" } },
   });
 
-  const edgeKey = new Set<string>();
   const edges: GraphData["edges"] = [];
+  const edgeByPair = new Map<string, GraphData["edges"][number]>();
   const influencers = new Map<
     string,
     { id: string; handle: string; displayName: string | null; avatarUrl: string | null; count: number }
@@ -96,9 +96,22 @@ export async function getGraphData(): Promise<GraphData> {
 
   for (const r of rows) {
     const key = `${r.post.influencerId}::${r.symbol}`;
-    if (edgeKey.has(key)) continue; // 已有更新的边（rows 时间倒序）
-    edgeKey.add(key);
-    edges.push({ influencerId: r.post.influencerId, symbol: r.symbol, stance: r.stance, ts: r.post.postedAt.getTime() });
+    const existing = edgeByPair.get(key);
+    if (existing) {
+      // 更早一条同 (博主×票) 的立场与最新不同 → 转向
+      if (!existing.flipped && r.stance !== existing.stance) existing.flipped = true;
+      continue;
+    }
+    // 第一条 = 最新（rows 时间倒序）
+    const edge = {
+      influencerId: r.post.influencerId,
+      symbol: r.symbol,
+      stance: r.stance,
+      ts: r.post.postedAt.getTime(),
+      flipped: false,
+    };
+    edgeByPair.set(key, edge);
+    edges.push(edge);
     const prev = influencers.get(r.post.influencerId);
     influencers.set(r.post.influencerId, {
       id: r.post.influencerId,
