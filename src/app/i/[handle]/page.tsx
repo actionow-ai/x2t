@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
 import { FollowButton } from "@/components/FollowButton";
+import { AvatarInner } from "@/components/Avatar";
 import { getCurrentUserId } from "@/lib/auth";
 import { formatDateTime } from "@/lib/time";
 import { notFound } from "next/navigation";
@@ -36,7 +37,7 @@ export default async function InfluencerPage({
   return (
     <>
       <div className="inf-header">
-        <div className="inf-av">{name.slice(0, 1).toUpperCase()}</div>
+        <div className="inf-av"><AvatarInner src={influencer.avatarUrl} name={name} /></div>
         <div style={{ flex: 1 }}>
           <div className="inf-name">{name}</div>
           <div className="inf-handle">

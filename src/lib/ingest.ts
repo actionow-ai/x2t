@@ -36,7 +36,7 @@ export async function ingestInfluencer(influencerId: string): Promise<{ fetched:
   const connector = getConnector(kind);
 
   try {
-    const posts = await connector.fetch({
+    const { posts, profile } = await connector.fetch({
       id: inf.id,
       handle: inf.handle,
       platform: inf.platform,
@@ -55,7 +55,11 @@ export async function ingestInfluencer(influencerId: string): Promise<{ fetched:
 
     await prisma.influencer.update({
       where: { id: inf.id },
-      data: { lastFetchedAt: new Date(), fetchError: null },
+      data: {
+        lastFetchedAt: new Date(),
+        fetchError: null,
+        ...(profile?.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
+      },
     });
 
     // 「新帖」事件 → web-push（失败不影响抓取）

@@ -1,5 +1,5 @@
 import Parser from "rss-parser";
-import type { Connector, InfluencerSource, NormalizedPost } from "./types";
+import type { Connector, InfluencerSource, NormalizedPost, FetchResult } from "./types";
 
 // 默认抓取适配器：把任意 RSS（RSSHub / Nitter / Substack / 新闻源）拉成规范化帖子。
 // sourceConfig: { connector: "rss", feedUrl: string }
@@ -8,7 +8,7 @@ const parser = new Parser({ timeout: 15000 });
 export const rssConnector: Connector = {
   kind: "rss",
 
-  async fetch(source: InfluencerSource): Promise<NormalizedPost[]> {
+  async fetch(source: InfluencerSource): Promise<FetchResult> {
     const feedUrl = source.sourceConfig.feedUrl as string | undefined;
     if (!feedUrl) {
       throw new Error(`博主 ${source.handle} 缺少 sourceConfig.feedUrl`);
@@ -39,6 +39,8 @@ export const rssConnector: Connector = {
       });
     }
 
-    return posts;
+    const avatarUrl =
+      feed.image?.url ?? (feed as unknown as { itunes?: { image?: string } }).itunes?.image;
+    return { posts, profile: avatarUrl ? { avatarUrl } : undefined };
   },
 };

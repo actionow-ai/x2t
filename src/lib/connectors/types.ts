@@ -20,12 +20,24 @@ export type InfluencerSource = {
   sourceConfig: Record<string, unknown>;
 };
 
+/** 连接器可选返回的博主资料（用于更新头像/显示名等） */
+export type SourceProfile = {
+  avatarUrl?: string;
+  displayName?: string;
+};
+
+/** 连接器一次抓取的结果：帖子 + 可选博主资料 */
+export type FetchResult = {
+  posts: NormalizedPost[];
+  profile?: SourceProfile;
+};
+
 export interface Connector {
   /** 连接器标识，匹配 influencer.sourceConfig.connector */
   readonly kind: string;
   /**
-   * 拉取该博主的最新帖子。新旧都可返回——去重在入库层（@@unique）做，
-   * 连接器只负责"取回 + 规范化"，不关心是否已存在。
+   * 拉取该博主的最新帖子（+ 可选博主资料）。去重在入库层（@@unique）做，
+   * 连接器只负责"取回 + 规范化"。
    */
-  fetch(source: InfluencerSource): Promise<NormalizedPost[]>;
+  fetch(source: InfluencerSource): Promise<FetchResult>;
 }

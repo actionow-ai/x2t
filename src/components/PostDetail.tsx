@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import type { ExternalData } from "@/lib/marketdata";
 import { CashtagText } from "./CashtagText";
 import { StanceBadge, stanceText } from "./StanceBadge";
+import { AvatarInner } from "./Avatar";
 import { formatDateTime } from "@/lib/time";
 import Link from "next/link";
 
@@ -36,7 +37,7 @@ export function PostDetail({ post, dataBySymbol }: Detail) {
   return (
     <article className="post-card">
       <div className="pc-top">
-        <Link href={`/i/${inf.handle}`} className="pc-av">{name.slice(0, 1).toUpperCase()}</Link>
+        <Link href={`/i/${inf.handle}`} className="pc-av"><AvatarInner src={inf.avatarUrl} name={name} /></Link>
         <div>
           <Link href={`/i/${inf.handle}`}>
             <div className="pc-name">{name}</div>

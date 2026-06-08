@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { FollowButton } from "@/components/FollowButton";
+import { AvatarInner } from "@/components/Avatar";
 import { getCurrentUserId } from "@/lib/auth";
 import Link from "next/link";
 
@@ -39,7 +40,7 @@ export default async function FollowingPage() {
             return (
               <div key={inf.id} className="dir-card">
                 <div className="pc-av" style={{ width: "2.4rem", height: "2.4rem" }}>
-                  {name.slice(0, 1).toUpperCase()}
+                  <AvatarInner src={inf.avatarUrl} name={name} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Link href={`/i/${inf.handle}`}>

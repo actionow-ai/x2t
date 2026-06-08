@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CashtagText } from "./CashtagText";
 import { StanceBadge, TickerBadge, stanceText } from "./StanceBadge";
+import { AvatarInner } from "./Avatar";
 import { relativeTime } from "@/lib/time";
 
 type PostCardData = {
@@ -21,7 +22,7 @@ export function PostCard({ post, selected }: { post: PostCardData; selected?: bo
     <article className="post-card" data-stance={post.analysis?.overallStance} data-selected={selected ? "" : undefined}>
       <div className="pc-top">
         <Link href={`/i/${inf.handle}`} className="pc-av">
-          {inf.avatarUrl ? <img src={inf.avatarUrl} alt={name} /> : name.slice(0, 1).toUpperCase()}
+          <AvatarInner src={inf.avatarUrl} name={name} />
         </Link>
         <div>
           <Link href={`/i/${inf.handle}`}>
