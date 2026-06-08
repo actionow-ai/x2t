@@ -6,7 +6,7 @@ Aggregate trading signals from the financial influencers you follow on X (Twitte
 
 > **Not financial advice.** X2T aggregates public posts and public market data for reference only. Nothing here is a recommendation to buy or sell anything.
 
-> **Live demo:** https://x2t-actionow.zeabur.app — self-hosted on Zeabur (see [DEPLOY.md](DEPLOY.md)).
+> **Live demo:** https://x2t.actionow.ai — self-hosted on Zeabur (see [DEPLOY.md](DEPLOY.md)).
 
 ---
 

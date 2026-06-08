@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import type { Locale } from "./i18n";
 
-// 站点对外公网地址(与 base-url.ts 一致):优先 APP_URL,回退线上域名。
-export const SITE_URL = process.env.APP_URL?.replace(/\/$/, "") || "https://x2t-actionow.zeabur.app";
+// 站点对外公网地址(与 base-url.ts 一致):优先 APP_URL,回退主域名。
+// 回退用自定义主域名:robots.ts/sitemap.ts 在构建期生成、读不到运行时 APP_URL 时也能给出正确 canonical 域名。
+export const SITE_URL = process.env.APP_URL?.replace(/\/$/, "") || "https://x2t.actionow.ai";
 export const SITE_NAME = "X2T";
 
 const COPY = {
