@@ -42,7 +42,10 @@
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "@types/web-push": "^3.6.4",
+    "opentype.js": "^2.0.0",
+    "png-to-ico": "^3.0.1",
     "prisma": "^6.3.0",
+    "sharp": "^0.34.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   },

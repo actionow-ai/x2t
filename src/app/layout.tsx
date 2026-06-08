@@ -8,14 +8,15 @@ import { PageFx } from "@/components/PageFx";
 import { NavTabs } from "@/components/NavTabs";
 import { LangProvider } from "@/components/LangProvider";
 import { LangSwitch } from "@/components/LangSwitch";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
+import { siteMetadata, websiteJsonLd } from "@/lib/seo";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "X2T · 金融博主信号聚合 / Signal aggregation",
-  description: "订阅金融博主，第一时间拿到信号与 AI 分析。非投资建议。",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return siteMetadata(await getLocale());
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -26,6 +27,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale === "zh" ? "zh-CN" : "en"}>
       <body>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd(locale)) }} />
+        <GoogleAnalytics />
         <LangProvider locale={locale}>
           <TickerTape />
           <header className="site-header">
