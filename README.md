@@ -1,60 +1,116 @@
-# X2T · X to Trade
+# X2T — X to Trade
 
-订阅你关注的股市金融博主（如 Serenity），博主发帖后第一时间抓取，由 AI Agent 结合多路外部数据分析并推送。开源 · Web · 美股。
+**English** | [简体中文](README.zh-CN.md)
 
-> ⚠️ **非投资建议。** X2T 聚合的是博主的公开内容与公开市场数据，仅供参考，不构成任何买卖建议。
+Aggregate trading signals from the financial influencers you follow on X (Twitter), Reddit and beyond. The moment they post, X2T fetches it, runs AI analysis grounded in live market data, produces bilingual summaries, maps an influencer-by-ticker stance graph, and pushes alerts when someone flips.
 
-> **线上 demo**：https://x2t-actionow.zeabur.app （Zeabur 自托管 · 部署见 [DEPLOY.md](DEPLOY.md)）
+> **Not financial advice.** X2T aggregates public posts and public market data for reference only. Nothing here is a recommendation to buy or sell anything.
 
-## 当前进度
+> **Live demo:** https://x2t-actionow.zeabur.app — self-hosted on Zeabur (see [DEPLOY.md](DEPLOY.md)).
 
-正在建第一个切片 **「抓取 → 分析 → 推送」MVP**，内部里程碑：
+---
 
-- **M1 抓取 + 浏览**（进行中）：RSS 连接器 + 轮询去重入库 + 目录/feed/博主页 + 人工提交
-- M2 订阅 + 推送 · M3 Agent 分析 · M4 图谱 + 时效性 · M5 账号层
+## What it does
 
-完整设计见 [`docs/superpowers/specs/2026-06-05-x2t-signal-analysis-mvp-design.md`](docs/superpowers/specs/2026-06-05-x2t-signal-analysis-mvp-design.md)。
+- **Multi-source ingestion.** Pulls posts through a self-hosted RSSHub gateway (X / Reddit / StockTwits), plain RSS, or manual submission. Idempotent dedup on `(influencer, platformPostId)`.
+- **AI analysis grounded in market data.** Each post is analyzed by a DeepSeek V4 agent in the post's original language: it extracts tickers (cashtags plus company/product names), pulls live external data per ticker, and judges whether the influencer's stance agrees with or diverges from the current price, news and sentiment — with calibrated confidence (abstains to neutral when evidence is thin).
+- **Original / Chinese / English everywhere.** A cheaper flash model translates every post and analysis; the original-language slot keeps the agent's own text, so each item reads in its source language plus zh and en.
+- **Pluggable external data, with graceful degradation.** Finnhub (quote / profile / company news), Exa (semantic news), Alpha Vantage (news sentiment). Any provider whose API key is unset is skipped silently; with no keys at all it falls back to deterministic mock data.
+- **Force-directed stance graph.** An influencer-to-ticker knowledge graph (d3-force): recency-weighted edges, flip markers, drag to rearrange, fullscreen, and click a node to see the related posts.
+- **Consensus and flip alerts.** Per-ticker consensus across influencers, plus stance-flip detection that triggers web-push notifications.
+- **Accounts and following.** Passwordless magic-link email login. Follows sync to the cloud when logged in, or live in the browser when anonymous; the home feed filters to who you follow.
+- **Web push.** VAPID web-push for new posts and stance flips.
+- **Bilingual UI (zh / en)** with a cookie-based locale switch, in a neo-brutalist ("Tape") design.
+- **Admin console** for managing influencer sources, posts (delete / re-analyze) and users.
+- **Production hardening.** In-memory rate limiting, fail-closed admin and session secrets, composite indexes, bounded graph/consensus queries with an in-process cache, and a self-healing worker with expired-cache GC.
+- **SEO and analytics.** Locale-aware metadata, OpenGraph image, `sitemap.xml`, `robots.txt`, JSON-LD, and Google Analytics.
 
-## 技术栈
+## How it works
 
-Next.js (App Router) + TypeScript · Postgres + Prisma · 独立轮询/分析 Worker · Anthropic TS SDK（M3+）
+```
+sources ──ingest──> Post (deduped) ──analyze──> AI agent ─┐
+(RSSHub/RSS/manual)                  (DeepSeek V4-pro)     │
+                                                          ├─> translate (V4-flash) ─> zh / en
+   external data per ticker ────────────────────────────>┤
+   (Finnhub / Exa / Alpha Vantage)                        │
+                                                          └─> stance graph · consensus · flip → web-push
+```
 
-## 本机开发
+A single combined container runs both the Next.js web app and a background worker. The worker loops: fetch all active sources, drain the analysis queue (small concurrency pool with per-call timeout), detect flips and push, then GC expired cache.
+
+## Tech stack
+
+Next.js 15 (App Router) + React 19 + TypeScript · Prisma 6 + PostgreSQL · DeepSeek V4 via the OpenAI-compatible SDK · d3-force · GSAP · web-push (VAPID) · rss-parser · zod · self-hosted RSSHub · Cloudflare Email Service or SMTP. Deployed on Zeabur.
+
+## Quick start
+
+Prerequisites: Node 20+, pnpm, and Docker (for local Postgres + RSSHub).
 
 ```bash
-# 1. 起依赖：Postgres（55432）+ 自建 RSSHub（51200，统一抓取网关，端口均非标准避让）
+# 1. Start dependencies: Postgres (55432) + RSSHub (51200) — non-standard ports to avoid clashes
 docker compose up -d db rsshub
 
-# 2. 配置环境变量（首次）
+# 2. Configure environment (first run)
 cp .env.example .env
-# 生成会话密钥后填入 AUTH_SECRET：openssl rand -hex 32
+# generate a session secret and put it in AUTH_SECRET:
+openssl rand -hex 32
 
-# 3. 安装依赖 + 建表
+# 3. Install + create the schema
 pnpm install
 pnpm db:push
 
-# 4. 灌入示例博主源
+# 4. Seed example influencer sources
 pnpm db:seed
 
-# 5. 启动 Web（聚合 feed）
-pnpm dev             # http://localhost:53000（非标准避让端口）
+# 5. Run the web app
+pnpm dev            # http://localhost:53000
 
-# 6. 后台管道（二选一）
-pnpm worker          # 推荐：一个进程循环「抓取 + 分析」
-pnpm worker:once     #   或：跑一轮退出（适合 cron）
-# 也可分开跑：pnpm poll / pnpm analyze（各自持续）
+# 6. (optional) Run the background worker in another terminal
+pnpm worker         # ingest -> analyze -> push, on a loop
 ```
 
-> **接真实 LLM（OpenAI 系列 / DeepSeek）**：在 `.env` 填 `LLM_API_KEY`；DeepSeek 另设 `LLM_BASE_URL=https://api.deepseek.com`、`LLM_MODEL=deepseek-chat`。行情接 Finnhub：填 `FINNHUB_API_KEY`。
->
-> **让它真正可用（从 mock 到真实）+ 部署上线**：见 **[DEPLOY.md](DEPLOY.md)** —— 哪些 key 让什么变真、自建 RSSHub 抓 X、`docker compose` 一键上线。
+## Configuration
 
-## 架构（三带）
+All integrations follow one rule: **leave the env var blank and it degrades to mock; fill it in and it goes live.** See [`.env.example`](.env.example) for the full list, grouped by area: Postgres, app URL, Google Analytics, ingestion/polling, RSSHub, web-push (VAPID), LLM (OpenAI-compatible / DeepSeek), market data (Finnhub / Exa / Alpha Vantage), accounts + email, and the admin allowlist.
+
+## Project structure
 
 ```
-① 抓取入库  数据源 → 抓取连接器(可插拔) → 轮询Worker(去重) → Postgres
-② 分析      Postgres + 外部数据(provider) + LLM → Agent Worker → post_analysis   (M3)
-③ 浏览订阅  Postgres → Next.js → 浏览 / RSS / Web-Push / 登录 → 用户
+src/
+  app/            # routes: feed /, /graph, /following, /submit, /login,
+                  #         /p/[id], /i/[handle], /t/[symbol], /admin/*, /api/*
+                  # plus icon.svg, favicon.ico, sitemap.ts, robots.ts
+  components/      # PostCard, PostDetail, GraphCanvas, FollowButton, ...
+  lib/
+    connectors/   # ingestion sources (rss, manual)
+    llm/          # LLM providers (openai-compatible, mock)
+    marketdata/   # finnhub, exa, alphavantage, fmp, mock + caching aggregator
+    agent.ts      # post analysis pipeline
+    translate.ts  # flash translation layer
+    stance.ts     # consensus, graph data, flip detection
+    seo.ts, auth.ts, push.ts, ingest.ts, ...
+scripts/          # worker.ts, poll.ts, analyze.ts, digest.ts, seed.ts, gen-logo.mjs
+prisma/           # schema.prisma
 ```
 
-两个可插拔接口：**抓取连接器**（RSS / 人工提交 / X-API）、**外部数据 provider**（Finnhub / Polygon / Yahoo）。
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Web app (port 53000) |
+| `pnpm worker` | Background loop: ingest + analyze + push |
+| `pnpm worker:once` | One worker pass (for external cron) |
+| `pnpm poll` / `pnpm analyze` | Ingestion-only / analysis-only loops |
+| `pnpm digest` | Send the daily email digest |
+| `pnpm db:push` / `pnpm db:seed` / `pnpm db:studio` | Prisma schema / seed / studio |
+| `node scripts/gen-logo.mjs` | Regenerate the logo, favicon and OG image |
+
+## Deployment
+
+X2T is built for [Zeabur](https://zeabur.com): a combined web + worker image, with Postgres and RSSHub as sibling services. Step-by-step instructions are in [DEPLOY.md](DEPLOY.md).
+
+> **Need a server?** Buy one at **https://zeabur.com** and enter referral code **`actionow.ai`** at checkout for 10% off.
+
+## License
+
+No license file yet — add a `LICENSE` (MIT recommended) before distributing.
