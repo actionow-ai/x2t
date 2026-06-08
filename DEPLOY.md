@@ -11,7 +11,7 @@ X2T 的所有 mock 都遵循同一规则：**对应环境变量留空 → 自动
 | --- | --- | --- |
 | 真实 AI 分析 | `LLM_API_KEY`（+ `LLM_BASE_URL` / `LLM_MODEL`）| mock：关键词占位分析 |
 | 真实行情/外部数据 | `FINNHUB_API_KEY` | mock：随机占位行情 |
-| 真实邮件（登录链接 + 摘要）| `SMTP_HOST/PORT/USER/PASS/FROM` | 邮件打到控制台 |
+| 真实邮件（登录链接 + 摘要）| `CF_EMAIL_ACCOUNT_ID`+`CF_EMAIL_API_TOKEN`+`EMAIL_FROM`（Cloudflare Email Service），或传统 `SMTP_*` | 邮件打到控制台 |
 | 安全的会话 | `AUTH_SECRET`（`openssl rand -hex 32`）| 不安全的默认值 |
 | 限定管理员 | `ADMIN_EMAILS`（逗号分隔）| 任何登录用户都是管理员 |
 | 真实抓取 X | 起 RSSHub + `TWITTER_AUTH_TOKEN` + `RSSHUB_BASE_URL` | 该源抓取失败（其余源不受影响）|
