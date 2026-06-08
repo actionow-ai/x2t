@@ -13,7 +13,7 @@ type Call = { sym: string; stance: Stance; agoH: number; prev?: Stance };
 
 const DATA: { handle: string; name: string; calls: Call[] }[] = [
   {
-    handle: "serenity",
+    handle: "aleabitoreddit",
     name: "Serenity",
     calls: [
       { sym: "NVDA", stance: "bullish", agoH: 0.4 }, // ~24分钟前

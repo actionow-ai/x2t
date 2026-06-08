@@ -9,12 +9,12 @@ const ICON = (seed: string) => `https://api.dicebear.com/9.x/shapes/svg?seed=${s
 const seeds = [
   // ===== X 博主（经自建 RSSHub；需在 RSSHub 配 X cookies，见 DEPLOY.md）=====
   {
-    handle: "serenity",
+    handle: "aleabitoreddit",
     platform: "twitter" as const,
     displayName: "Serenity",
-    bio: "美股 / AI 赛道 / 波段。经自建 RSSHub 抓取。Not financial advice.",
+    bio: "美股 / AI 赛道 / 波段。经自建 RSSHub 抓取(x.com/aleabitoreddit)。Not financial advice.",
     avatarUrl: ICON("serenity"),
-    sourceConfig: { connector: "rss", feedPath: "/twitter/user/serenity" },
+    sourceConfig: { connector: "rss", feedPath: "/twitter/user/aleabitoreddit" },
   },
   {
     handle: "marcotrades",
