@@ -4,6 +4,8 @@
 
 > ⚠️ **非投资建议。** X2T 聚合的是博主的公开内容与公开市场数据，仅供参考，不构成任何买卖建议。
 
+> **线上 demo**：https://x2t-actionow.zeabur.app （Zeabur 自托管 · 部署见 [DEPLOY.md](DEPLOY.md)）
+
 ## 当前进度
 
 正在建第一个切片 **「抓取 → 分析 → 推送」MVP**，内部里程碑：

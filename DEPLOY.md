@@ -51,23 +51,62 @@ RSSHub 同样支持 `/reddit/...`、`/stocktwits/...` 等大量路由（见 http
 # 0. 准备 .env（至少 AUTH_SECRET；要变真则填 LLM/Finnhub/SMTP/TWITTER_AUTH_TOKEN）
 cp .env.example .env && openssl rand -hex 32   # 把输出填进 AUTH_SECRET
 
-# 1. 构建并启动全栈（db + rsshub + app + worker）
+# 1. 构建并启动全栈（db + rsshub + app）；app 容器内同时跑 web 与 worker
 docker compose --profile full up -d --build
 
-# 2. 首次建表 + 灌种子（worker 镜像含 prisma CLI）
-docker compose run --rm worker pnpm db:push
-docker compose run --rm worker pnpm db:seed
+# 2. 首次建表 + 灌种子（app 镜像含 prisma CLI 与脚本）
+docker compose run --rm app pnpm db:push
+docker compose run --rm app pnpm db:seed
 
 # 3. 访问：app 在宿主 53000（建议挂到反向代理 + HTTPS）
 ```
 
+> **单一合并镜像**：`Dockerfile` 构建的镜像在一个容器内同时跑 Next 网页与后台 worker（`CMD` 后台起 `pnpm worker`、前台起 `next start`）。这样无论 `docker compose` 还是 Zeabur，都只需部署「一个应用服务 + 一个数据库」。
+
 - **HTTPS 必需**：Web-Push 与 Service Worker 只在 HTTPS（或 localhost）下工作。生产请在 app 前加 Nginx/Caddy/云负载均衡做 TLS。
 - **数据库**：compose 内置 Postgres 适合自托管；也可用托管库（Neon/Supabase/RDS），把 `DATABASE_URL` 指过去即可（此时可不起 `db` 服务）。
-- **每日摘要**：默认关。两种开法 —— 设 `WORKER_RUN_DIGEST=true`（worker 内置按 `DIGEST_INTERVAL_MS` 跑），或用外部 cron：`docker compose run --rm worker pnpm digest`。
+- **每日摘要**：默认关。两种开法 —— 设 `WORKER_RUN_DIGEST=true`（app 容器内的 worker 按 `DIGEST_INTERVAL_MS` 跑），或用外部 cron：`docker compose run --rm app pnpm digest`。
 
 ### 本机开发（只起依赖）
 
-`docker compose up -d db rsshub` 只起依赖；app/worker 用 `pnpm dev` / `pnpm worker` 在宿主跑，便于热更新。`app`、`worker` 服务挂在 `full` profile，默认不随 `docker compose up` 启动。
+`docker compose up -d db rsshub` 只起依赖；网页用 `pnpm dev`、后台用 `pnpm worker` 在宿主分开跑，便于热更新。合并的 `app` 服务挂在 `full` profile，默认不随 `docker compose up` 启动。
+
+---
+
+## 3b. Zeabur 部署（CLI · 本项目已上线）
+
+本项目已用 Zeabur CLI 部署到自有服务器（AI-Gateway / 2C4G）。要点：
+
+- **私有库 Zeabur 看不到** → app 用 `zeabur deploy`（本地上传，非 Git）。
+- **zbpack 对存在的根 `Dockerfile` 一律使用、且忽略 `ZBPACK_DOCKERFILE_NAME` 等按服务选择** → 无法用两个 Dockerfile 区分两个服务，故采用「单一合并镜像」：一个服务、容器内同时跑 web+worker。
+- 线上服务只有两个：**Postgres**（模板）+ **x2t-app**（合并镜像）。RSSHub 暂未部署（X/Reddit 源需 X cookies 才有用），需要时再加。
+
+```bash
+# 1. 建项目（绑定到目标服务器 region）+ Postgres 模板
+zeabur project create -n x2t -r <server-region-id>
+zeabur template deploy -c B20CX0 --project-id <project-id>      # 官方 PostgreSQL
+
+# 2. 部署 app（本地上传，自动用根 Dockerfile）
+zeabur deploy --create --name x2t-app --project-id <project-id>
+
+# 3. 注入变量（DATABASE_URL 用 Zeabur 引用变量；含 AUTH_SECRET/VAPID 等）
+#    .env.zeabur.local 内含一行 DATABASE_URL=${POSTGRES_CONNECTION_STRING}
+zeabur variable env -f .env.zeabur.local --id <app-service-id> --env-id <env-id>
+
+# 4. 远程初始化库（用 Postgres 的【公网】连接串，从本机跑）
+zeabur service instruction --id <postgres-id> --env-id <env-id>   # 取 Connection String
+DATABASE_URL=<public-conn-str> pnpm db:push
+DATABASE_URL=<public-conn-str> pnpm db:seed
+
+# 5. 重新部署 app 让变量生效（本地上传服务用 deploy 重传，redeploy 仅限 Git 绑定）
+zeabur deploy --service-id <app-service-id>
+
+# 6. 开域名
+zeabur domain create --domain <name> --id <app-service-id> --env-id <env-id> -g -y
+```
+
+> 更新部署：改完代码后 `zeabur deploy --service-id <app-service-id>` 重传重建即可。
+> 改了 schema：先用公网连接串 `DATABASE_URL=... pnpm db:push`，再重部署 app。
 
 ---
 
@@ -76,8 +115,8 @@ docker compose run --rm worker pnpm db:seed
 改了 `prisma/schema.prisma` 后：
 
 ```bash
-pnpm db:push                                   # 本机
-docker compose run --rm worker pnpm db:push    # 容器
+pnpm db:push                                # 本机
+docker compose run --rm app pnpm db:push    # 容器
 ```
 
 > 注意：运行中的应用进程会缓存旧的 Prisma Client，改 enum/字段后需**重启 app/worker** 才生效。

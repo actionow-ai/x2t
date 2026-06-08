@@ -44,11 +44,11 @@ services:
 
   # ===== 应用（默认 profile=full 才启用，本机开发通常只起 db + rsshub）=====
   # Next 应用（精简 standalone 运行时）。宿主 53000 -> 容器 3000，避让标准 3000。
+  # 合并服务：一个容器内同时跑 web + worker（见 Dockerfile 的 CMD）。
   app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: app
     container_name: x2t-app
     restart: unless-stopped
     profiles: ["full"]
@@ -63,26 +63,6 @@ services:
       RSSHUB_BASE_URL: http://rsshub:1200
     ports:
       - "53000:3000"
-    depends_on:
-      db:
-        condition: service_healthy
-
-  # 后台 Worker：循环抓取 + 分析（digest 可另设 cron）。
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-      target: worker
-    container_name: x2t-worker
-    restart: unless-stopped
-    profiles: ["full"]
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://x2t:x2t@db:5432/x2t?schema=public
-      RSSHUB_BASE_URL: http://rsshub:1200
     depends_on:
       db:
         condition: service_healthy
