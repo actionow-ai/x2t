@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import type { MarketDataProvider, ExternalData } from "./types";
 import { createMockMarketData } from "./mock";
 import { createFinnhub } from "./finnhub";
+import { exaConfigured, exaNews } from "./exa";
 
 export function getMarketDataProvider(): MarketDataProvider {
   const key = process.env.FINNHUB_API_KEY;
@@ -24,6 +25,15 @@ export async function getExternalDataCached(symbol: string): Promise<ExternalDat
     data = await provider.getExternalData(sym);
   } catch (e) {
     console.error(`[marketdata] ${sym} 获取失败:`, e instanceof Error ? e.message : e);
+  }
+
+  // Exa 语义新闻增强(可选,有免费额度):合并去重,优先保留 provider 自带后补 Exa,封顶 5 条。
+  if (exaConfigured()) {
+    const extra = await exaNews(data.profile?.name || sym, 3);
+    if (extra.length) {
+      const seen = new Set((data.news ?? []).map((n) => n.headline));
+      data.news = [...(data.news ?? []), ...extra.filter((n) => !seen.has(n.headline))].slice(0, 5);
+    }
   }
 
   const ttlMs = Number(process.env.MARKETDATA_TTL_MS ?? 600_000);

@@ -8,7 +8,12 @@ export function createOpenAiCompatible(cfg: {
   baseURL?: string;
   model: string;
 }): LlmProvider {
-  const client = new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseURL });
+  const client = new OpenAI({
+    apiKey: cfg.apiKey,
+    baseURL: cfg.baseURL,
+    timeout: Number(process.env.LLM_TIMEOUT_MS ?? 60_000), // 单次调用超时,防 worker 被卡死请求拖住
+    maxRetries: 1,
+  });
 
   return {
     name: `openai-compatible:${cfg.model}`,

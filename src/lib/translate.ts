@@ -1,24 +1,21 @@
 import { createOpenAiCompatible } from "./llm/openai-compatible";
 
-// flash 翻译层：把帖子内容 + 分析（原始语种）翻成简体中文(zh)与英文(en)两版。
-// 用更便宜的 flash 模型（TRANSLATE_MODEL，默认 deepseek-v4-flash）做全局翻译，与做分析的 agent 模型解耦。
+// flash 翻译层：把帖子内容 + 分析翻成【单个目标语种】。
+// 原语种槽由 agent 原文直接填充,故只需翻"缺失"的那一两种语言,省一半翻译 token。
+// 用更便宜的 flash 模型（TRANSLATE_MODEL，默认 deepseek-v4-flash）与分析 agent 解耦。
 
 export type TranslateInput = {
-  lang: string;
   content: string;
   summary: string;
   keyPoints: string[];
   tickers: { symbol: string; rationale?: string }[];
 };
 
-export type TranslateResult = {
-  contentZh: string;
-  contentEn: string;
-  summaryZh: string;
-  summaryEn: string;
-  keyPointsZh: string[];
-  keyPointsEn: string[];
-  rationales: Record<string, { zh: string; en: string }>; // by symbol
+export type TranslateOutput = {
+  content: string;
+  summary: string;
+  keyPoints: string[];
+  rationales: Record<string, string>; // symbol -> 目标语种 rationale
 };
 
 function flashProvider() {
@@ -35,31 +32,34 @@ export function translateConfigured(): boolean {
   return !!process.env.LLM_API_KEY;
 }
 
-export async function translateBundle(input: TranslateInput): Promise<TranslateResult | null> {
+const LANG_NAME: Record<"zh" | "en", string> = { zh: "简体中文", en: "英文" };
+
+// 翻成单一目标语种;任何异常/解析失败 → 返回 null,调用方回退原文。
+export async function translateTo(input: TranslateInput, target: "zh" | "en"): Promise<TranslateOutput | null> {
   const flash = flashProvider();
   if (!flash) return null;
 
   const system =
-    "你是翻译引擎。把给定 JSON 中的所有文本字段翻译成【简体中文 zh】与【英文 en】两版，" +
-    "保留 $股票代码、数字、专有名词与品牌名不译。只输出一个 JSON 对象，结构严格为：" +
-    '{"content":{"zh":"","en":""},"summary":{"zh":"","en":""},"keyPoints":{"zh":[],"en":[]},"tickers":[{"symbol":"","rationale":{"zh":"","en":""}}]}';
+    `你是翻译引擎。把给定 JSON 中所有文本字段翻译成【${LANG_NAME[target]}】,` +
+    "保留 $股票代码、数字、专有名词与品牌名不译。只输出一个 JSON 对象,结构严格为:" +
+    '{"content":"","summary":"","keyPoints":[],"tickers":[{"symbol":"","rationale":""}]}';
   const user = JSON.stringify(input);
 
-  const raw = await flash.completeJson(system, user);
-  const p = JSON.parse(raw);
-
-  const rationales: Record<string, { zh: string; en: string }> = {};
-  for (const t of p.tickers ?? []) {
-    if (t?.symbol) rationales[String(t.symbol).toUpperCase()] = { zh: t.rationale?.zh ?? "", en: t.rationale?.en ?? "" };
+  try {
+    const raw = await flash.completeJson(system, user);
+    const p = JSON.parse(raw);
+    const rationales: Record<string, string> = {};
+    for (const t of Array.isArray(p.tickers) ? p.tickers : []) {
+      if (t?.symbol) rationales[String(t.symbol).toUpperCase()] = typeof t.rationale === "string" ? t.rationale : "";
+    }
+    return {
+      content: typeof p.content === "string" && p.content ? p.content : input.content,
+      summary: typeof p.summary === "string" && p.summary ? p.summary : input.summary,
+      keyPoints: Array.isArray(p.keyPoints) ? p.keyPoints.map((x: unknown) => String(x)) : input.keyPoints,
+      rationales,
+    };
+  } catch (e) {
+    console.error(`[translate→${target}] 失败:`, e instanceof Error ? e.message : e);
+    return null;
   }
-
-  return {
-    contentZh: p.content?.zh || input.content,
-    contentEn: p.content?.en || input.content,
-    summaryZh: p.summary?.zh || input.summary,
-    summaryEn: p.summary?.en || input.summary,
-    keyPointsZh: Array.isArray(p.keyPoints?.zh) ? p.keyPoints.zh : input.keyPoints,
-    keyPointsEn: Array.isArray(p.keyPoints?.en) ? p.keyPoints.en : input.keyPoints,
-    rationales,
-  };
 }
