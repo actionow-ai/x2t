@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/db";
 import { buildRss, postToItem } from "@/lib/rss";
+import { baseUrl } from "@/lib/base-url";
 
 export const dynamic = "force-dynamic";
 
 // 单博主 RSS：/i/{handle}/rss
 export async function GET(request: Request, { params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
-  const origin = new URL(request.url).origin;
+  const origin = baseUrl(request);
 
   const influencer = await prisma.influencer.findFirst({
     where: { handle },

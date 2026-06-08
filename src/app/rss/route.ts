@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { buildRss, postToItem } from "@/lib/rss";
+import { baseUrl } from "@/lib/base-url";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 // 注：?tickers=NVDA 形式需要 post_tickers（M3 接入），本切片先支持按博主组合。
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const origin = url.origin;
+  const origin = baseUrl(request);
 
   const influencersParam = url.searchParams.get("influencers");
   const handles = influencersParam
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   const xml = buildRss({
     title,
     description: "自定义组合信号流 · 非投资建议",
-    selfUrl: url.toString(),
+    selfUrl: `${origin}${url.pathname}${url.search}`,
     siteUrl: origin,
     items: posts.map((p) => postToItem(p, origin)),
   });

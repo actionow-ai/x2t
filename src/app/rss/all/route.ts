@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/db";
 import { buildRss, postToItem } from "@/lib/rss";
+import { baseUrl } from "@/lib/base-url";
 
 export const dynamic = "force-dynamic";
 
 // 全站 RSS：/rss/all
 export async function GET(request: Request) {
-  const origin = new URL(request.url).origin;
+  const origin = baseUrl(request);
 
   const posts = await prisma.post.findMany({
     orderBy: { postedAt: "desc" },
