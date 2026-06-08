@@ -245,8 +245,9 @@ main { padding: 1.75rem 0 5rem; }
   text-transform: uppercase; letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
   border: 2px solid var(--ink);
 }
-.badge.bull { background: var(--success); color: #fff; }
-.badge.bear { background: var(--error); color: #fff; }
+/* a11y(WCAG AA + 团队红线 TEA-70):浅 tint 底 + 深色文字,立场靠描边 + ▲▼ 箭头(非颜色)表意 */
+.badge.bull { background: color-mix(in srgb, var(--success) 16%, #fff); color: var(--ink); border-color: var(--success); }
+.badge.bear { background: color-mix(in srgb, var(--error) 16%, #fff); color: var(--ink); border-color: var(--error); }
 .badge.neutral { background: var(--bg-tertiary); color: var(--ink); }
 a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1px); }
 

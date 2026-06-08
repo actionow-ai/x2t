@@ -79,7 +79,7 @@ docker compose run --rm app pnpm db:seed
 
 - **私有库 Zeabur 看不到** → app 用 `zeabur deploy`（本地上传，非 Git）。
 - **zbpack 对存在的根 `Dockerfile` 一律使用、且忽略 `ZBPACK_DOCKERFILE_NAME` 等按服务选择** → 无法用两个 Dockerfile 区分两个服务，故采用「单一合并镜像」：一个服务、容器内同时跑 web+worker。
-- 线上服务只有两个：**Postgres**（模板）+ **x2t-app**（合并镜像）。RSSHub 暂未部署（X/Reddit 源需 X cookies 才有用），需要时再加。
+- 线上服务：**Postgres**（模板）+ **x2t-app**（合并镜像,含 web+worker）+ **RSSHub**（模板 X46PTP,内网专用,注入 `TWITTER_AUTH_TOKEN` 抓 X）+ Redis（RSSHub 缓存）。
 
 ```bash
 # 1. 建项目（绑定到目标服务器 region）+ Postgres 模板

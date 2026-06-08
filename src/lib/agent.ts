@@ -15,6 +15,11 @@ function extractCashtags(text: string): string[] {
   return [...out];
 }
 
+// 像合法代码才落库:1-6 字母(可带 .X/-X 后缀)或 4-6 位数字(A/港股)。过滤 LLM 杜撰的词。
+function isValidSymbol(s: string): boolean {
+  return /^[A-Z]{1,6}([.-][A-Z]{1,4})?$/.test(s) || /^[0-9]{4,6}$/.test(s);
+}
+
 /** 分析一条帖子：候选 ticker → 外部数据 → LLM 结构化分析 → 落库。失败标 failed。 */
 export async function analyzePost(postId: string): Promise<{ ok: boolean; tickers: number }> {
   const post = await prisma.post.findUnique({ where: { id: postId }, include: { influencer: true } });
@@ -78,7 +83,7 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
     await prisma.$transaction(async (tx) => {
       for (const t of parsed.tickers) {
         const symbol = t.symbol.replace(/^\$/, "").toUpperCase();
-        if (!symbol) continue;
+        if (!isValidSymbol(symbol)) continue; // 过滤 LLM 杜撰的非代码(Fed/AI 短词/Q3 等),防污染 Security 表与图谱
         const rz = isZh ? t.rationale : tr?.rationales[symbol]?.zh || t.rationale;
         const re = isEn ? t.rationale : tr?.rationales[symbol]?.en || t.rationale;
         await tx.security.upsert({ where: { symbol }, create: { symbol }, update: {} });

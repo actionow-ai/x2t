@@ -9,12 +9,13 @@ export function adminEmails(): string[] {
 }
 
 // 登录用户 + 在白名单内即为管理员。
-// 未设置 ADMIN_EMAILS 时，任何登录用户都算管理员（仅便于本机；生产务必设置）。
+// 未设置 ADMIN_EMAILS 时：本机放行(便于开发)，生产 fail-closed(返回 false)，杜绝"人人管理员"越权。
 export async function isAdmin(): Promise<boolean> {
   const u = await getCurrentUser();
   if (!u) return false;
   const list = adminEmails();
-  return list.length === 0 || list.includes(u.email.toLowerCase());
+  if (list.length === 0) return process.env.NODE_ENV !== "production";
+  return list.includes(u.email.toLowerCase());
 }
 
 export async function requireAdmin(): Promise<void> {

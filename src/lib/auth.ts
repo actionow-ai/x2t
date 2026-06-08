@@ -17,7 +17,15 @@ export function sessionCookieValue(userId: string): string {
 }
 
 function secret(): string {
-  return process.env.AUTH_SECRET ?? "dev-insecure-secret-change-me";
+  const s = process.env.AUTH_SECRET;
+  // 生产缺失或仍是占位值 → fail-fast，杜绝用公开密钥伪造会话。
+  if (!s || s === "change-me-to-a-random-secret" || s === "dev-insecure-secret-change-me") {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("AUTH_SECRET 未设置：生产环境必须设为随机值（openssl rand -hex 32）");
+    }
+    return "dev-insecure-secret-change-me";
+  }
+  return s;
 }
 
 // HMAC 签名 cookie（value.signature）
