@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 import { FollowSync } from "@/components/FollowSync";
 import { TickerTape } from "@/components/TickerTape";
 import { PageFx } from "@/components/PageFx";
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
+  const admin = await isAdmin();
 
   return (
     <html lang="zh-CN">
@@ -23,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <div className="inner">
             <Link href="/" className="brand">X2T</Link>
             <span className="masthead-tag">Signals · Intelligence</span>
-            <NavTabs userEmail={user?.email ?? null} />
+            <NavTabs userEmail={user?.email ?? null} isAdmin={admin} />
           </div>
         </header>
         <div className="disclaimer-bar">非投资建议 · 仅聚合公开内容与公开市场数据 · NOT FINANCIAL ADVICE</div>

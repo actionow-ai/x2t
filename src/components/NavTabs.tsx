@@ -10,7 +10,7 @@ const TABS = [
   { href: "/submit", label: "提交" },
 ];
 
-export function NavTabs({ userEmail }: { userEmail: string | null }) {
+export function NavTabs({ userEmail, isAdmin = false }: { userEmail: string | null; isAdmin?: boolean }) {
   const pathname = usePathname();
   const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
@@ -21,6 +21,11 @@ export function NavTabs({ userEmail }: { userEmail: string | null }) {
           {t.label}
         </Link>
       ))}
+      {isAdmin && (
+        <Link href="/admin" className={active("/admin") ? "tab active" : "tab"}>
+          管理
+        </Link>
+      )}
       {userEmail ? (
         <form action="/api/auth/logout" method="post">
           <button type="submit" className="tab" title={userEmail}>登出</button>
