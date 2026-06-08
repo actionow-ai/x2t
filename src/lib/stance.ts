@@ -76,7 +76,7 @@ export async function getStockConsensus(symbol: string, windowDays?: number): Pr
 export type GraphData = {
   influencers: { id: string; handle: string; displayName: string | null; avatarUrl: string | null; count: number }[];
   securities: { symbol: string; count: number }[];
-  edges: { influencerId: string; symbol: string; stance: Stance }[];
+  edges: { influencerId: string; symbol: string; stance: Stance; ts: number }[];
 };
 
 /** 全景图谱数据：每个 (博主×票) 取最新立场作为一条边。 */
@@ -98,7 +98,7 @@ export async function getGraphData(): Promise<GraphData> {
     const key = `${r.post.influencerId}::${r.symbol}`;
     if (edgeKey.has(key)) continue; // 已有更新的边（rows 时间倒序）
     edgeKey.add(key);
-    edges.push({ influencerId: r.post.influencerId, symbol: r.symbol, stance: r.stance });
+    edges.push({ influencerId: r.post.influencerId, symbol: r.symbol, stance: r.stance, ts: r.post.postedAt.getTime() });
     const prev = influencers.get(r.post.influencerId);
     influencers.set(r.post.influencerId, {
       id: r.post.influencerId,

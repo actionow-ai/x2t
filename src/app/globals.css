@@ -302,6 +302,14 @@ svg text { font-family: var(--mono); font-weight: 700; }
 /* ===================== GRAPH ===================== */
 .graph-frame { background: var(--bg-secondary); border: 3px solid var(--ink); box-shadow: var(--shadow); padding: 0.7rem; overflow-x: auto; }
 .graph-legend { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+.graph-controls { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.seg { display: inline-flex; border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.segbtn { font-family: var(--mono); font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.34rem 0.62rem; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; transition: background 0.12s, color 0.12s; }
+.seg .segbtn { border: 0; border-right: 2px solid var(--ink); }
+.seg .segbtn:last-child { border-right: 0; }
+.segbtn.on { background: var(--lime); color: var(--ink); }
+.segbtn:hover:not(.on) { color: var(--ink); }
+.graph-controls > .segbtn { border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
   .ticker-track { animation: none; }
