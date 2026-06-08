@@ -25,15 +25,15 @@ const seeds = [
     sourceConfig: { connector: "rss", feedPath: "/twitter/user/marcotrades" },
   },
 
-  // ===== 散户情绪（cashtag 丰富，利于图谱；经自建 RSSHub 的 reddit 路由）=====
-  {
-    handle: "wallstreetbets",
-    platform: "reddit" as const,
-    displayName: "r/wallstreetbets",
-    bio: "Reddit 散户热议，$代码密集。经自建 RSSHub /reddit 路由。",
-    avatarUrl: ICON("wallstreetbets"),
-    sourceConfig: { connector: "rss", feedPath: "/reddit/subreddit/wallstreetbets/hot" },
-  },
+  // ===== 同类热门博主（标的明确 / 喊单·快讯型；经自建 RSSHub）=====
+  { handle: "unusual_whales", platform: "twitter" as const, displayName: "Unusual Whales", bio: "期权异动 / 资金流，$代码极密。", avatarUrl: ICON("unusual_whales"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/unusual_whales" } },
+  { handle: "AdamMancini", platform: "twitter" as const, displayName: "Adam Mancini", bio: "每日 SPX / ES 期指关键点位。", avatarUrl: ICON("AdamMancini"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/AdamMancini" } },
+  { handle: "StockMKTNewz", platform: "twitter" as const, displayName: "Stock Market News", bio: "个股 / 财报快讯，$代码多。", avatarUrl: ICON("StockMKTNewz"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/StockMKTNewz" } },
+  { handle: "WOLF_Financial", platform: "twitter" as const, displayName: "Wolf Financial", bio: "市场评论 / 主题。", avatarUrl: ICON("WOLF_Financial"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/WOLF_Financial" } },
+  { handle: "DeItaone", platform: "twitter" as const, displayName: "Walter Bloomberg", bio: "宏观 / 市场头条快讯。", avatarUrl: ICON("DeItaone"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/DeItaone" } },
+  { handle: "zerohedge", platform: "twitter" as const, displayName: "ZeroHedge", bio: "宏观 / 风险叙事（偏空）。", avatarUrl: ICON("zerohedge"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/zerohedge" } },
+  { handle: "timothysykes", platform: "twitter" as const, displayName: "Timothy Sykes", bio: "短线 / 小盘教学与喊单。", avatarUrl: ICON("timothysykes"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/timothysykes" } },
+  { handle: "Barchart", platform: "twitter" as const, displayName: "Barchart", bio: "市场数据 / 技术位 / 异动。", avatarUrl: ICON("Barchart"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/Barchart" } },
 
   // ===== 可直连真实财经源（无需 RSSHub，开箱即有真数据）=====
   {
@@ -55,9 +55,9 @@ const seeds = [
 ];
 
 async function main() {
-  // 清理历史演示源：marketpulse-demo 与 marketwatch 同源（重复），删除（其帖子级联删除）。
-  const removed = await prisma.influencer.deleteMany({ where: { handle: "marketpulse-demo" } });
-  if (removed.count) console.log(`[seed] 移除历史源 marketpulse-demo`);
+  // 清理历史源：marketpulse-demo（与 marketwatch 重复）+ wallstreetbets（reddit 路由暂不可用）。
+  const removed = await prisma.influencer.deleteMany({ where: { handle: { in: ["marketpulse-demo", "wallstreetbets"] } } });
+  if (removed.count) console.log(`[seed] 移除历史源 ${removed.count} 个`);
 
   for (const s of seeds) {
     const inf = await prisma.influencer.upsert({
