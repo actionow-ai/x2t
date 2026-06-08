@@ -47,6 +47,7 @@ services:
   app:
     build:
       context: .
+      dockerfile: Dockerfile
       target: app
     container_name: x2t-app
     restart: unless-stopped
@@ -57,6 +58,7 @@ services:
         required: false
     environment:
       NODE_ENV: production
+      PORT: 3000 # 覆盖镜像默认 8080（Zeabur 用 8080）
       DATABASE_URL: postgresql://x2t:x2t@db:5432/x2t?schema=public
       RSSHUB_BASE_URL: http://rsshub:1200
     ports:
@@ -69,6 +71,7 @@ services:
   worker:
     build:
       context: .
+      dockerfile: Dockerfile.worker
       target: worker
     container_name: x2t-worker
     restart: unless-stopped
