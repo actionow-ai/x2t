@@ -36,7 +36,7 @@ export function PostCard({ post, selected }: { post: PostCardData; selected?: bo
       </div>
 
       <Link href={`/p/${post.id}`}>
-        <div className="pc-text">
+        <div className="pc-text pc-text--clamp">
           <CashtagText text={post.contentText} />
         </div>
       </Link>

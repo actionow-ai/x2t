@@ -13,7 +13,6 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "tsx scripts/seed.ts",
-    "db:seed:graph": "tsx scripts/seed-graph.ts",
     "poll": "tsx scripts/poll.ts",
     "poll:once": "tsx scripts/poll.ts --once",
     "analyze": "tsx scripts/analyze.ts",

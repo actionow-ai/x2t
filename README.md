@@ -33,9 +33,8 @@ cp .env.example .env
 pnpm install
 pnpm db:push
 
-# 4. 灌入示例博主源（+ 可选图谱演示数据）
+# 4. 灌入示例博主源
 pnpm db:seed
-pnpm db:seed:graph   # 可选：关系图谱演示数据
 
 # 5. 启动 Web（聚合 feed）
 pnpm dev             # http://localhost:53000（非标准避让端口）
