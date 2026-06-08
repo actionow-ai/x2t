@@ -6,7 +6,8 @@ Aggregate trading signals from the financial influencers you follow on X (Twitte
 
 > **Not financial advice.** X2T aggregates public posts and public market data for reference only. Nothing here is a recommendation to buy or sell anything.
 
-> **Live demo:** https://x2t.actionow.ai — self-hosted on Zeabur (see [DEPLOY.md](DEPLOY.md)).
+> **Try it live — no setup needed:** **https://x2t.actionow.ai**
+> A public trial instance. Browse the signal feed and AI analysis, explore the influencer-by-ticker stance graph and per-stock consensus, switch between Chinese and English, follow influencers and enable push notifications — all in the browser. Self-hosted on Zeabur (see [DEPLOY.md](DEPLOY.md)).
 
 ---
 

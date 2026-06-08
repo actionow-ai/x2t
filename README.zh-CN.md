@@ -6,7 +6,8 @@
 
 > **非投资建议。** X2T 聚合的是公开帖子与公开市场数据,仅供参考,不构成任何买卖建议。
 
-> **在线 demo:** https://x2t.actionow.ai —— Zeabur 自托管(部署见 [DEPLOY.md](DEPLOY.md))。
+> **在线试用 —— 无需安装:** **https://x2t.actionow.ai**
+> 公开试用站点。可直接在浏览器里浏览信号流与 AI 分析、查看「博主×标的」立场图谱与个股共识、切换中英文、关注博主并开启推送。Zeabur 自托管(部署见 [DEPLOY.md](DEPLOY.md))。
 
 ---
 

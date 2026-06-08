@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { forceSimulation, forceLink, forceManyBody, forceCollide, forceX, forceY } from "d3-force";
 import { useT, useLocale } from "./LangProvider";
+import { proxiedImg } from "@/lib/img";
 import type { Dict } from "@/lib/i18n";
 
 type Inf = { id: string; handle: string; displayName: string | null; avatarUrl: string | null };
@@ -253,7 +254,7 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
                     <circle cx={p.x + 3} cy={p.y + 3} r={R_INF} fill="var(--ink)" />
                     <circle cx={p.x} cy={p.y} r={R_INF} fill="var(--bg-secondary)" stroke={isSel ? "var(--blue)" : "var(--ink)"} strokeWidth={isSel ? 4 : 3} />
                     {n.avatarUrl ? (
-                      <image href={n.avatarUrl} x={p.x - R_INF} y={p.y - R_INF} width={R_INF * 2} height={R_INF * 2} clipPath={`url(#gc-${n.id})`} preserveAspectRatio="xMidYMid slice" />
+                      <image href={proxiedImg(n.avatarUrl)} x={p.x - R_INF} y={p.y - R_INF} width={R_INF * 2} height={R_INF * 2} clipPath={`url(#gc-${n.id})`} preserveAspectRatio="xMidYMid slice" />
                     ) : (
                       <text x={p.x} y={p.y + 5} textAnchor="middle" style={{ fill: "var(--ink)", fontSize: 16, fontWeight: 700 }}>{n.label.slice(0, 1).toUpperCase()}</text>
                     )}
