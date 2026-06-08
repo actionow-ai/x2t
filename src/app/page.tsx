@@ -19,7 +19,7 @@ export default async function FeedPage() {
 
       <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap" }}>
         <PushToggle />
-        <a className="btn ghost" href="/rss/all">🔗 全站 RSS</a>
+        <a className="btn ghost" href="/rss/all">全站 RSS</a>
       </div>
 
       {posts.length === 0 ? (

@@ -36,7 +36,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   return (
     <article className="post-card">
       <div className="pc-top">
-        <Link href={`/i/${inf.handle}`} className="pc-av">📈</Link>
+        <Link href={`/i/${inf.handle}`} className="pc-av">{name.slice(0, 1).toUpperCase()}</Link>
         <div>
           <Link href={`/i/${inf.handle}`}>
             <div className="pc-name">{name}</div>
@@ -55,7 +55,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
 
       {post.analysis ? (
         <div className="ai-box">
-          <div className="ai-label">🤖 AI 分析</div>
+          <div className="ai-label">AI 分析</div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
             <StanceBadge stance={post.analysis.overallStance} label={`整体${stanceText(post.analysis.overallStance)}`} />
             {typeof post.analysis.confidence === "number" && (
@@ -87,7 +87,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
                     {t.rationale && <div style={{ fontSize: "0.78rem", marginBottom: "0.3rem" }}>{t.rationale}</div>}
                     {ext?.quote && (
                       <div className="ext-line">
-                        📈 ${ext.quote.price}{" "}
+                        行情 ${ext.quote.price}{" "}
                         <span className={ext.quote.changePct >= 0 ? "up" : "dn"}>
                           {ext.quote.changePct >= 0 ? "▲" : "▼"}
                           {Math.abs(ext.quote.changePct)}%
@@ -95,7 +95,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
                       </div>
                     )}
                     {ext?.news && ext.news.length > 0 && (
-                      <div className="ext-line">📰 {ext.news.slice(0, 2).map((n) => n.headline).join(" · ")}</div>
+                      <div className="ext-line">新闻 {ext.news.slice(0, 2).map((n) => n.headline).join(" · ")}</div>
                     )}
                   </div>
                 );
@@ -115,12 +115,12 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
           )}
 
           <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "0.5rem" }}>
-            ⚠️ 对公开帖子与公开市场数据的客观摘要，非投资建议；数据可能延迟。
+            对公开帖子与公开市场数据的客观摘要，非投资建议；数据可能延迟。
           </div>
         </div>
       ) : (
         <div className="ai-box">
-          <div className="ai-label">🤖 AI 分析</div>
+          <div className="ai-label">AI 分析</div>
           <div style={{ color: "var(--text-tertiary)", fontSize: "0.82rem" }}>
             {post.analysisStatus === "failed"
               ? "分析失败，稍后重试。"

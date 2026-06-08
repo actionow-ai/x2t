@@ -78,17 +78,22 @@ main { padding: 1.75rem 0 5rem; }
 .site-header .inner { max-width: 700px; margin: 0 auto; padding: 0.85rem 1.2rem; display: flex; align-items: center; gap: 0.7rem; }
 .brand {
   font-family: var(--disp);
-  font-size: 2rem;
-  line-height: 0.85;
-  letter-spacing: 0.02em;
-  color: var(--ink);
+  font-size: 1.5rem;
+  line-height: 1;
+  display: inline-block;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: var(--ink);
+  background: var(--lime);
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  padding: 0.26rem 0.5rem 0.16rem;
+  transition: transform 0.12s, box-shadow 0.12s;
 }
-.brand .dot { background: var(--lime); color: var(--ink); padding: 0 0.18em; border: 2px solid var(--ink); }
+.brand:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
 .masthead-tag {
-  font-family: var(--mono); font-weight: 700; font-size: 0.6rem; letter-spacing: 0.18em;
-  text-transform: uppercase; color: var(--ink); background: var(--lime); border: 2px solid var(--ink);
-  padding: 0.15rem 0.4rem; align-self: center;
+  font-family: var(--mono); font-weight: 700; font-size: 0.62rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--text-secondary); align-self: center;
 }
 .live { display: none; }
 .nav { display: flex; gap: 0.9rem; margin-left: auto; align-items: center; }
@@ -120,11 +125,6 @@ main { padding: 1.75rem 0 5rem; }
 
 /* ===================== FEED + POST BLOCK ===================== */
 .feed { display: flex; flex-direction: column; gap: 1.2rem; }
-.feed > * { animation: pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
-.feed > *:nth-child(2) { animation-delay: 0.05s; }
-.feed > *:nth-child(3) { animation-delay: 0.1s; }
-.feed > *:nth-child(n + 4) { animation-delay: 0.14s; }
-@keyframes pop { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 .post-card {
   position: relative;

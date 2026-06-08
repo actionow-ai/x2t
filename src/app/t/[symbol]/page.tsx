@@ -80,7 +80,9 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
           <div className="feed">
             {c.stances.map((s) => (
               <div key={s.influencerId} className="dir-card">
-                <div className="av" style={{ width: "2rem", height: "2rem" }}>📈</div>
+                <div className="pc-av" style={{ width: "2rem", height: "2rem", fontSize: "0.85rem" }}>
+                  {(s.displayName ?? s.handle).slice(0, 1).toUpperCase()}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Link href={`/i/${s.handle}`}>
                     <strong style={{ fontSize: "0.85rem" }}>{s.displayName ?? s.handle}</strong>

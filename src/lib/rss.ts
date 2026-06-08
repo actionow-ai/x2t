@@ -32,7 +32,7 @@ export function postToItem(post: PostForRss, siteUrl: string): RssItem {
   const firstLine = post.contentText.split("\n")[0].slice(0, 80);
   const description = [
     post.contentText,
-    post.analysis ? `\n\n🤖 AI 分析：${post.analysis.summary}` : "",
+    post.analysis ? `\n\nAI 分析：${post.analysis.summary}` : "",
     "\n\n— 非投资建议",
   ].join("");
   return {

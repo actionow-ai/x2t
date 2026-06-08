@@ -36,7 +36,7 @@ export default async function InfluencerPage({
   return (
     <>
       <div className="inf-header">
-        <div className="inf-av">📈</div>
+        <div className="inf-av">{name.slice(0, 1).toUpperCase()}</div>
         <div style={{ flex: 1 }}>
           <div className="inf-name">{name}</div>
           <div className="inf-handle">
@@ -56,7 +56,7 @@ export default async function InfluencerPage({
           )}
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem", flexWrap: "wrap" }}>
             <FollowButton influencerId={influencer.id} isLoggedIn={!!userId} initiallyFollowed={followed} />
-            <a className="btn ghost" href={`/i/${influencer.handle}/rss`}>🔗 RSS</a>
+            <a className="btn ghost" href={`/i/${influencer.handle}/rss`}>RSS</a>
           </div>
         </div>
       </div>

@@ -52,13 +52,13 @@ export function PushToggle() {
   if (state === "on") {
     return (
       <span className="btn ghost" style={{ cursor: "default" }}>
-        🔔 推送已开启
+        推送已开启
       </span>
     );
   }
   return (
     <button className="btn primary" onClick={enable} disabled={state === "working"}>
-      {state === "working" ? "开启中…" : "🔔 开启推送"}
+      {state === "working" ? "开启中…" : "开启推送"}
     </button>
   );
 }

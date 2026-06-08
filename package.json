@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 53000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -19,7 +19,9 @@
     "digest": "tsx scripts/digest.ts"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@prisma/client": "^6.3.0",
+    "gsap": "^3.12.7",
     "next": "^15.1.6",
     "nodemailer": "^6.9.16",
     "openai": "^4.77.0",

@@ -21,7 +21,7 @@ export async function runDigest(): Promise<{ users: number; sent: number }> {
 
     const lines = posts.map((p) => {
       const name = p.influencer.displayName ?? p.influencer.handle;
-      const ai = p.analysis ? `\n  🤖 ${p.analysis.summary}` : "";
+      const ai = p.analysis ? `\n  AI: ${p.analysis.summary}` : "";
       return `• ${name}: ${p.contentText.slice(0, 100)}${ai}`;
     });
     const body = `你关注的博主过去 24h 的信号（${posts.length} 条）：\n\n${lines.join("\n\n")}\n\n— X2T · 非投资建议`;

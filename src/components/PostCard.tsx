@@ -21,7 +21,7 @@ export function PostCard({ post }: { post: PostCardData }) {
     <article className="post-card" data-stance={post.analysis?.overallStance}>
       <div className="pc-top">
         <Link href={`/i/${inf.handle}`} className="pc-av">
-          {inf.avatarUrl ? <img src={inf.avatarUrl} alt={name} /> : "📈"}
+          {inf.avatarUrl ? <img src={inf.avatarUrl} alt={name} /> : name.slice(0, 1).toUpperCase()}
         </Link>
         <div>
           <Link href={`/i/${inf.handle}`}>
@@ -42,7 +42,7 @@ export function PostCard({ post }: { post: PostCardData }) {
 
       {post.analysis && (
         <div className="ai-box">
-          <div className="ai-label">🤖 AI 分析</div>
+          <div className="ai-label">AI 分析</div>
           <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", marginBottom: "0.4rem" }}>
             <StanceBadge stance={post.analysis.overallStance} label={`整体${stanceText(post.analysis.overallStance)}`} />
             {post.tickers?.map((t) => (

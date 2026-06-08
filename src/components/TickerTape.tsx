@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 
 type Item = { symbol: string; stance: string; price?: number; changePct?: number };
 
-// 顶部滚动行情带：取最近被点评的标的 + 缓存价格。
+// 顶部行情带：重复填满整宽 + 无缝循环。
 export async function TickerTape() {
   const rows = await prisma.postTicker.findMany({
     orderBy: { post: { postedAt: "desc" } },
@@ -42,18 +42,31 @@ export async function TickerTape() {
   if (items.length === 0) {
     return (
       <div className="ticker">
-        <div className="ticker-empty">// AWAITING SIGNALS — 跑 pnpm poll:once &amp;&amp; pnpm analyze:once</div>
+        <div className="ticker-empty">AWAITING SIGNALS — pnpm poll:once &amp;&amp; pnpm analyze:once</div>
       </div>
     );
   }
 
-  const loop = [...items, ...items];
+  // 重复到至少 16 条作为「一组」，整组渲染两遍 → translateX(-50%) 无缝循环，且填满整宽
+  const repeats = Math.max(2, Math.ceil(16 / items.length));
+  const group = Array.from({ length: repeats }).flatMap(() => items);
+  const loop = [...group, ...group];
+
   return (
     <div className="ticker" aria-hidden="true">
       <div className="ticker-track">
         {loop.map((it, i) => {
-          const arrow = it.stance === "bullish" ? "▲" : it.stance === "bearish" ? "▼" : "■";
-          const dir = it.changePct === undefined ? (it.stance === "bullish" ? "up" : it.stance === "bearish" ? "dn" : "") : it.changePct >= 0 ? "up" : "dn";
+          const dir =
+            it.changePct === undefined
+              ? it.stance === "bullish"
+                ? "up"
+                : it.stance === "bearish"
+                  ? "dn"
+                  : ""
+              : it.changePct >= 0
+                ? "up"
+                : "dn";
+          const arrow = dir === "up" ? "▲" : dir === "dn" ? "▼" : "·";
           const chg = it.changePct === undefined ? "" : `${it.changePct >= 0 ? "+" : ""}${it.changePct}%`;
           return (
             <span className="ticker-item" key={i}>

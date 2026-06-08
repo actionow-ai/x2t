@@ -34,7 +34,7 @@ pnpm db:push
 pnpm db:seed
 
 # 5. 启动 Web（聚合 feed）
-pnpm dev            # http://localhost:3000
+pnpm dev            # http://localhost:53000（非标准避让端口，避免与其它本地服务冲突）
 
 # 6. 另开一个终端跑抓取 Worker
 pnpm poll:once      # 抓一轮

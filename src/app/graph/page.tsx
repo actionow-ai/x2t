@@ -53,7 +53,9 @@ export default async function GraphPage() {
               return (
                 <g key={`i-${inf.id}`}>
                   <circle cx={p.x} cy={p.y} r={16} style={{ fill: "var(--bg-primary)", stroke: "var(--accent)", strokeWidth: 2 }} />
-                  <text x={p.x} y={p.y + 4} textAnchor="middle" style={{ fontSize: 12 }}>📈</text>
+                  <text x={p.x} y={p.y + 4} textAnchor="middle" style={{ fontSize: 11, fontWeight: 700 }}>
+                    {(inf.displayName ?? inf.handle).slice(0, 1).toUpperCase()}
+                  </text>
                   <text x={p.x - 24} y={p.y + 4} textAnchor="end" style={{ fill: "var(--text-primary)", fontSize: 11 }}>
                     {(inf.displayName ?? inf.handle).slice(0, 12)}
                   </text>
