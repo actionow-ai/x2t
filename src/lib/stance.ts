@@ -74,8 +74,8 @@ export async function getStockConsensus(symbol: string, windowDays?: number): Pr
 }
 
 export type GraphData = {
-  influencers: { id: string; handle: string; displayName: string | null }[];
-  securities: { symbol: string }[];
+  influencers: { id: string; handle: string; displayName: string | null; avatarUrl: string | null; count: number }[];
+  securities: { symbol: string; count: number }[];
   edges: { influencerId: string; symbol: string; stance: Stance }[];
 };
 
@@ -88,25 +88,31 @@ export async function getGraphData(): Promise<GraphData> {
 
   const edgeKey = new Set<string>();
   const edges: GraphData["edges"] = [];
-  const influencers = new Map<string, { id: string; handle: string; displayName: string | null }>();
-  const securities = new Set<string>();
+  const influencers = new Map<
+    string,
+    { id: string; handle: string; displayName: string | null; avatarUrl: string | null; count: number }
+  >();
+  const secCount = new Map<string, number>();
 
   for (const r of rows) {
     const key = `${r.post.influencerId}::${r.symbol}`;
     if (edgeKey.has(key)) continue; // 已有更新的边（rows 时间倒序）
     edgeKey.add(key);
     edges.push({ influencerId: r.post.influencerId, symbol: r.symbol, stance: r.stance });
+    const prev = influencers.get(r.post.influencerId);
     influencers.set(r.post.influencerId, {
       id: r.post.influencerId,
       handle: r.post.influencer.handle,
       displayName: r.post.influencer.displayName,
+      avatarUrl: r.post.influencer.avatarUrl,
+      count: (prev?.count ?? 0) + 1,
     });
-    securities.add(r.symbol);
+    secCount.set(r.symbol, (secCount.get(r.symbol) ?? 0) + 1);
   }
 
   return {
-    influencers: [...influencers.values()],
-    securities: [...securities].map((symbol) => ({ symbol })),
+    influencers: [...influencers.values()].sort((a, b) => b.count - a.count),
+    securities: [...secCount.entries()].map(([symbol, count]) => ({ symbol, count })).sort((a, b) => b.count - a.count),
     edges,
   };
 }

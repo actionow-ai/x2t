@@ -299,6 +299,10 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 /* ===================== SVG GRAPH TEXT ===================== */
 svg text { font-family: var(--mono); font-weight: 700; }
 
+/* ===================== GRAPH ===================== */
+.graph-frame { background: var(--bg-secondary); border: 3px solid var(--ink); box-shadow: var(--shadow); padding: 0.7rem; overflow-x: auto; }
+.graph-legend { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+
 @media (prefers-reduced-motion: reduce) {
   .ticker-track { animation: none; }
   .feed > * { animation: none; }
