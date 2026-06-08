@@ -1,6 +1,7 @@
 import { ingestAll } from "../src/lib/ingest";
 import { analyzePending } from "../src/lib/agent";
 import { runDigest } from "../src/lib/digest";
+import { prisma } from "../src/lib/db";
 
 // 加载 .env（独立进程；DB / LLM / 行情 / VAPID key 都从这里来）
 try {
@@ -23,6 +24,8 @@ const DIGEST_MS = Number(process.env.DIGEST_INTERVAL_MS ?? 86_400_000);
 
 let stopping = false;
 let lastDigest = Date.now(); // 启动后满 DIGEST_MS 才首发，避免每次重启都发
+let lastGc = 0; // 启动即先 GC 一次过期缓存
+const GC_MS = Number(process.env.CACHE_GC_INTERVAL_MS ?? 3_600_000);
 
 async function tick() {
   const start = Date.now();
@@ -41,6 +44,17 @@ async function tick() {
     );
   } catch (e) {
     console.error("[worker] tick 异常:", e instanceof Error ? e.message : e);
+  }
+
+  // 过期外部数据缓存 GC(节流,默认每小时一次)
+  if (Date.now() - lastGc >= GC_MS) {
+    try {
+      const del = await prisma.externalDataCache.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+      lastGc = Date.now();
+      if (del.count) console.log(`[worker] GC：清理过期缓存 ${del.count} 条`);
+    } catch (e) {
+      console.error("[worker] GC 异常:", e instanceof Error ? e.message : e);
+    }
   }
 
   if (RUN_DIGEST && Date.now() - lastDigest >= DIGEST_MS) {
@@ -69,6 +83,10 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     stopping = true;
   });
 }
+
+// 自愈：合并容器里 worker 是后台进程,崩了不会被重启。故吞掉游离异常,只记录不退出,让 loop 继续 tick。
+process.on("unhandledRejection", (r) => console.error("[worker] unhandledRejection:", r instanceof Error ? r.message : r));
+process.on("uncaughtException", (e) => console.error("[worker] uncaughtException:", e instanceof Error ? e.message : e));
 
 async function main() {
   if (once) {

@@ -34,6 +34,7 @@ export async function getStockConsensus(symbol: string, windowDays?: number): Pr
     where: { symbol: sym },
     include: { post: { include: { influencer: true } } },
     orderBy: { post: { postedAt: "desc" } },
+    take: Number(process.env.CONSENSUS_SCAN_CAP ?? 2000), // 兜底:取最近 N 条(时间倒序),够算"每博主最新+转向"
   });
 
   const byInf = new Map<string, typeof rows>();
@@ -95,11 +96,21 @@ function snip(s: string | null | undefined): string | null {
   return t.length > 110 ? t.slice(0, 110) + "…" : t;
 }
 
-/** 全景图谱数据：每个 (博主×票) 取最新立场作为一条边。 */
+// 图谱开销最大且无参 → 进程内 memo(单容器有效)+ 时间窗 + 扫描上限,防数据增长后全表扫描失控。
+let graphMemo: { at: number; data: GraphData } | null = null;
+
+/** 全景图谱数据：每个 (博主×票) 取最新立场作为一条边。窗口/上限/缓存均可env 调。 */
 export async function getGraphData(): Promise<GraphData> {
+  const memoMs = Number(process.env.GRAPH_MEMO_MS ?? 60_000);
+  if (graphMemo && Date.now() - graphMemo.at < memoMs) return graphMemo.data;
+
+  const windowDays = Number(process.env.GRAPH_WINDOW_DAYS ?? 90);
+  const since = new Date(Date.now() - windowDays * 86_400_000);
   const rows = await prisma.postTicker.findMany({
+    where: { post: { postedAt: { gte: since } } },
     include: { post: { include: { influencer: true } } },
     orderBy: { post: { postedAt: "desc" } },
+    take: Number(process.env.GRAPH_SCAN_CAP ?? 5000),
   });
 
   const edges: GraphData["edges"] = [];
@@ -143,11 +154,13 @@ export async function getGraphData(): Promise<GraphData> {
     secCount.set(r.symbol, (secCount.get(r.symbol) ?? 0) + 1);
   }
 
-  return {
+  const data: GraphData = {
     influencers: [...influencers.values()].sort((a, b) => b.count - a.count),
     securities: [...secCount.entries()].map(([symbol, count]) => ({ symbol, count })).sort((a, b) => b.count - a.count),
     edges,
   };
+  graphMemo = { at: Date.now(), data };
+  return data;
 }
 
 /** 转向检测：某帖每只票 vs 该博主对该票更早一条立场，返回发生转向的票。 */

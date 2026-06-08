@@ -43,14 +43,22 @@ export async function ingestInfluencer(influencerId: string): Promise<{ fetched:
       sourceConfig: config,
     });
 
+    // 一次性查出本批已存在的 platformPostId(消除每帖一次 findUnique 的读 N+1)
+    const existingIds = posts.length
+      ? new Set(
+          (
+            await prisma.post.findMany({
+              where: { influencerId: inf.id, platformPostId: { in: posts.map((p) => p.platformPostId) } },
+              select: { platformPostId: true },
+            })
+          ).map((r) => r.platformPostId),
+        )
+      : new Set<string>();
+
     const createdIds: string[] = [];
     for (const p of posts) {
-      const existing = await prisma.post.findUnique({
-        where: { influencerId_platformPostId: { influencerId: inf.id, platformPostId: p.platformPostId } },
-        select: { id: true },
-      });
       const stored = await storePost(inf.id, p);
-      if (!existing) createdIds.push(stored.id);
+      if (!existingIds.has(p.platformPostId)) createdIds.push(stored.id);
     }
 
     await prisma.influencer.update({

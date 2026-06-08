@@ -76,8 +76,9 @@ model Post {
   deliveries Delivery[]
 
   @@unique([influencerId, platformPostId]) // 幂等去重
-  @@index([postedAt])
-  @@index([analysisStatus])
+  @@index([postedAt]) // 全站最新流
+  @@index([influencerId, postedAt]) // 首页按关注过滤 + detectFlips(同博主历史)
+  @@index([analysisStatus, postedAt]) // analyzePending: where status=pending order postedAt(前缀也覆盖 status-only)
 }
 
 model PostAnalysis {
