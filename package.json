@@ -24,6 +24,8 @@
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@prisma/client": "^6.3.0",
+    "@types/d3-force": "^3.0.10",
+    "d3-force": "^3.0.0",
     "gsap": "^3.12.7",
     "next": "^15.1.6",
     "nodemailer": "^6.9.16",
@@ -45,6 +47,12 @@
     "typescript": "^5.7.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "prisma", "esbuild", "sharp"]
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "sharp"
+    ]
   }
 }
