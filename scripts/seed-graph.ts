@@ -16,16 +16,16 @@ const DATA: { handle: string; name: string; calls: Call[] }[] = [
     handle: "serenity",
     name: "Serenity",
     calls: [
-      { sym: "NVDA", stance: "bullish", agoH: 2 }, // 新鲜
-      { sym: "AMD", stance: "bullish", agoH: 30 }, // 近一周
-      { sym: "TSLA", stance: "bearish", agoH: 5, prev: "bullish" }, // 转向：曾看多→现看空
+      { sym: "NVDA", stance: "bullish", agoH: 0.4 }, // ~24分钟前
+      { sym: "AMD", stance: "bullish", agoH: 30 }, // ~1.3天前
+      { sym: "TSLA", stance: "bearish", agoH: 5, prev: "bullish" }, // 转向：曾看多→现看空（5小时前）
     ],
   },
   {
     handle: "marcotrades",
     name: "Marco Tang",
     calls: [
-      { sym: "TSLA", stance: "bearish", agoH: 50 }, // 近一周
+      { sym: "TSLA", stance: "bearish", agoH: 50 }, // ~2天前
       { sym: "PLTR", stance: "bullish", agoH: 220 }, // ~9天前，渐旧
     ],
   },
@@ -33,17 +33,17 @@ const DATA: { handle: string; name: string; calls: Call[] }[] = [
     handle: "macrojane",
     name: "MacroJane",
     calls: [
-      { sym: "NVDA", stance: "bullish", agoH: 9 }, // 新鲜
+      { sym: "NVDA", stance: "bullish", agoH: 9 }, // ~9小时前
       { sym: "AAPL", stance: "bullish", agoH: 640 }, // ~27天前，陈旧
-      { sym: "COIN", stance: "bearish", agoH: 20, prev: "bullish" }, // 转向
+      { sym: "COIN", stance: "bearish", agoH: 0.6, prev: "bullish" }, // 转向（~36分钟前）
     ],
   },
   {
     handle: "quantcat",
     name: "QuantCat",
     calls: [
-      { sym: "AMD", stance: "bullish", agoH: 1 }, // 最新鲜
-      { sym: "SMCI", stance: "bullish", agoH: 14 },
+      { sym: "AMD", stance: "bullish", agoH: 0.2 }, // ~12分钟前，最新鲜
+      { sym: "SMCI", stance: "bullish", agoH: 0.8 }, // ~48分钟前
       { sym: "NVDA", stance: "bullish", agoH: 110 }, // ~5天前
     ],
   },

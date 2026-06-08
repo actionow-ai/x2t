@@ -302,7 +302,7 @@ svg text { font-family: var(--mono); font-weight: 700; }
 /* ===================== GRAPH ===================== */
 .graph-frame { background: var(--bg-secondary); border: 3px solid var(--ink); box-shadow: var(--shadow); padding: 0.7rem; overflow-x: auto; }
 .graph-legend { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
-.graph-controls { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.graph-controls { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.9rem; }
 .seg { display: inline-flex; border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
 .segbtn { font-family: var(--mono); font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.34rem 0.62rem; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; transition: background 0.12s, color 0.12s; }
 .seg .segbtn { border: 0; border-right: 2px solid var(--ink); }
@@ -310,6 +310,18 @@ svg text { font-family: var(--mono); font-weight: 700; }
 .segbtn.on { background: var(--lime); color: var(--ink); }
 .segbtn:hover:not(.on) { color: var(--ink); }
 .graph-controls > .segbtn { border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+
+/* 时间窗滑块 — 天→小时→分钟 细粒度 */
+.graph-slider { display: flex; flex-direction: column; gap: 0.34rem; min-width: 300px; flex: 1 1 320px; max-width: 460px; }
+.graph-slider .slider-readout { font-family: var(--mono); font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
+.graph-slider .slider-readout b { background: var(--lime); color: var(--ink); padding: 0.05rem 0.34rem; border: 2px solid var(--ink); margin-right: 0.34rem; }
+.graph-slider input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; cursor: pointer; }
+.graph-slider input[type="range"]::-webkit-slider-runnable-track { height: 12px; background: var(--bg-secondary); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.graph-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; background: var(--lime); border: 2px solid var(--ink); box-shadow: 1px 1px 0 var(--ink); margin-top: -7px; }
+.graph-slider input[type="range"]::-moz-range-track { height: 12px; background: var(--bg-secondary); border: 2px solid var(--ink); }
+.graph-slider input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; background: var(--lime); border: 2px solid var(--ink); border-radius: 0; box-shadow: 1px 1px 0 var(--ink); }
+.graph-slider input[type="range"]:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.graph-slider .slider-ends { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.62rem; font-weight: 700; color: var(--text-tertiary); }
 
 @media (prefers-reduced-motion: reduce) {
   .ticker-track { animation: none; }

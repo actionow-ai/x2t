@@ -22,20 +22,32 @@ function recency(ts: number): { opacity: number; width: number } {
   return { opacity: 0.2, width: 2 };
 }
 
-const WINDOWS = [
-  { k: "all", label: "全部", ms: Number.POSITIVE_INFINITY },
-  { k: "7d", label: "近7天", ms: 7 * 86_400_000 },
-  { k: "24h", label: "近24h", ms: 86_400_000 },
+// 时间窗细粒度档位：天 → 小时 → 分钟（idx 0=全部，越大越窄）
+const MIN = 60_000, HR = 3_600_000, DAY = 86_400_000;
+const STOPS = [
+  { label: "全部", ms: Number.POSITIVE_INFINITY },
+  { label: "近30天", ms: 30 * DAY },
+  { label: "近14天", ms: 14 * DAY },
+  { label: "近7天", ms: 7 * DAY },
+  { label: "近3天", ms: 3 * DAY },
+  { label: "近48小时", ms: 48 * HR },
+  { label: "近24小时", ms: 24 * HR },
+  { label: "近12小时", ms: 12 * HR },
+  { label: "近6小时", ms: 6 * HR },
+  { label: "近3小时", ms: 3 * HR },
+  { label: "近1小时", ms: HR },
+  { label: "近30分钟", ms: 30 * MIN },
+  { label: "近15分钟", ms: 15 * MIN },
 ];
 
 export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges: Edge[] }) {
   const router = useRouter();
-  const [win, setWin] = useState("all");
+  const [winIdx, setWinIdx] = useState(0);
   const [stance, setStance] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
 
-  const winMs = WINDOWS.find((w) => w.k === win)!.ms;
+  const winMs = STOPS[winIdx].ms;
 
   const fEdges = useMemo(() => {
     const now = Date.now();
@@ -76,10 +88,19 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
   return (
     <>
       <div className="graph-controls">
-        <div className="seg">
-          {WINDOWS.map((w) => (
-            <button key={w.k} className={`segbtn${win === w.k ? " on" : ""}`} onClick={() => setWin(w.k)}>{w.label}</button>
-          ))}
+        <div className="graph-slider">
+          <label className="slider-readout" htmlFor="win"><b>{STOPS[winIdx].label}</b>{fEdges.length} 关系</label>
+          <input
+            id="win"
+            type="range"
+            min={0}
+            max={STOPS.length - 1}
+            step={1}
+            value={winIdx}
+            onChange={(e) => setWinIdx(Number(e.target.value))}
+            aria-label="时间窗"
+          />
+          <div className="slider-ends"><span>全部</span><span>15 分钟</span></div>
         </div>
         <div className="seg">
           <button className={`segbtn${stance === null ? " on" : ""}`} onClick={() => setStance(null)}>全部</button>
