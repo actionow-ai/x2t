@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isFollowing, toggleFollow, syncFollowFilter } from "@/lib/follow-client";
+import { isFollowing, toggleFollow, syncFollowFilter, syncFollowsCookie } from "@/lib/follow-client";
 import { useT } from "./LangProvider";
 
 export function FollowButton({
@@ -21,6 +21,7 @@ export function FollowButton({
   useEffect(() => {
     if (!isLoggedIn) {
       setFollowing(isFollowing(influencerId));
+      syncFollowsCookie(); // 保持 cookie 与本地关注一致(供首页 SSR 过滤)
       setReady(true);
     }
   }, [influencerId, isLoggedIn]);

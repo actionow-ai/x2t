@@ -17,10 +17,22 @@ export function isFollowing(id: string): boolean {
   return getFollows().includes(id);
 }
 
+// 镜像到 cookie,让服务端(SSR)能按匿名关注过滤信号流。
+function writeCookie(follows: string[]) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${KEY}=${encodeURIComponent(follows.join(","))}; path=/; max-age=31536000; samesite=lax`;
+}
+
+// 把本地关注同步到 cookie;幂等,挂载时调用即可。
+export function syncFollowsCookie(): void {
+  writeCookie(getFollows());
+}
+
 export function toggleFollow(id: string): string[] {
   const cur = getFollows();
   const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
   localStorage.setItem(KEY, JSON.stringify(next));
+  writeCookie(next);
   return next;
 }
 

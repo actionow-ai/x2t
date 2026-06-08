@@ -335,6 +335,8 @@ svg text { font-family: var(--mono); font-weight: 700; }
 .seg .segbtn { border: 0; border-right: 2px solid var(--ink); }
 .seg .segbtn:last-child { border-right: 0; }
 .segbtn.on { background: var(--lime); color: var(--ink); }
+.seg a.segbtn { text-decoration: none; }
+.feed-toolbar { display: flex; gap: 0.6rem; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; }
 .segbtn:hover:not(.on) { color: var(--ink); }
 .graph-controls > .segbtn { border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
 

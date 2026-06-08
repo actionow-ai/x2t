@@ -51,6 +51,10 @@ const zh = {
     pickPrompt: "← 选择一条信号查看详情",
     collapse: "收起",
     fullPage: "整页",
+    viewAll: "全站",
+    viewFollowing: "已关注",
+    followEmpty: "你还没关注博主。",
+    discover: "去发现博主",
   },
   post: {
     ai: "AI 分析",
@@ -224,6 +228,10 @@ const en: Dict = {
     pickPrompt: "← Pick a signal to see details",
     collapse: "Collapse",
     fullPage: "Full page",
+    viewAll: "All",
+    viewFollowing: "Following",
+    followEmpty: "You're not following anyone yet.",
+    discover: "Discover influencers",
   },
   post: {
     ai: "AI Analysis",
