@@ -76,8 +76,24 @@ export async function getStockConsensus(symbol: string, windowDays?: number): Pr
 export type GraphData = {
   influencers: { id: string; handle: string; displayName: string | null; avatarUrl: string | null; count: number }[];
   securities: { symbol: string; count: number }[];
-  edges: { influencerId: string; symbol: string; stance: Stance; ts: number; flipped: boolean }[];
+  edges: {
+    influencerId: string;
+    symbol: string;
+    stance: Stance;
+    ts: number;
+    flipped: boolean;
+    postId: string;
+    snippet: string;
+    snippetZh: string | null;
+    snippetEn: string | null;
+  }[];
 };
+
+function snip(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const t = s.trim().replace(/\s+/g, " ");
+  return t.length > 110 ? t.slice(0, 110) + "…" : t;
+}
 
 /** 全景图谱数据：每个 (博主×票) 取最新立场作为一条边。 */
 export async function getGraphData(): Promise<GraphData> {
@@ -109,6 +125,10 @@ export async function getGraphData(): Promise<GraphData> {
       stance: r.stance,
       ts: r.post.postedAt.getTime(),
       flipped: false,
+      postId: r.postId,
+      snippet: snip(r.post.contentText) ?? "",
+      snippetZh: snip(r.post.contentZh),
+      snippetEn: snip(r.post.contentEn),
     };
     edgeByPair.set(key, edge);
     edges.push(edge);

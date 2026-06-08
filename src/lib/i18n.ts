@@ -100,6 +100,10 @@ const zh = {
     win1h: "近1小时",
     win30m: "近30分钟",
     win15m: "近15分钟",
+    fullscreen: "全屏",
+    exitFull: "退出全屏",
+    openPage: "打开页面",
+    hint2: "拖动节点可重新排布 · 点击节点查看关联帖子 · 悬停高亮 · 边越新越粗、蓝色虚线 ⇄ = 近期转向",
   },
   following: {
     title: "关注管理",
@@ -269,6 +273,10 @@ const en: Dict = {
     win1h: "1h",
     win30m: "30m",
     win15m: "15m",
+    fullscreen: "Fullscreen",
+    exitFull: "Exit fullscreen",
+    openPage: "Open page",
+    hint2: "Drag nodes to rearrange · click a node for related posts · hover to highlight · newer edges bolder, blue dashed ⇄ = recent flip",
   },
   following: {
     title: "Following",
