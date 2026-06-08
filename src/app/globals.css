@@ -126,6 +126,21 @@ main { padding: 1.75rem 0 5rem; }
 /* ===================== FEED + POST BLOCK ===================== */
 .feed { display: flex; flex-direction: column; gap: 1.2rem; }
 
+/* ===================== WORKSPACE (master-detail 双栏) ===================== */
+.ws-detail-bar { display: flex; gap: 0.5rem; margin-bottom: 0.85rem; }
+.post-card[data-selected] { border-color: var(--blue); box-shadow: 5px 5px 0 var(--blue); }
+.post-card[data-selected]::before { background: var(--blue); }
+@media (min-width: 900px) {
+  .workspace.split { display: grid; grid-template-columns: minmax(330px, 410px) 1fr; gap: 1.4rem; align-items: start; }
+  .workspace.split .ws-list { min-width: 0; }
+  .workspace.split .ws-list .ai-box { display: none; } /* 列表压缩：详情在右栏看 */
+  .workspace.split .ws-list .post-card { padding: 0.9rem 1rem; cursor: pointer; }
+  .workspace.split .ws-detail { position: sticky; top: 86px; }
+}
+@media (max-width: 899px) {
+  .ws-detail { display: none; } /* 移动端不双栏：点击走整页 /p/[id] */
+}
+
 .post-card {
   position: relative;
   background: var(--bg-secondary);

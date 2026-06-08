@@ -13,12 +13,12 @@ type PostCardData = {
   tickers?: { symbol: string; stance: string }[];
 };
 
-export function PostCard({ post }: { post: PostCardData }) {
+export function PostCard({ post, selected }: { post: PostCardData; selected?: boolean }) {
   const inf = post.influencer;
   const name = inf.displayName ?? inf.handle;
 
   return (
-    <article className="post-card" data-stance={post.analysis?.overallStance}>
+    <article className="post-card" data-stance={post.analysis?.overallStance} data-selected={selected ? "" : undefined}>
       <div className="pc-top">
         <Link href={`/i/${inf.handle}`} className="pc-av">
           {inf.avatarUrl ? <img src={inf.avatarUrl} alt={name} /> : name.slice(0, 1).toUpperCase()}

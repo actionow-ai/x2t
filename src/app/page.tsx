@@ -2,15 +2,20 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
 import { PushToggle } from "@/components/PushToggle";
+import { SelectableFeed } from "@/components/SelectableFeed";
+import { getPostDetail, PostDetail } from "@/components/PostDetail";
 
 export const dynamic = "force-dynamic";
 
-export default async function FeedPage() {
+export default async function FeedPage({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
+  const { s } = await searchParams;
+
   const posts = await prisma.post.findMany({
     orderBy: { postedAt: "desc" },
     take: 50,
     include: { influencer: true, analysis: true, tickers: true },
   });
+  const detail = s ? await getPostDetail(s) : null;
 
   return (
     <>
@@ -31,10 +36,26 @@ export default async function FeedPage() {
           或 <Link href="/submit" style={{ color: "var(--accent)" }}>手动提交一条</Link>。
         </div>
       ) : (
-        <div className="feed">
-          {posts.map((p) => (
-            <PostCard key={p.id} post={p} />
-          ))}
+        <div className={`workspace${detail ? " split" : ""}`}>
+          <div className="ws-list">
+            <SelectableFeed>
+              <div className="feed">
+                {posts.map((p) => (
+                  <PostCard key={p.id} post={p} selected={p.id === s} />
+                ))}
+              </div>
+            </SelectableFeed>
+          </div>
+
+          {detail && (
+            <div className="ws-detail">
+              <div className="ws-detail-bar">
+                <Link href="/" scroll={false} className="btn ghost">收起</Link>
+                <Link href={`/p/${detail.post.id}`} className="btn ghost">整页</Link>
+              </div>
+              <PostDetail post={detail.post} dataBySymbol={detail.dataBySymbol} />
+            </div>
+          )}
         </div>
       )}
     </>
