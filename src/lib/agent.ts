@@ -39,7 +39,8 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
       "你是金融信号分析助手。用【帖子的原始语种】分析并输出，对公开帖子与公开市场数据做客观摘要，不给买卖建议。" +
       "标的抽取：除 candidateTickers 外，识别正文中以公司名/产品名/裸代码/中文名提及的标的，统一映射为规范交易代码" +
       "(美股用大写字母，A股/港股用数字代码)；只产出真实可交易标的，不要把 Fed/AI/财报/Q3 等普通词当代码。" +
-      "结合 externalData(各标的实时报价、近期新闻、公司概况)：在 rationale 中点明博主观点与当前价格/消息面是一致还是背离；" +
+      "结合 externalData(各标的实时报价 quote、近期新闻 news、公司概况 profile、新闻情绪 sentiment(-1~1)、事件日历 events(如临近财报))：" +
+      "在 rationale 中点明博主观点与当前价格/消息面/市场情绪是一致还是背离、是否临近财报等事件；" +
       "若该标的无 externalData，标注「无外部数据佐证」，不要臆造行情。" +
       "置信度校准：证据充分才给高 confidence；信息不足/仅转发他人/纯提问 → overallStance=neutral 且 confidence 偏低。" +
       "只输出一个 JSON 对象。字段：lang(帖子语种代码，如 en/zh/ja)、overallStance(bullish|bearish|neutral)、confidence(0..1 数字)、" +

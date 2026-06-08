@@ -113,6 +113,17 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
                     {ext?.news && ext.news.length > 0 && (
                       <div className="ext-line">{t.post.news} {ext.news.slice(0, 2).map((n) => n.headline).join(" · ")}</div>
                     )}
+                    {ext?.sentiment && typeof ext.sentiment.score === "number" && (
+                      <div className="ext-line">
+                        {t.post.sentiment}{" "}
+                        <span className={ext.sentiment.score >= 0 ? "up" : "dn"}>
+                          {ext.sentiment.label} ({ext.sentiment.score >= 0 ? "+" : ""}{ext.sentiment.score})
+                        </span>
+                      </div>
+                    )}
+                    {ext?.events && ext.events.length > 0 && (
+                      <div className="ext-line">{t.post.events} {ext.events.map((e) => `${e.title} · ${e.date}`).join(" · ")}</div>
+                    )}
                   </div>
                 );
               })}
