@@ -35,6 +35,20 @@ const seeds = [
   { handle: "timothysykes", platform: "twitter" as const, displayName: "Timothy Sykes", bio: "短线 / 小盘教学与喊单。", avatarUrl: ICON("timothysykes"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/timothysykes" } },
   { handle: "Barchart", platform: "twitter" as const, displayName: "Barchart", bio: "市场数据 / 技术位 / 异动。", avatarUrl: ICON("Barchart"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/Barchart" } },
 
+  // ===== 美股有观点的交易员/分析师批次（逐标的表态,经自建 RSSHub）=====
+  { handle: "allstarcharts", platform: "twitter" as const, displayName: "JC Parets", bio: "技术分析 / 明确多空 / 逐个标的画图。", avatarUrl: ICON("allstarcharts"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/allstarcharts" } },
+  { handle: "OptionsHawk", platform: "twitter" as const, displayName: "OptionsHawk", bio: "期权异动流 / 标的具体的多空。", avatarUrl: ICON("OptionsHawk"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/OptionsHawk" } },
+  { handle: "GerberKawasaki", platform: "twitter" as const, displayName: "Ross Gerber", bio: "TSLA / 科技股,立场鲜明。", avatarUrl: ICON("GerberKawasaki"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/GerberKawasaki" } },
+  { handle: "DougKass", platform: "twitter" as const, displayName: "Doug Kass", bio: "对冲基金 / 明确做多·做空个股。", avatarUrl: ICON("DougKass"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/DougKass" } },
+  { handle: "markminervini", platform: "twitter" as const, displayName: "Mark Minervini", bio: "动量成长股 / SEPA 选股。", avatarUrl: ICON("markminervini"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/markminervini" } },
+  { handle: "hmeisler", platform: "twitter" as const, displayName: "Helene Meisler", bio: "技术派 / 超买超卖 / 个股位。", avatarUrl: ICON("hmeisler"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/hmeisler" } },
+  { handle: "KobeissiLetter", platform: "twitter" as const, displayName: "The Kobeissi Letter", bio: "宏观 + 市场高频实时点评,$代码多。", avatarUrl: ICON("KobeissiLetter"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/KobeissiLetter" } },
+  { handle: "charliebilello", platform: "twitter" as const, displayName: "Charlie Bilello", bio: "数据驱动的市场与个股观点。", avatarUrl: ICON("charliebilello"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/charliebilello" } },
+  { handle: "LizAnnSonders", platform: "twitter" as const, displayName: "Liz Ann Sonders", bio: "嘉信首席策略 / 市场与板块。", avatarUrl: ICON("LizAnnSonders"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/LizAnnSonders" } },
+  { handle: "biancoresearch", platform: "twitter" as const, displayName: "Jim Bianco", bio: "宏观 / 利率 / 市场。", avatarUrl: ICON("biancoresearch"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/biancoresearch" } },
+  { handle: "QuiverQuant", platform: "twitter" as const, displayName: "Quiver Quantitative", bio: "国会 / 内部人交易,标的明确。", avatarUrl: ICON("QuiverQuant"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/QuiverQuant" } },
+  { handle: "PeterLBrandt", platform: "twitter" as const, displayName: "Peter Brandt", bio: "经典图表交易 / 股指·商品。", avatarUrl: ICON("PeterLBrandt"), sourceConfig: { connector: "rss", feedPath: "/twitter/user/PeterLBrandt" } },
+
   // ===== 可直连真实财经源（无需 RSSHub，开箱即有真数据）=====
   {
     handle: "marketwatch",
@@ -63,7 +77,8 @@ async function main() {
     const inf = await prisma.influencer.upsert({
       where: { platform_handle: { platform: s.platform, handle: s.handle } },
       create: s,
-      update: { displayName: s.displayName, bio: s.bio, avatarUrl: s.avatarUrl, sourceConfig: s.sourceConfig },
+      // 不更新 avatarUrl:已运行的轮询会用真实 feed 图覆盖占位图,re-seed 不能把它打回占位
+      update: { displayName: s.displayName, bio: s.bio, sourceConfig: s.sourceConfig },
     });
     console.log(`[seed] ${inf.handle} (${inf.platform})`);
   }
