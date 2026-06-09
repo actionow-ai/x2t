@@ -2,7 +2,8 @@ import { prisma } from "@/lib/db";
 import type { ExternalData } from "@/lib/marketdata";
 import { PostContentTabs } from "./PostContentTabs";
 import { StanceBadge, stanceText } from "./StanceBadge";
-import { ShareButton } from "./ShareButton";
+import { Reactions } from "./Reactions";
+import { getMyVotes } from "@/lib/reactions";
 import { AvatarInner } from "./Avatar";
 import { formatDateTime } from "@/lib/time";
 import { getDict, type Locale } from "@/lib/i18n";
@@ -21,6 +22,8 @@ export async function getPostDetail(id: string) {
       url: true,
       postedAt: true,
       analysisStatus: true,
+      likeCount: true,
+      dislikeCount: true,
       influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
       analysis: { select: { summary: true, summaryEn: true, keyPoints: true, keyPointsEn: true, overallStance: true, confidence: true, model: true } },
       tickers: { select: { symbol: true, stance: true, rationale: true, rationaleEn: true } },
@@ -52,12 +55,13 @@ export async function getPostDetail(id: string) {
     dataBySymbol.set(c.symbol, cur);
   }
 
-  return { post, dataBySymbol };
+  const myVote = (await getMyVotes([id]))[id] ?? 0;
+  return { post, dataBySymbol, myVote };
 }
 
 type Detail = NonNullable<Awaited<ReturnType<typeof getPostDetail>>>;
 
-export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { locale?: Locale }) {
+export function PostDetail({ post, dataBySymbol, myVote, locale = "zh" }: Detail & { locale?: Locale }) {
   const inf = post.influencer;
   const name = inf.displayName ?? inf.handle;
   const t = getDict(locale);
@@ -68,7 +72,7 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
 
   return (
     <div className="cols-split post-detail">
-      <article className="post-card col-sticky">
+      <article className="post-card" data-stance={post.analysis?.overallStance}>
       <div className="pc-top">
         <Link href={`/i/${inf.handle}`} className="pc-av"><AvatarInner src={inf.avatarUrl} name={name} /></Link>
         <div>
@@ -91,8 +95,12 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
         {post.url && <a href={post.url} target="_blank" rel="noreferrer">{t.common.originalPost} ↗</a>}
         <span>{t.common.notFinancialAdvice}</span>
       </div>
-      <ShareButton
-        spec={{
+      <Reactions
+        postId={post.id}
+        likes={post.likeCount}
+        dislikes={post.dislikeCount}
+        myVote={myVote}
+        share={{
           brandLine: `${name}${post.tickers[0] ? ` · $${post.tickers[0].symbol}` : ""}`,
           headline: summary ? summary.slice(0, 56) : post.tickers[0] ? `$${post.tickers[0].symbol}` : name,
           sub: post.analysis ? `${t.stance.overallPrefix}${stanceText(post.analysis.overallStance, locale)}` : undefined,

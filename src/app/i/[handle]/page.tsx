@@ -8,6 +8,7 @@ import { StanceBadge } from "@/components/StanceBadge";
 import { EquitySparkline } from "@/components/EquitySparkline";
 import { getCurrentUserId } from "@/lib/auth";
 import { isNewsAccount } from "@/lib/account";
+import { getMyVotes } from "@/lib/reactions";
 import { getInfluencerLedger, getInfluencerWinRate, getInfluencerEquityCurve } from "@/lib/stance";
 import { formatDateTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
@@ -45,11 +46,14 @@ export default async function InfluencerPage({
           influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
           analysis: { select: { summary: true, summaryEn: true, overallStance: true } },
           tickers: { select: { symbol: true, stance: true } },
+          likeCount: true,
+          dislikeCount: true,
         },
       },
     },
   });
   if (!influencer) notFound();
+  const myVotes = await getMyVotes(influencer.posts.map((p) => p.id));
 
   const name = influencer.displayName ?? influencer.handle;
 
@@ -170,7 +174,7 @@ export default async function InfluencerPage({
       ) : (
         <div className="feed">
           {influencer.posts.map((p) => (
-            <PostCard key={p.id} post={p} locale={locale} />
+            <PostCard key={p.id} post={{ ...p, myVote: myVotes[p.id] ?? 0 }} locale={locale} />
           ))}
         </div>
       )}

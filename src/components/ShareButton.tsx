@@ -9,7 +9,8 @@ export type ShareSpec = {
   headline: string; // 主句,如 "综合 7 位博主,整体看多"
   sub?: string; // 副句,如 "▲4 ▼1 · 2 中性"
   accent?: "bull" | "bear" | "neutral";
-  tweetText: string; // 预填推文(链接用当前页 URL,无需另传)
+  tweetText: string; // 预填推文
+  url?: string; // 分享链接(相对路径;省略=当前页 URL)。feed 卡片需指向 /p/[id]
 };
 
 const PAPER = "#f4f1e8";
@@ -114,7 +115,8 @@ export function ShareButton({ spec }: { spec: ShareSpec }) {
   }
 
   function shareX() {
-    const u = `https://twitter.com/intent/tweet?text=${encodeURIComponent(spec.tweetText)}&url=${encodeURIComponent(window.location.href)}`;
+    const link = spec.url ? new URL(spec.url, window.location.origin).href : window.location.href;
+    const u = `https://twitter.com/intent/tweet?text=${encodeURIComponent(spec.tweetText)}&url=${encodeURIComponent(link)}`;
     window.open(u, "_blank", "noopener,noreferrer");
   }
 
@@ -137,19 +139,25 @@ export function ShareButton({ spec }: { spec: ShareSpec }) {
   }
 
   return (
-    <div className="share-wrap">
-      <button className="btn ghost" onClick={toggle}>↗ {t.share.button}</button>
+    <>
+      <button className="btn ghost share-btn" onClick={toggle}>↗ {t.share.button}</button>
       {open && (
-        <div className="share-pop">
-          <canvas ref={canvasRef} className="share-canvas" />
-          <div className="share-actions">
-            <button className="btn primary" onClick={shareX}>{t.share.toX}</button>
-            {imgUrl && <a className="btn ghost" href={imgUrl} download="x2t-card.png">{t.share.download}</a>}
-            <button className="btn ghost" onClick={copyImg}>{copied ? t.share.copied : t.share.copy}</button>
+        <div className="share-modal-backdrop" onClick={() => setOpen(false)} role="dialog" aria-modal="true">
+          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="share-modal-head">
+              <strong>{t.share.button}</strong>
+              <button className="share-modal-x" onClick={() => setOpen(false)} aria-label={t.common.close}>✕</button>
+            </div>
+            <canvas ref={canvasRef} className="share-canvas" />
+            <div className="share-actions">
+              <button className="btn primary" onClick={shareX}>{t.share.toX}</button>
+              {imgUrl && <a className="btn ghost" href={imgUrl} download="x2t-card.png">{t.share.download}</a>}
+              <button className="btn ghost" onClick={copyImg}>{copied ? t.share.copied : t.share.copy}</button>
+            </div>
+            <p className="share-hint">{t.share.hint}</p>
           </div>
-          <p className="share-hint">{t.share.hint}</p>
         </div>
       )}
-    </div>
+    </>
   );
 }

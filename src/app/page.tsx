@@ -6,6 +6,7 @@ import { PostCard } from "@/components/PostCard";
 import { PushToggle } from "@/components/PushToggle";
 import { stanceMeta } from "@/components/StanceBadge";
 import { getCurrentUserId } from "@/lib/auth";
+import { getMyVotes } from "@/lib/reactions";
 import { getRecentFlips, getLeaderboard } from "@/lib/stance";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
@@ -63,8 +64,11 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
       influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
       analysis: { select: { summary: true, summaryEn: true, overallStance: true } },
       tickers: { select: { symbol: true, stance: true } },
+      likeCount: true,
+      dislikeCount: true,
     },
   });
+  const myVotes = await getMyVotes(posts.map((p) => p.id));
 
   // 转向看板:折叠同帖批量翻转 + 每博主≤2 + 优先方向反转,提升信噪比与多样性。
   const rawFlips = await getRecentFlips(40);
@@ -119,7 +123,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
           ) : (
             <div className="feed">
               {posts.map((p) => (
-                <PostCard key={p.id} post={p} locale={locale} />
+                <PostCard key={p.id} post={{ ...p, myVote: myVotes[p.id] ?? 0 }} locale={locale} />
               ))}
             </div>
           )}

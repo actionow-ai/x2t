@@ -39,8 +39,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <NavTabs userEmail={user?.email ?? null} isAdmin={admin} />
               <LangSwitch />
             </div>
+            <div className="disclaimer-bar">{t.header.disclaimer}</div>
           </header>
-          <div className="disclaimer-bar">{t.header.disclaimer}</div>
           <main>
             <div className="container">
               <PageFx>{children}</PageFx>

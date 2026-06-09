@@ -70,16 +70,32 @@ model Post {
   rawJson        Json?
   analysisStatus AnalysisStatus @default(pending)
   analysisAttempts Int          @default(0) // 失败重试计数:达上限(ANALYZE_MAX_ATTEMPTS)后不再自动重试
+  likeCount      Int            @default(0) // 赞计数(去规范化,供卡片直接读)
+  dislikeCount   Int            @default(0) // 踩计数
 
   influencer Influencer    @relation(fields: [influencerId], references: [id], onDelete: Cascade)
   analysis   PostAnalysis?
   tickers    PostTicker[]
   deliveries Delivery[]
+  reactions  PostReaction[]
 
   @@unique([influencerId, platformPostId]) // 幂等去重
   @@index([postedAt]) // 全站最新流
   @@index([influencerId, postedAt]) // 首页按关注过滤 + detectFlips(同博主历史)
   @@index([analysisStatus, postedAt]) // analyzePending: where status=pending order postedAt(前缀也覆盖 status-only)
+}
+
+// 帖子赞/踩。voterKey = userId(登录)或匿名 cookie id;每 voter 每帖一票。计数去规范化到 Post。
+model PostReaction {
+  postId    String
+  voterKey  String
+  value     Int // 1=赞, -1=踩
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, voterKey])
+  @@index([postId])
 }
 
 model PostAnalysis {

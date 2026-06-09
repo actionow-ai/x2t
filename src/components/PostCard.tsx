@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CashtagText } from "./CashtagText";
 import { StanceBadge, TickerBadge, stanceText } from "./StanceBadge";
 import { AvatarInner } from "./Avatar";
+import { Reactions } from "./Reactions";
 import { relativeTime } from "@/lib/time";
 import { getDict, type Locale } from "@/lib/i18n";
 
@@ -16,6 +17,9 @@ type PostCardData = {
   influencer: { handle: string; displayName: string | null; avatarUrl: string | null };
   analysis?: { summary: string; summaryEn?: string | null; overallStance: string } | null;
   tickers?: { symbol: string; stance: string }[];
+  likeCount?: number;
+  dislikeCount?: number;
+  myVote?: number;
 };
 
 export function PostCard({ post, selected, locale = "zh" }: { post: PostCardData; selected?: boolean; locale?: Locale }) {
@@ -68,6 +72,21 @@ export function PostCard({ post, selected, locale = "zh" }: { post: PostCardData
         )}
         <span>{t.common.notFinancialAdvice}</span>
       </div>
+
+      <Reactions
+        postId={post.id}
+        likes={post.likeCount ?? 0}
+        dislikes={post.dislikeCount ?? 0}
+        myVote={post.myVote ?? 0}
+        share={{
+          brandLine: `${name}${post.tickers?.[0] ? ` · $${post.tickers[0].symbol}` : ""}`,
+          headline: summary ? summary.slice(0, 56) : post.tickers?.[0] ? `$${post.tickers[0].symbol}` : name,
+          sub: post.analysis ? `${t.stance.overallPrefix}${stanceText(post.analysis.overallStance, locale)}` : undefined,
+          accent: post.analysis?.overallStance === "bullish" ? "bull" : post.analysis?.overallStance === "bearish" ? "bear" : "neutral",
+          tweetText: `${name}${post.tickers?.[0] ? ` 对 $${post.tickers[0].symbol}` : ""}${post.analysis ? `: ${stanceText(post.analysis.overallStance, locale)}` : ""}${summary ? ` — ${summary.slice(0, 80)}` : ""}`,
+          url: `/p/${post.id}`,
+        }}
+      />
     </article>
   );
 }

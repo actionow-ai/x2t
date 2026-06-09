@@ -36,5 +36,5 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const detail = await getPostDetail(id);
   if (!detail) notFound();
-  return <PostDetail post={detail.post} dataBySymbol={detail.dataBySymbol} locale={await getLocale()} />;
+  return <PostDetail post={detail.post} dataBySymbol={detail.dataBySymbol} myVote={detail.myVote} locale={await getLocale()} />;
 }

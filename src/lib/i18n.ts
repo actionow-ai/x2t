@@ -38,6 +38,10 @@ const zh = {
     none: "无",
     close: "关闭",
   },
+  react: {
+    like: "赞",
+    dislike: "踩",
+  },
   share: {
     button: "分享",
     toX: "发到 X",
@@ -319,6 +323,10 @@ const en: Dict = {
     delete: "Delete",
     none: "None",
     close: "Close",
+  },
+  react: {
+    like: "Like",
+    dislike: "Dislike",
   },
   share: {
     button: "Share",
