@@ -156,6 +156,9 @@ const zh = {
     searchPlaceholder: "搜索博主…",
     noMatch: "没有匹配的博主。",
     pushHint: "开启推送:关注的博主一发帖就第一时间通知你。",
+    digestOn: "邮件摘要:已订阅",
+    digestOff: "订阅邮件摘要",
+    digestHint: "每天一封:关注博主过去 24h 的信号摘要,头部突出立场转向。可随时退订。",
   },
   submit: {
     title: "手动提交一条帖子",
@@ -417,6 +420,9 @@ const en: Dict = {
     searchPlaceholder: "Search influencers…",
     noMatch: "No matching influencers.",
     pushHint: "Enable push to get notified the moment someone you follow posts.",
+    digestOn: "Email digest: subscribed",
+    digestOff: "Subscribe to email digest",
+    digestHint: "One email a day: a 24h signal summary from who you follow, led by stance flips. Unsubscribe anytime.",
   },
   submit: {
     title: "Submit a post",

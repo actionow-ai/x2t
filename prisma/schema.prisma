@@ -155,6 +155,7 @@ model User {
   email        String   @unique
   createdAt    DateTime @default(now())
   tokenVersion Int      @default(0) // 会话版本:登出/泄露时 +1 使旧 cookie 失效
+  digestOptIn  Boolean  @default(false) // 邮件每日摘要订阅(显式 opt-in,默认关)
 
   follows           Follow[]
   pushSubscriptions PushSubscription[]

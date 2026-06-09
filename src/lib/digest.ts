@@ -6,7 +6,8 @@ import { detectFlips } from "./stance";
 // 头部突出"立场转向"事件(谁对某标的翻多/翻空)—— 每日回访的核心钩子。
 export async function runDigest(): Promise<{ users: number; sent: number }> {
   const since = new Date(Date.now() - 24 * 3600 * 1000);
-  const users = await prisma.user.findMany({ include: { follows: true } });
+  // 仅发给显式订阅邮件摘要的用户(opt-in)
+  const users = await prisma.user.findMany({ where: { digestOptIn: true }, include: { follows: true } });
   let sent = 0;
 
   for (const u of users) {

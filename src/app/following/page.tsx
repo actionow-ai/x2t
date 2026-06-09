@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { FollowingList } from "@/components/FollowingList";
 import { PushToggle } from "@/components/PushToggle";
+import { EmailDigestToggle } from "@/components/EmailDigestToggle";
 import { getCurrentUserId } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
@@ -23,6 +24,8 @@ export default async function FollowingPage() {
         (await prisma.follow.findMany({ where: { userId }, select: { influencerId: true } })).map((f) => f.influencerId),
       )
     : new Set<string>();
+  // 邮件摘要订阅状态(仅登录用户)
+  const digestOptIn = userId ? !!(await prisma.user.findUnique({ where: { id: userId }, select: { digestOptIn: true } }))?.digestOptIn : false;
 
   const list = influencers.map((inf) => ({
     id: inf.id,
@@ -46,7 +49,8 @@ export default async function FollowingPage() {
         <>
           <div className="follow-pushbar">
             <PushToggle />
-            <span className="hint" style={{ margin: 0 }}>{t.following.pushHint}</span>
+            {userId && <EmailDigestToggle initial={digestOptIn} />}
+            <span className="hint" style={{ margin: 0 }}>{userId ? t.following.digestHint : t.following.pushHint}</span>
           </div>
           <FollowingList influencers={list} isLoggedIn={!!userId} followed={[...followed]} />
         </>
