@@ -23,16 +23,16 @@ export default async function AdminInfluencers() {
 
       <form className="form" action={addInfluencer} style={{ marginBottom: "1.5rem" }}>
         <div>
-          <label>handle *</label>
-          <input name="handle" required placeholder="serenity" />
+          <label htmlFor="inf-handle">handle *</label>
+          <input id="inf-handle" name="handle" required placeholder="serenity" />
         </div>
         <div>
-          <label>{t.displayName}</label>
-          <input name="displayName" placeholder="Serenity" />
+          <label htmlFor="inf-displayName">{t.displayName}</label>
+          <input id="inf-displayName" name="displayName" placeholder="Serenity" />
         </div>
         <div>
-          <label>RSS feedUrl</label>
-          <input name="feedUrl" placeholder="https://rsshub.app/twitter/user/serenity" />
+          <label htmlFor="inf-feedUrl">RSS feedUrl</label>
+          <input id="inf-feedUrl" name="feedUrl" placeholder="https://rsshub.app/twitter/user/serenity" />
         </div>
         <button className="btn primary" type="submit" style={{ alignSelf: "flex-start" }}>{t.addUpdate}</button>
       </form>
