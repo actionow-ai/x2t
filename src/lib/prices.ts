@@ -27,7 +27,7 @@ async function fetchYahooDaily(symbol: string): Promise<Daily[]> {
     const out: Daily[] = [];
     for (let i = 0; i < ts.length; i++) {
       const c = closes[i];
-      if (typeof c === "number" && c > 0) out.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), close: c });
+      if (typeof c === "number" && c > 0 && c < 1e7) out.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), close: c });
     }
     return out;
   } catch {
@@ -51,7 +51,7 @@ async function fetchStooqDaily(symbol: string): Promise<Daily[]> {
     for (const line of csv.trim().split("\n").slice(1)) {
       const c = line.split(",");
       const close = Number(c[4]);
-      if (c[0] && Number.isFinite(close) && close > 0) out.push({ date: c[0], close });
+      if (c[0] && Number.isFinite(close) && close > 0 && close < 1e7) out.push({ date: c[0], close });
     }
     return out;
   } catch {

@@ -324,6 +324,16 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .ledger-chip:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
 .ledger-sym { font-weight: 700; }
 .ledger-flip { color: var(--blue); font-weight: 800; }
+/* 今日转向头条:护城河信号,横向可滚 chips */
+.flip-strip { display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; overflow-x: auto; padding: 0.5rem 0; margin-bottom: 0.6rem; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); scrollbar-width: none; }
+.flip-strip::-webkit-scrollbar { display: none; }
+.flip-strip-label { font-family: var(--mono); font-weight: 700; font-size: 0.72rem; white-space: nowrap; flex: 0 0 auto; color: var(--blue); }
+.flip-chip { display: inline-flex; align-items: center; gap: 0.3rem; flex: 0 0 auto; border: 2px solid var(--ink); background: var(--bg-secondary); padding: 0.18rem 0.45rem; text-decoration: none; font-size: 0.74rem; white-space: nowrap; }
+.flip-chip:hover { background: var(--lime); }
+.flip-who { font-weight: 700; max-width: 8rem; overflow: hidden; text-overflow: ellipsis; }
+.flip-sym { font-family: var(--mono); font-weight: 700; }
+.flip-move { font-weight: 800; color: var(--blue); }
+.flip-more { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; white-space: nowrap; text-decoration: none; color: var(--blue); }
 .diverge-chip { margin-left: 0.4rem; font-size: 0.62rem; font-weight: 700; padding: 0.02rem 0.34rem; border: 1.5px solid var(--error); color: var(--ink); background: color-mix(in srgb, var(--error) 14%, #fff); }
 
 /* ===================== ERROR / SKELETON ===================== */

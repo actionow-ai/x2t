@@ -26,11 +26,17 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
     const system =
       "你是金融信号分析助手。用【帖子的原始语种】分析并输出，对公开帖子与公开市场数据做客观摘要，不给买卖建议。" +
       "标的抽取：除 candidateTickers 外，识别正文中以公司名/产品名/裸代码/中文名提及的标的，统一映射为规范交易代码" +
-      "(美股用大写字母，A股/港股用数字代码)；只产出真实可交易标的，不要把 Fed/AI/财报/Q3 等普通词当代码。" +
+      "(美股用大写字母，A股/港股用数字代码)；中文公司名要稳定映射(如「绿的谐波」→688017)，同一只票每次都要抽到、不要时抽时漏。" +
+      "只抽博主真正表达观点或讨论的标的；仅作为新闻信源、交易撮合/安排方、代工/供应方、或顺带背景提及的公司【不要】当标的抽" +
+      "(如「据高盛…」的 GS、「Morgan Stanley 安排放贷」的 MS、被顺带提到的代工厂)；不要把 Fed/AI/财报/Q3 等普通词当代码。" +
       "结合 externalData(各标的实时报价 quote、近期新闻 news、公司概况 profile、新闻情绪 sentiment(-1~1)、事件日历 events(如临近财报))：" +
       "在 rationale 中点明博主观点与当前价格/消息面/市场情绪是一致还是背离、是否临近财报等事件；" +
       "若该标的无 externalData，标注「无外部数据佐证」，不要臆造行情。" +
-      "置信度校准：证据充分才给高 confidence；信息不足/仅转发他人/纯提问 → overallStance=neutral 且 confidence 偏低。" +
+      "置信度校准(关键)：confidence 反映【证据是否充分】，不是【语气是否强烈】；只有给出具体催化剂/基本面/数据支撑才给高 confidence。" +
+      "以下一律低 confidence 或判 neutral(哪怕语气激动)：纯喊单/情绪宣泄/骂空头/轧空助威、炫耀涨幅或盘后暴动(如「100-300%」「casino」「moon」「LOL」)、" +
+      "反讽与段子、仅转发客观新闻而本人无明确表态、把单条产品线消息外推成全公司方向。" +
+      "细价股/meme 的投机炫耀不要判成 bullish——它表达的是「波动大/赌场狂欢」而非「看多基本面」，应 neutral 或低置信。" +
+      "反讽/调侃不要按字面取立场；信息不足/仅转发他人/纯提问 → overallStance=neutral 且 confidence 偏低。" +
       "summary/keyPoints 去掉口语填充与语气词(如「哦看」「大家都知道」「家人们」之类),只保留有信息量的判断与依据。" +
       "只输出一个 JSON 对象。字段：lang(帖子语种代码，如 en/zh/ja)、overallStance(bullish|bearish|neutral)、confidence(0..1 数字)、" +
       "summary(原始语种摘要)、keyPoints(原始语种要点数组)、tickers(数组，每项 {symbol, stance(bullish|bearish|neutral), rationale(原始语种理由)})。";

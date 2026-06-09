@@ -238,67 +238,97 @@ export async function getInfluencerLedger(influencerId: string, limit = 80): Pro
   }));
 }
 
-// 博主历史胜率:对每条多/空 call,取入场价(call 当日或之后首个交易日收盘)与 N 日后收盘,
-// 看多则涨为命中、看空则跌为命中。用 PriceDaily(Stooq 历史)回算。无足够价格数据 → null。
+// 跨博主"近期立场转向":每个(博主×标的)取最新一条,且较上一条发生转向,按时间倒序。
+// 这是护城河信号——首页头条/异动看板用。
+export type RecentFlip = { handle: string; displayName: string | null; symbol: string; stance: Stance; prevStance: Stance; postId: string; postedAt: Date };
+export async function getRecentFlips(limit = 8): Promise<RecentFlip[]> {
+  type Row = { handle: string; displayName: string | null; symbol: string; stance: Stance; prevStance: Stance | null; postId: string; postedAt: Date };
+  const rows = await prisma.$queryRaw<Row[]>`
+    SELECT t.handle, t."displayName", t.symbol, t.stance, t."prevStance", t."postId", t."postedAt"
+    FROM (
+      SELECT inf.handle, inf."displayName", pt.symbol, pt.stance, pt."postId", p."postedAt",
+             row_number() OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt" DESC) AS rn,
+             lead(pt.stance) OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt" DESC) AS "prevStance"
+      FROM "PostTicker" pt
+      JOIN "Post" p ON p.id = pt."postId"
+      JOIN "Influencer" inf ON inf.id = p."influencerId"
+    ) t
+    WHERE t.rn = 1 AND t."prevStance" IS NOT NULL AND t."prevStance" <> t.stance
+    ORDER BY t."postedAt" DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({ ...r, prevStance: r.prevStance as Stance, postedAt: new Date(r.postedAt) }));
+}
+
+// 基准标的(始终回填),供胜率做"同期大盘"对比。
+export const BENCHMARK_SYMBOL = "SPY";
+// 胜率最低样本门槛:不足则不展示(20 样本的比例无统计意义,方法论审计 P0)。
+const WINRATE_MIN = Number(process.env.WINRATE_MIN_SAMPLES ?? 30);
+
+// 二项比例的 Wilson 95% 置信区间(比 Wald 在小样本更稳)。
+export function wilson95(hits: number, n: number): [number, number] {
+  if (n === 0) return [0, 0];
+  const z = 1.96;
+  const p = hits / n;
+  const denom = 1 + (z * z) / n;
+  const center = (p + (z * z) / (2 * n)) / denom;
+  const margin = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / denom;
+  return [Math.max(0, center - margin), Math.min(1, center + margin)];
+}
+
+/**
+ * 博主历史"跑赢大盘"率(方法论重做,回应审计 P0):
+ * - 入场=call 当日或之后首个交易日收盘;出场=入场后第 N 个【交易日】(按交易日索引,不用自然日,避开周末漂移)。
+ * - 命中 = 跟随该立场方向的收益(看多取涨、看空取跌)【超过】同期 SPY 收益(有基准,不是绝对涨跌)。
+ * - 样本 < WINRATE_MIN 返回 null(不展示);返回 Wilson 95% 置信区间 + 平均超额收益。
+ * - 退市/无价标的因拉不到价被自然排除(幸存者偏差),文案需注明。
+ */
 export async function getInfluencerWinRate(
   influencerId: string,
-  horizonDays = 7,
-): Promise<{ hitRate: number; samples: number; avgReturn: number } | null> {
+  horizonTradingDays = 5, // ≈ 1 周
+): Promise<{ beatRate: number; ci: [number, number]; samples: number; avgExcess: number } | null> {
   const calls = await prisma.postTicker.findMany({
     where: { post: { influencerId }, stance: { in: ["bullish", "bearish"] } },
     select: { symbol: true, stance: true, post: { select: { postedAt: true } } },
   });
-  if (!calls.length) return null;
+  if (calls.length < WINRATE_MIN) return null;
 
-  const symbols = [...new Set(calls.map((c) => c.symbol))];
+  const symbols = [...new Set([...calls.map((c) => c.symbol), BENCHMARK_SYMBOL])];
   const prices = await prisma.priceDaily.findMany({
     where: { symbol: { in: symbols } },
     orderBy: { date: "asc" },
     select: { symbol: true, date: true, close: true },
   });
-  if (!prices.length) return null;
   const bySym = new Map<string, { t: number; close: number }[]>();
   for (const p of prices) {
     if (!bySym.has(p.symbol)) bySym.set(p.symbol, []);
     bySym.get(p.symbol)!.push({ t: new Date(p.date).getTime(), close: p.close });
   }
-  // 取 arr 中第一个 t >= target 的收盘(已按 date 升序)
-  const firstAtOrAfter = (arr: { t: number; close: number }[], target: number) => arr.find((x) => x.t >= target);
+  const spy = bySym.get(BENCHMARK_SYMBOL);
+  if (!spy || !spy.length) return null; // 无基准则不出胜率
+  const closeAtOrAfter = (arr: { t: number; close: number }[], target: number) => arr.find((x) => x.t >= target)?.close;
 
-  let hits = 0;
+  let beats = 0;
   let samples = 0;
-  let sumRet = 0;
+  let sumExcess = 0;
   for (const c of calls) {
     const arr = bySym.get(c.symbol);
     if (!arr) continue;
     const callT = new Date(c.post.postedAt).setUTCHours(0, 0, 0, 0);
-    const entry = firstAtOrAfter(arr, callT);
-    if (!entry) continue;
-    const exit = firstAtOrAfter(arr, entry.t + horizonDays * 86_400_000);
-    if (!exit) continue; // 还没到 N 日后
+    const ei = arr.findIndex((x) => x.t >= callT);
+    if (ei < 0 || ei + horizonTradingDays >= arr.length) continue; // 无入场或未到第 N 个交易日
+    const entry = arr[ei];
+    const exit = arr[ei + horizonTradingDays];
+    const spyEntry = closeAtOrAfter(spy, entry.t);
+    const spyExit = closeAtOrAfter(spy, exit.t);
+    if (spyEntry === undefined || spyExit === undefined) continue;
+    const raw = (exit.close - entry.close) / entry.close;
+    const aligned = c.stance === "bullish" ? raw : -raw; // 跟随方向的收益
+    const excess = aligned - (spyExit - spyEntry) / spyEntry; // 相对大盘的超额
     samples++;
-    const ret = (exit.close - entry.close) / entry.close;
-    sumRet += c.stance === "bullish" ? ret : -ret;
-    if (c.stance === "bullish" ? ret > 0 : ret < 0) hits++;
+    sumExcess += excess;
+    if (excess > 0) beats++;
   }
-  if (samples === 0) return null;
-  return { hitRate: hits / samples, samples, avgReturn: sumRet / samples };
-}
-
-// 某票截至某时刻的共识票数(每博主取其在该时刻前的最新立场)。供"近 N 天共识趋势"对比。
-export async function consensusCountsAsOf(symbol: string, asOf: Date): Promise<{ bullish: number; bearish: number; neutral: number }> {
-  const sym = symbol.toUpperCase();
-  const rows = await prisma.$queryRaw<{ stance: Stance }[]>`
-    SELECT t.stance FROM (
-      SELECT pt.stance, row_number() OVER (PARTITION BY p."influencerId" ORDER BY p."postedAt" DESC) AS rn
-      FROM "PostTicker" pt
-      JOIN "Post" p ON p.id = pt."postId"
-      WHERE pt.symbol = ${sym} AND p."postedAt" <= ${asOf}
-    ) t WHERE t.rn = 1
-  `;
-  return {
-    bullish: rows.filter((r) => r.stance === "bullish").length,
-    bearish: rows.filter((r) => r.stance === "bearish").length,
-    neutral: rows.filter((r) => r.stance === "neutral").length,
-  };
+  if (samples < WINRATE_MIN) return null;
+  return { beatRate: beats / samples, ci: wilson95(beats, samples), samples, avgExcess: sumExcess / samples };
 }

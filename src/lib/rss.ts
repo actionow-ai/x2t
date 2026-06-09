@@ -31,6 +31,7 @@ type RssItem = {
   confidence?: number | null;
   tickers: { symbol: string; stance: string }[];
   divergence?: boolean;
+  flip?: { symbol: string; prevStance: string; newStance: string };
 };
 
 export function postToItem(post: PostForRss, siteUrl: string, divergence = false): RssItem {
@@ -68,6 +69,7 @@ export function buildRss(opts: {
         it.stance ? `\n      <x2t:stance>${esc(it.stance)}</x2t:stance>` : "",
         typeof it.confidence === "number" ? `\n      <x2t:confidence>${it.confidence}</x2t:confidence>` : "",
         it.divergence ? `\n      <x2t:divergence>true</x2t:divergence>` : "",
+        it.flip ? `\n      <x2t:flip symbol="${esc(it.flip.symbol)}" from="${esc(it.flip.prevStance)}" to="${esc(it.flip.newStance)}" />` : "",
         ...it.tickers.map((t) => `\n      <x2t:ticker symbol="${esc(t.symbol)}" stance="${esc(t.stance)}" />`),
       ].join("");
       return `

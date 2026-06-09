@@ -9,6 +9,7 @@ export const SESSION_COOKIE = COOKIE;
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true as const,
   sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production", // 生产仅 HTTPS 下传 cookie,防降级窃取
   path: "/",
   maxAge: 60 * 60 * 24 * 30,
 };

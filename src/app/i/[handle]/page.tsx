@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
 import { FollowButton } from "@/components/FollowButton";
@@ -12,6 +13,9 @@ import { getDict } from "@/lib/i18n";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+// 胜率回算偏重,缓存 1 小时,移出首屏同步路径(工程审计 P0)。
+const getWinRateCached = unstable_cache((id: string) => getInfluencerWinRate(id), ["influencer-winrate"], { revalidate: 3600 });
 
 export default async function InfluencerPage({
   params,
@@ -60,8 +64,8 @@ export default async function InfluencerPage({
   const bias = directional < 3 ? null : bull / directional >= 0.66 ? t.influencer.biasBull : bull / directional <= 0.34 ? t.influencer.biasBear : t.influencer.biasBalanced;
   // T2.1 立场账本:对各标的的当前立场 + 转向
   const ledger = await getInfluencerLedger(influencer.id);
-  // T2.5 历史胜率(平台回算,基于 PriceDaily;样本不足时为 null)
-  const winRate = await getInfluencerWinRate(influencer.id);
+  // T2.5 历史胜率(跑赢大盘率,平台回算;样本<30 或无基准时为 null;缓存 1h)
+  const winRate = await getWinRateCached(influencer.id);
 
   const userId = await getCurrentUserId();
   const followed = userId
@@ -91,8 +95,8 @@ export default async function InfluencerPage({
               <span style={{ color: "var(--text-tertiary)" }}>●{neut}</span>
               {bias && <span className="bias-tag">{bias}</span>}
               {winRate && (
-                <span className="bias-tag" title={t.influencer.winRateHint} style={{ background: winRate.hitRate >= 0.5 ? "var(--lime)" : "var(--bg-secondary)" }}>
-                  {t.influencer.winRate} {Math.round(winRate.hitRate * 100)}% · {winRate.samples} {t.influencer.samples}
+                <span className="bias-tag" title={t.influencer.winRateHint} style={{ background: winRate.ci[0] > 0.5 ? "var(--lime)" : "var(--bg-secondary)" }}>
+                  {t.influencer.winRate} {Math.round(winRate.beatRate * 100)}% ({Math.round(winRate.ci[0] * 100)}–{Math.round(winRate.ci[1] * 100)}%) · {winRate.samples} {t.influencer.samples}
                 </span>
               )}
             </div>

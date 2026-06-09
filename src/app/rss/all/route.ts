@@ -5,7 +5,12 @@ import { baseUrl } from "@/lib/base-url";
 export const dynamic = "force-dynamic";
 
 // 全站 RSS：/rss/all
-// 可组合订阅:?sig=1 只看有多空观点的帖;?conf=0.7 最低置信度阈值(供量化/筛选工作流)。
+// 可组合订阅(语义明确,供量化/筛选工作流):
+//   ?sig=1     只保留 overallStance ∈ {bullish,bearish} 的帖
+//   ?conf=0.7  整帖级 confidence >= 0.7(含等于;按 PostAnalysis.confidence,非单 ticker 级)
+// 结构化字段:<x2t:stance> <x2t:confidence> 每 ticker <x2t:ticker>;
+//   <x2t:divergence>true</> 仅当某 ticker 立场与新闻情绪相悖时出现——依赖已配 ALPHAVANTAGE_API_KEY(无情绪源则永不触发)。
+//   立场翻转事件请订阅 /rss/flips(带 <x2t:flip from to>)。
 export async function GET(request: Request) {
   const origin = baseUrl(request);
   const sp = new URL(request.url).searchParams;

@@ -14,9 +14,14 @@ export async function createMagicLink(email: string): Promise<{ token: string; u
 
 // 校验并消费（单次使用），返回 userId
 export async function consumeMagicLink(token: string): Promise<string | null> {
-  const link = await prisma.magicLink.findUnique({ where: { token } });
-  if (!link || link.usedAt || link.expiresAt < new Date()) return null;
-  await prisma.magicLink.update({ where: { token }, data: { usedAt: new Date() } });
+  // 原子消费:updateMany 带 usedAt:null + 未过期守卫,用返回 count 判定本次是否抢到(单语句 CAS,防并发双消费 TOCTOU)
+  const res = await prisma.magicLink.updateMany({
+    where: { token, usedAt: null, expiresAt: { gt: new Date() } },
+    data: { usedAt: new Date() },
+  });
+  if (res.count !== 1) return null;
+  const link = await prisma.magicLink.findUnique({ where: { token }, select: { email: true } });
+  if (!link) return null;
   const user = await prisma.user.findUnique({ where: { email: link.email } });
   return user?.id ?? null;
 }

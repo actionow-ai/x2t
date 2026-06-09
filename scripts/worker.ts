@@ -3,6 +3,7 @@ import { ingestAll } from "../src/lib/ingest";
 import { analyzePending } from "../src/lib/agent";
 import { runDigest } from "../src/lib/digest";
 import { backfillPrices } from "../src/lib/prices";
+import { BENCHMARK_SYMBOL } from "../src/lib/stance";
 import { prisma } from "../src/lib/db";
 import { HEARTBEAT_FILE } from "../src/lib/health";
 import { nasdaqEnabled, buildNasdaqEarningsMap } from "../src/lib/marketdata/nasdaq";
@@ -76,7 +77,8 @@ async function tick() {
   if (Date.now() - lastPrice >= PRICE_MS) {
     try {
       const syms = (await prisma.postTicker.findMany({ select: { symbol: true }, distinct: ["symbol"], take: 800 })).map((r) => r.symbol);
-      const r = await backfillPrices(syms);
+      const r = await backfillPrices([BENCHMARK_SYMBOL, ...syms]); // SPY 基准始终回填
+
       lastPrice = Date.now();
       console.log(`[worker] 价格回填：${r.symbols} 标的 / ${r.rows} 行`);
     } catch (e) {

@@ -1,4 +1,4 @@
-import { getStockConsensus, consensusCountsAsOf } from "@/lib/stance";
+import { getStockConsensus } from "@/lib/stance";
 import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
 import { relativeTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
@@ -30,12 +30,9 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
 
   const overall = c.bullish > c.bearish ? "bullish" : c.bearish > c.bullish ? "bearish" : "neutral";
   const flips = c.stances.filter((s) => s.flipped).length;
-  const verdict = overall === "bullish" ? t.consensus.verdictBull : overall === "bearish" ? t.consensus.verdictBear : t.consensus.verdictNeutral;
-  // T2.3 近 7 天共识趋势:对比 7 天前的票数
-  const prior = await consensusCountsAsOf(c.symbol, new Date(Date.now() - 7 * 86_400_000));
-  const dB = c.bullish - prior.bullish;
-  const dR = c.bearish - prior.bearish;
-  const fmt = (d: number) => (d > 0 ? `+${d}` : d < 0 ? `${d}` : "±0");
+  // 小样本(<5 人)不下"裁决"、不按方向染色,只列原始票数(方法论审计 P1)。
+  const small = n < 5;
+  const verdict = small ? null : overall === "bullish" ? t.consensus.verdictBull : overall === "bearish" ? t.consensus.verdictBear : t.consensus.verdictNeutral;
 
   return (
     <>
@@ -46,14 +43,15 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
         )}
       </h1>
       <p className="page-sub">
-        {t.consensus.whoTalking} ${c.symbol} · {t.consensus.verdictPrefix} {n} {t.consensus.peopleWord}，<strong>{verdict}</strong>{" "}
-        <StanceBadge stance={overall} locale={locale} label={`▲${c.bullish} ▼${c.bearish} · ${c.neutral} ${t.stance.neutral}`} />
+        {t.consensus.whoTalking} ${c.symbol} · {t.consensus.verdictPrefix} {n} {t.consensus.peopleWord}
+        {verdict ? <>，<strong>{verdict}</strong>{" "}</> : "："}
+        <StanceBadge stance={verdict ? overall : "neutral"} locale={locale} label={`▲${c.bullish} ▼${c.bearish} · ${c.neutral} ${t.stance.neutral}`} />
         {flips > 0 ? ` · ${flips} ${t.consensus.flipNote}` : ""}
       </p>
       {n > 0 && (
         <p className="method-note">
-          {t.consensus.trend7d}: <span className="up">▲ {fmt(dB)}</span> <span className="dn">▼ {fmt(dR)}</span>
-          {dB === 0 && dR === 0 ? ` · ${t.consensus.noChange}` : ""} · {t.consensus.methodNote}
+          {small ? `${t.consensus.smallSample} · ` : ""}
+          {t.consensus.methodNote}
         </p>
       )}
 

@@ -53,8 +53,17 @@ export async function rateLimit(key: string, max: number, windowMs: number): Pro
   return memoryAllow(key, max, windowMs);
 }
 
-/** 从请求头取客户端 IP（Zeabur/反代）。*/
+/**
+ * 从请求头取客户端 IP（用于限流 key）。
+ * 取 X-Forwarded-For 的【最后一段】——由可信反代(Zeabur)追加,客户端可伪造前缀但改不了它,
+ * 防止"自带 XFF 每请求换 IP 绕过限流"(安全审计 中危)。回退 x-real-ip。
+ */
 export function clientIp(req: Request): string {
   const h = req.headers;
-  return (h.get("x-forwarded-for")?.split(",")[0] || h.get("x-real-ip") || "unknown").trim();
+  const xff = h.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return (h.get("x-real-ip") || "unknown").trim();
 }
