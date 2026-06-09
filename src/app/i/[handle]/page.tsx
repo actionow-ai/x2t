@@ -6,6 +6,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { AvatarInner } from "@/components/Avatar";
 import { StanceBadge } from "@/components/StanceBadge";
 import { getCurrentUserId } from "@/lib/auth";
+import { isNewsAccount } from "@/lib/account";
 import { getInfluencerLedger, getInfluencerWinRate } from "@/lib/stance";
 import { formatDateTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
@@ -77,7 +78,12 @@ export default async function InfluencerPage({
       <div className="inf-header">
         <div className="inf-av"><AvatarInner src={influencer.avatarUrl} name={name} /></div>
         <div style={{ flex: 1 }}>
-          <div className="inf-name">{name}</div>
+          <div className="inf-name">
+            {name}
+            {isNewsAccount(influencer.handle) && (
+              <span className="news-tag" title={t.influencer.newsAccountHint}>{t.influencer.newsAccount}</span>
+            )}
+          </div>
           <div className="inf-handle">
             @{influencer.handle} · {influencer.platform}
           </div>
@@ -94,9 +100,16 @@ export default async function InfluencerPage({
               <span className="dn">▼{bear}</span>
               <span style={{ color: "var(--text-tertiary)" }}>●{neut}</span>
               {bias && <span className="bias-tag">{bias}</span>}
-              {winRate && (
-                <span className="bias-tag" title={t.influencer.winRateHint} style={{ background: winRate.ci[0] > 0.5 ? "var(--lime)" : "var(--bg-secondary)" }}>
-                  {t.influencer.winRate} {Math.round(winRate.beatRate * 100)}% ({Math.round(winRate.ci[0] * 100)}–{Math.round(winRate.ci[1] * 100)}%) · {winRate.samples} {t.influencer.samples}
+              {winRate && winRate.rate && (
+                <span className="bias-tag" title={t.influencer.winRateHint} style={{ background: winRate.rate.ci[0] > 0.5 ? "var(--lime)" : "var(--bg-secondary)" }}>
+                  {t.influencer.winRate} {Math.round(winRate.rate.beatRate * 100)}% ({Math.round(winRate.rate.ci[0] * 100)}–{Math.round(winRate.rate.ci[1] * 100)}%) · {winRate.samples} {t.influencer.samples}
+                  {winRate.rate.avgExcess !== 0 && <> · {t.influencer.winRateExcess} {winRate.rate.avgExcess > 0 ? "+" : ""}{(winRate.rate.avgExcess * 100).toFixed(1)}%</>}
+                  {winRate.rate.lowSample ? ` · ${t.influencer.winRateLow}` : ""}
+                </span>
+              )}
+              {winRate && !winRate.rate && (
+                <span className="bias-tag" title={t.influencer.winRateHint} style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}>
+                  {t.influencer.winRateBuilding} {winRate.samples}/10
                 </span>
               )}
             </div>

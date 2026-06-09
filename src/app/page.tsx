@@ -55,7 +55,27 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     },
   });
   const detail = s ? await getPostDetail(s) : null;
-  const flips = await getRecentFlips(8); // 今日转向头条(护城河信号)
+  // 今日转向头条(护城河信号)。治理:折叠同帖批量翻转(一次组合 review 算一条)+ 每博主最多 2 条 + 优先方向反转(非中性),提升首屏信噪比与多样性。
+  const rawFlips = await getRecentFlips(40);
+  const flips = (() => {
+    const directionalFirst = [...rawFlips].sort(
+      (a, b) =>
+        Number(b.prevStance !== "neutral" && b.stance !== "neutral") - Number(a.prevStance !== "neutral" && a.stance !== "neutral"),
+    );
+    const seenPost = new Set<string>();
+    const perInf = new Map<string, number>();
+    const out: typeof rawFlips = [];
+    for (const f of directionalFirst) {
+      if (seenPost.has(f.postId)) continue;
+      const c = perInf.get(f.handle) ?? 0;
+      if (c >= 2) continue;
+      seenPost.add(f.postId);
+      perInf.set(f.handle, c + 1);
+      out.push(f);
+      if (out.length >= 8) break;
+    }
+    return out;
+  })();
 
   return (
     <>
@@ -67,9 +87,9 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
           <span className="flip-strip-label">⇄ {t.home.flipsToday}</span>
           {flips.map((f) => (
             <Link key={`${f.handle}-${f.symbol}`} href={`/p/${f.postId}`} className="flip-chip" title={`${f.displayName ?? f.handle}: $${f.symbol}`}>
-              <span className="flip-who">{f.displayName ?? f.handle}</span>
               <span className="flip-sym">${f.symbol}</span>
-              <span className="flip-move">{stanceMeta(f.prevStance, locale).arrow}→{stanceMeta(f.stance, locale).arrow}</span>
+              <span className="flip-move">{stanceMeta(f.prevStance, locale).text}→{stanceMeta(f.stance, locale).text}</span>
+              <span className="flip-who">{f.displayName ?? f.handle}</span>
             </Link>
           ))}
           <Link href="/graph" className="flip-more">{t.home.flipsMore} →</Link>

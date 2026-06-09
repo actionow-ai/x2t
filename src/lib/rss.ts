@@ -84,6 +84,10 @@ export function buildRss(opts: {
     })
     .join("");
 
+  // lastBuildDate 取最新一条的 pubDate(确定性、可缓存);ttl 提示消费端轮询间隔(分钟)。
+  const newest = opts.items.reduce((m, it) => (it.pubDate.getTime() > m ? it.pubDate.getTime() : m), 0);
+  const lastBuild = newest ? `\n    <lastBuildDate>${new Date(newest).toUTCString()}</lastBuildDate>` : "";
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:x2t="https://x2t.actionow.ai/ns">
   <channel>
@@ -92,7 +96,8 @@ export function buildRss(opts: {
     <atom:link href="${esc(opts.selfUrl)}" rel="self" type="application/rss+xml" />
     <description>${esc(opts.description)}</description>
     <language>zh-CN</language>
-    <generator>X2T</generator>${items}
+    <generator>X2T</generator>
+    <ttl>15</ttl>${lastBuild}${items}
   </channel>
 </rss>`;
 }

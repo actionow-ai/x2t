@@ -1,4 +1,5 @@
 import { getStockConsensus } from "@/lib/stance";
+import { isNewsAccount } from "@/lib/account";
 import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
 import { relativeTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
@@ -104,6 +105,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
                   <Link href={`/i/${s.handle}`}>
                     <strong style={{ fontSize: "0.85rem" }}>{s.displayName ?? s.handle}</strong>
                   </Link>
+                  {isNewsAccount(s.handle) && <span className="news-tag" title={t.consensus.methodNote}>{t.influencer.newsAccount}</span>}
                   <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)" }}>{relativeTime(s.postedAt, locale)}</div>
                 </div>
                 <StanceBadge stance={s.stance} locale={locale} />

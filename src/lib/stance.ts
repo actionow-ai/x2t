@@ -262,8 +262,10 @@ export async function getRecentFlips(limit = 8): Promise<RecentFlip[]> {
 
 // 基准标的(始终回填),供胜率做"同期大盘"对比。
 export const BENCHMARK_SYMBOL = "SPY";
-// 胜率最低样本门槛:不足则不展示(20 样本的比例无统计意义,方法论审计 P0)。
-const WINRATE_MIN = Number(process.env.WINRATE_MIN_SAMPLES ?? 30);
+// 战绩展示门槛:>=SHOW 才出比率(带显著置信区间);<SHOW 显示"积累中";<CONFIDENT 附"样本少"提示。
+// (黑盒:门槛=30 让战绩对所有人隐形、像没东西;改为分级展示——可见但用宽 CI + 提示如实表达不确定性。)
+const WINRATE_SHOW = Number(process.env.WINRATE_SHOW_SAMPLES ?? 10);
+const WINRATE_CONFIDENT = Number(process.env.WINRATE_CONFIDENT_SAMPLES ?? 30);
 
 // 二项比例的 Wilson 95% 置信区间(比 Wald 在小样本更稳)。
 export function wilson95(hits: number, n: number): [number, number] {
@@ -283,15 +285,20 @@ export function wilson95(hits: number, n: number): [number, number] {
  * - 样本 < WINRATE_MIN 返回 null(不展示);返回 Wilson 95% 置信区间 + 平均超额收益。
  * - 退市/无价标的因拉不到价被自然排除(幸存者偏差),文案需注明。
  */
+export type WinRate = {
+  samples: number;
+  // 样本 >= SHOW 才有比率;否则 rate=null(展示为"积累中 N/SHOW")
+  rate: { beatRate: number; ci: [number, number]; avgExcess: number; lowSample: boolean } | null;
+};
 export async function getInfluencerWinRate(
   influencerId: string,
   horizonTradingDays = 5, // ≈ 1 周
-): Promise<{ beatRate: number; ci: [number, number]; samples: number; avgExcess: number } | null> {
+): Promise<WinRate | null> {
   const calls = await prisma.postTicker.findMany({
     where: { post: { influencerId }, stance: { in: ["bullish", "bearish"] } },
     select: { symbol: true, stance: true, post: { select: { postedAt: true } } },
   });
-  if (calls.length < WINRATE_MIN) return null;
+  if (calls.length === 0) return null;
 
   const symbols = [...new Set([...calls.map((c) => c.symbol), BENCHMARK_SYMBOL])];
   const prices = await prisma.priceDaily.findMany({
@@ -329,6 +336,10 @@ export async function getInfluencerWinRate(
     sumExcess += excess;
     if (excess > 0) beats++;
   }
-  if (samples < WINRATE_MIN) return null;
-  return { beatRate: beats / samples, ci: wilson95(beats, samples), samples, avgExcess: sumExcess / samples };
+  if (samples === 0) return null; // 还没有任何已结算样本
+  if (samples < WINRATE_SHOW) return { samples, rate: null }; // 积累中
+  return {
+    samples,
+    rate: { beatRate: beats / samples, ci: wilson95(beats, samples), avgExcess: sumExcess / samples, lowSample: samples < WINRATE_CONFIDENT },
+  };
 }
