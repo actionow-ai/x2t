@@ -141,9 +141,10 @@ model ExternalDataCache {
 // ---------- 用户 · 订阅 · 推送 ----------
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String   @unique
+  createdAt    DateTime @default(now())
+  tokenVersion Int      @default(0) // 会话版本:登出/泄露时 +1 使旧 cookie 失效
 
   follows           Follow[]
   pushSubscriptions PushSubscription[]

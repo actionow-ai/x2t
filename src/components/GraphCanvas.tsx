@@ -205,7 +205,9 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
       {fEdges.length === 0 ? (
         <div className="empty">{t.graph.emptyFilter}</div>
       ) : !mounted ? (
-        <div className="graph-frame" style={{ minHeight: "40vh" }} />
+        <div className="graph-frame" style={{ minHeight: "40vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontFamily: "var(--mono)", color: "var(--text-tertiary)", fontSize: "0.8rem" }}>{t.common.loading}</span>
+        </div>
       ) : (
         <div className={`graph-frame${fs ? " fs" : ""}`} ref={frameRef}>
           <svg ref={svgRef} viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`} role="img" aria-label={t.graph.title}

@@ -7,16 +7,32 @@ const nextConfig: NextConfig = {
   // 否则类型检查阶段易 OOM 导致构建失败。
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  // 基线安全响应头(不含 CSP:站内有 GA/JSON-LD 内联脚本,严格 CSP 需 nonce 改造,后续再上)
+  // 基线安全响应头 + CSP。
+  // 注:站内有 GA/JSON-LD 内联脚本,故 script-src 暂含 'unsafe-inline'(严格 nonce 需 middleware 改造,后续再上);
+  // 但 frame-ancestors/object-src/base-uri/form-action 等硬约束已能挡点击劫持/对象注入/base 篡改。
   async headers() {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "upgrade-insecure-requests",
+    ].join("; ");
     return [
       {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Content-Security-Policy", value: csp },
         ],
       },
     ];

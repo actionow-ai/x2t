@@ -4,8 +4,19 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
+// 推送端点必须是已知推送服务域名(防 notify 时 server 向任意 URL 发 POST = SSRF/滥用)
+const PUSH_HOSTS = [".googleapis.com", ".apple.com", ".mozilla.com", ".microsoft.com", ".windows.com"];
+function validPushEndpoint(u: string): boolean {
+  try {
+    const h = new URL(u);
+    return h.protocol === "https:" && PUSH_HOSTS.some((s) => h.hostname.endsWith(s));
+  } catch {
+    return false;
+  }
+}
+
 const schema = z.object({
-  endpoint: z.string().url().max(800),
+  endpoint: z.string().url().max(800).refine(validPushEndpoint, "unsupported push endpoint host"),
   keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(200) }),
   followFilter: z.array(z.string().max(40)).max(500).default([]), // 限长度防表膨胀
 });
