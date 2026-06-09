@@ -23,7 +23,7 @@ const schema = z.object({
 
 // 保存 web-push 订阅（含关注列表镜像）。匿名可用,但限流。
 export async function POST(request: Request) {
-  if (!rateLimit(`push:ip:${clientIp(request)}`, 30, 3_600_000)) {
+  if (!(await rateLimit(`push:ip:${clientIp(request)}`, 30, 3_600_000))) {
     return Response.json({ error: "too many requests" }, { status: 429 });
   }
   let body: unknown;

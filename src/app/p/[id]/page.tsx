@@ -26,8 +26,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title,
     description,
     alternates: { canonical: `/p/${id}` },
-    openGraph: { type: "article", title, description, url: `/p/${id}`, images: ["/og.png"] },
-    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
+    // 不写死 images:由同级 opengraph-image.tsx 动态生成(博主+立场+标的分享卡)
+    openGraph: { type: "article", title, description, url: `/p/${id}` },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 

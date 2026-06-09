@@ -12,7 +12,7 @@ export async function submitPost(formData: FormData) {
   // 鉴权:必须登录(杜绝匿名灌库 + 触发全员推送)
   const uid = await getCurrentUserId();
   if (!uid) throw new Error("请先登录再提交");
-  if (!rateLimit(`submit:${uid}`, 10, 60 * 60 * 1000)) throw new Error("提交过于频繁，请稍后再试");
+  if (!(await rateLimit(`submit:${uid}`, 10, 60 * 60 * 1000))) throw new Error("提交过于频繁，请稍后再试");
 
   const handle = String(formData.get("handle") ?? "").trim().slice(0, 64);
   const dn = String(formData.get("displayName") ?? "").trim().slice(0, 80);

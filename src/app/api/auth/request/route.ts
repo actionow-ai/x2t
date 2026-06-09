@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
   // 限流(IP 20/h + 邮箱 5/h):防邮件轰炸放大与用户表灌水;超限静默成功(顺带防账号枚举)
   const ip = clientIp(request);
-  if (!rateLimit(`login:ip:${ip}`, 20, 3_600_000) || !rateLimit(`login:email:${email}`, 5, 3_600_000)) {
+  if (!(await rateLimit(`login:ip:${ip}`, 20, 3_600_000)) || !(await rateLimit(`login:email:${email}`, 5, 3_600_000))) {
     return Response.json({ ok: true });
   }
 

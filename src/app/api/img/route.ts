@@ -70,7 +70,7 @@ async function fetchFollow(url: URL, depth = 0): Promise<Response> {
 }
 
 export async function GET(req: Request) {
-  if (!rateLimit(`img:${clientIp(req)}`, 600, 60_000)) {
+  if (!(await rateLimit(`img:${clientIp(req)}`, 600, 60_000))) {
     return new Response("too many requests", { status: 429 });
   }
   const raw = new URL(req.url).searchParams.get("u");
