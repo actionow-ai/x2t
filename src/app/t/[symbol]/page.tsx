@@ -60,8 +60,9 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
       {n === 0 ? (
         <div className="empty">{t.consensus.noOne} ${c.symbol}。</div>
       ) : (
-        <>
-          <div className="post-card" style={{ padding: "0.4rem" }}>
+        <div className="cols-split">
+          <div className="col-sticky">
+            <div className="post-card" style={{ padding: "0.4rem" }}>
             <svg viewBox="0 0 340 300" width="100%" height="280">
               {nodes.map((nd) => (
                 <line
@@ -94,8 +95,10 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
             </svg>
           </div>
 
-          <p className="legend-note">{t.consensus.legend}</p>
+            <p className="legend-note">{t.consensus.legend}</p>
+          </div>
 
+          <div className="cols-split-right">
           {(debate.bull.length > 0 || debate.bear.length > 0) && (
             <>
               <div className="label-sm">{t.consensus.debateTitle}</div>
@@ -151,7 +154,8 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
               </div>
             ))}
           </div>
-        </>
+          </div>
+        </div>
       )}
     </>
   );

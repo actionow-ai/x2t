@@ -6,7 +6,7 @@ export default async function SubmitPage() {
   const t = getDict(await getLocale());
 
   return (
-    <>
+    <div className="narrow">
       <h1 className="page-title">{t.submit.title}</h1>
       <p className="page-sub">{t.submit.sub}</p>
 
@@ -32,6 +32,6 @@ export default async function SubmitPage() {
         </button>
         <p className="hint">{t.submit.hint}</p>
       </form>
-    </>
+    </div>
   );
 }

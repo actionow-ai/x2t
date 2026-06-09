@@ -66,7 +66,8 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
   const summary = post.analysis ? (en && post.analysis.summaryEn ? post.analysis.summaryEn : post.analysis.summary) : "";
 
   return (
-    <article className="post-card">
+    <div className="cols-split post-detail">
+      <article className="post-card col-sticky">
       <div className="pc-top">
         <Link href={`/i/${inf.handle}`} className="pc-av"><AvatarInner src={inf.avatarUrl} name={name} /></Link>
         <div>
@@ -89,7 +90,9 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
         {post.url && <a href={post.url} target="_blank" rel="noreferrer">{t.common.originalPost} ↗</a>}
         <span>{t.common.notFinancialAdvice}</span>
       </div>
+      </article>
 
+      <div className="post-analysis">
       {post.analysis ? (
         <div className="ai-box">
           <div className="ai-label">{t.post.ai}</div>
@@ -179,6 +182,7 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
           </div>
         </div>
       )}
-    </article>
+      </div>
+    </div>
   );
 }

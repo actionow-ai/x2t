@@ -78,7 +78,8 @@ export default async function InfluencerPage({
     : false;
 
   return (
-    <>
+    <div className="cols-side">
+      <aside className="col-sticky inf-side">
       <div className="inf-header">
         <div className="inf-av"><AvatarInner src={influencer.avatarUrl} name={name} /></div>
         <div style={{ flex: 1 }}>
@@ -161,7 +162,9 @@ export default async function InfluencerPage({
           </div>
         </section>
       )}
+      </aside>
 
+      <div className="inf-main">
       {influencer.posts.length === 0 ? (
         <div className="empty">{t.influencer.noPosts}</div>
       ) : (
@@ -171,6 +174,7 @@ export default async function InfluencerPage({
           ))}
         </div>
       )}
-    </>
+      </div>
+    </div>
   );
 }

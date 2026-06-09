@@ -1,20 +1,32 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
 import { PushToggle } from "@/components/PushToggle";
-import { SelectableFeed } from "@/components/SelectableFeed";
-import { getPostDetail, PostDetail } from "@/components/PostDetail";
 import { stanceMeta } from "@/components/StanceBadge";
 import { getCurrentUserId } from "@/lib/auth";
-import { getRecentFlips } from "@/lib/stance";
+import { getRecentFlips, getLeaderboard } from "@/lib/stance";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function FeedPage({ searchParams }: { searchParams: Promise<{ s?: string; view?: string; sig?: string }> }) {
-  const { s, view, sig } = await searchParams;
+// 首页右栏 mini 战绩榜 Top3(回测偏重,缓存 1h)。看板非核心:失败兜底空数组,绝不拖垮首页。
+const getBoardTop = unstable_cache(
+  async () => {
+    try {
+      return (await getLeaderboard()).slice(0, 3);
+    } catch {
+      return [];
+    }
+  },
+  ["home-board-top"],
+  { revalidate: 3600 },
+);
+
+export default async function FeedPage({ searchParams }: { searchParams: Promise<{ view?: string; sig?: string }> }) {
+  const { view, sig } = await searchParams;
   const locale = await getLocale();
   const t = getDict(locale);
   const uid = await getCurrentUserId();
@@ -28,7 +40,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     followedIds = decodeURIComponent(raw).split(",").map((x) => x.trim()).filter(Boolean);
   }
   const following = view === "following" || (view !== "all" && followedIds.length > 0);
-  // 默认"信号优先":只显示有多空观点的帖,把中性新闻搬运噪音压住(UX 审计 P0);sig=0 才看全部。
+  // 默认"信号优先":只显示有多空观点的帖,把中性新闻搬运噪音压住;sig=0 才看全部。
   const onlySignal = sig !== "0";
   const v = following ? "following" : "all";
   const sigSuffix = onlySignal ? "" : "&sig=0";
@@ -41,7 +53,6 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     where,
     orderBy: { postedAt: "desc" },
     take: 50,
-    // 显式 select:只取卡片用到的列,绝不带出 rawJson/mediaJson 大字段
     select: {
       id: true,
       contentText: true,
@@ -54,8 +65,8 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
       tickers: { select: { symbol: true, stance: true } },
     },
   });
-  const detail = s ? await getPostDetail(s) : null;
-  // 今日转向头条(护城河信号)。治理:折叠同帖批量翻转(一次组合 review 算一条)+ 每博主最多 2 条 + 优先方向反转(非中性),提升首屏信噪比与多样性。
+
+  // 转向看板:折叠同帖批量翻转 + 每博主≤2 + 优先方向反转,提升信噪比与多样性。
   const rawFlips = await getRecentFlips(40);
   const flips = (() => {
     const directionalFirst = [...rawFlips].sort(
@@ -72,29 +83,16 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
       seenPost.add(f.postId);
       perInf.set(f.handle, c + 1);
       out.push(f);
-      if (out.length >= 8) break;
+      if (out.length >= 6) break;
     }
     return out;
   })();
+  const boardTop = await getBoardTop();
 
   return (
     <>
       <h1 className="page-title">{t.home.title}</h1>
       <p className="page-sub">{t.home.sub}</p>
-
-      {flips.length > 0 && (
-        <div className="flip-strip" aria-label={t.home.flipsToday}>
-          <span className="flip-strip-label">⇄ {t.home.flipsToday}</span>
-          {flips.map((f) => (
-            <Link key={`${f.handle}-${f.symbol}`} href={`/p/${f.postId}`} className="flip-chip" title={`${f.displayName ?? f.handle}: $${f.symbol}`}>
-              <span className="flip-sym">${f.symbol}</span>
-              <span className="flip-move">{stanceMeta(f.prevStance, locale).text}→{stanceMeta(f.stance, locale).text}</span>
-              <span className="flip-who">{f.displayName ?? f.handle}</span>
-            </Link>
-          ))}
-          <Link href="/graph" className="flip-more">{t.home.flipsMore} →</Link>
-        </div>
-      )}
 
       <div className="feed-toolbar">
         <div className="seg">
@@ -108,37 +106,57 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
         <a className="btn ghost" href="/rss/all">{t.home.allRss}</a>
       </div>
 
-      {following && followedIds.length === 0 ? (
-        <div className="empty">
-          {t.home.followEmpty} <Link href="/following" style={{ color: "var(--accent)" }}>{t.home.discover}</Link>
-        </div>
-      ) : posts.length === 0 ? (
-        <div className="empty">
-          {t.home.empty} <Link href="/submit" style={{ color: "var(--accent)" }}>{t.home.submitOne}</Link>。
-        </div>
-      ) : (
-        <div className={`workspace${detail ? " split" : ""}`}>
-          <div className="ws-list">
-            <SelectableFeed>
-              <div className="feed">
-                {posts.map((p) => (
-                  <PostCard key={p.id} post={p} selected={p.id === s} locale={locale} />
-                ))}
-              </div>
-            </SelectableFeed>
-          </div>
-
-          {detail && (
-            <div className="ws-detail">
-              <div className="ws-detail-bar">
-                <Link href="/" scroll={false} className="btn ghost">{t.home.collapse}</Link>
-                <Link href={`/p/${detail.post.id}`} className="btn ghost">{t.home.fullPage}</Link>
-              </div>
-              <PostDetail post={detail.post} dataBySymbol={detail.dataBySymbol} locale={locale} />
+      <div className="cols-rail">
+        <div className="ws-main">
+          {following && followedIds.length === 0 ? (
+            <div className="empty">
+              {t.home.followEmpty} <Link href="/following" style={{ color: "var(--accent)" }}>{t.home.discover}</Link>
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="empty">
+              {t.home.empty} <Link href="/submit" style={{ color: "var(--accent)" }}>{t.home.submitOne}</Link>。
+            </div>
+          ) : (
+            <div className="feed">
+              {posts.map((p) => (
+                <PostCard key={p.id} post={p} locale={locale} />
+              ))}
             </div>
           )}
         </div>
-      )}
+
+        <aside className="col-sticky rail">
+          {flips.length > 0 && (
+            <div className="rail-card">
+              <div className="rail-head">⇄ {t.home.flipsToday}</div>
+              {flips.map((f) => (
+                <Link key={`${f.handle}-${f.symbol}`} href={`/p/${f.postId}`} className="rail-flip" title={`${f.displayName ?? f.handle}: $${f.symbol}`}>
+                  <span className="flip-sym">${f.symbol}</span>
+                  <span className="flip-move">{stanceMeta(f.prevStance, locale).text}→{stanceMeta(f.stance, locale).text}</span>
+                  <span className="rail-who">{f.displayName ?? f.handle}</span>
+                </Link>
+              ))}
+              <Link href="/graph" className="rail-more">{t.home.flipsMore} →</Link>
+            </div>
+          )}
+          {boardTop.length > 0 && (
+            <div className="rail-card">
+              <div className="rail-head">{t.board.title}</div>
+              {boardTop.map((r, i) => (
+                <Link key={r.handle} href={`/i/${r.handle}`} className="rail-rank">
+                  <span className="lb-rank">{i + 1}</span>
+                  <span className="rail-rank-name">
+                    {r.displayName ?? r.handle}
+                    {r.significant && <span className="lb-sig">★</span>}
+                  </span>
+                  <span className={r.beatRate >= 0.5 ? "up" : "dn"}>{Math.round(r.beatRate * 100)}%</span>
+                </Link>
+              ))}
+              <Link href="/leaderboard" className="rail-more">{t.board.title} →</Link>
+            </div>
+          )}
+        </aside>
+      </div>
     </>
   );
 }

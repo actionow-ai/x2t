@@ -52,7 +52,20 @@ a { color: inherit; text-decoration: none; }
 ::selection { background: var(--lime); color: var(--ink); }
 
 main { padding: 1.75rem 0 5rem; }
-.container { max-width: 1040px; margin: 0 auto; padding: 0 1.4rem; }
+.container { max-width: 1180px; margin: 0 auto; padding: 0 1.4rem; }
+
+/* ===================== 响应式多栏原语(PC 多栏 / 移动单栏,统一断点 960px) =====================
+   .cols-rail  主 + 右窄栏(看板/行情)   .cols-side  左侧栏 + 主    .cols-split  双主(图+列表) */
+.cols-rail, .cols-side, .cols-split { display: grid; gap: 1.6rem; align-items: start; }
+.cols-rail { grid-template-columns: minmax(0, 1fr) 304px; }
+.cols-side { grid-template-columns: 320px minmax(0, 1fr); }
+.cols-split { grid-template-columns: 1.45fr 1fr; }
+.col-sticky { position: sticky; top: 86px; }
+.narrow { max-width: 760px; }
+@media (max-width: 960px) {
+  .cols-rail, .cols-side, .cols-split { grid-template-columns: 1fr; }
+  .col-sticky { position: static; }
+}
 
 /* ===================== TICKER TAPE ===================== */
 .ticker {
@@ -77,7 +90,7 @@ main { padding: 1.75rem 0 5rem; }
 
 /* ===================== MASTHEAD ===================== */
 .site-header { background: var(--paper); border-bottom: 4px solid var(--ink); }
-.site-header .inner { max-width: 1040px; margin: 0 auto; padding: 0.85rem 1.4rem; display: flex; align-items: center; gap: 0.8rem; }
+.site-header .inner { max-width: 1180px; margin: 0 auto; padding: 0.85rem 1.4rem; display: flex; align-items: center; gap: 0.8rem; }
 .brand {
   font-family: var(--disp);
   font-size: 1.5rem;
@@ -295,7 +308,7 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 
 /* ===================== FOOTER / LEGAL ===================== */
 .site-footer { border-top: 4px solid var(--ink); background: var(--paper); margin-top: 3rem; }
-.site-footer .inner { max-width: 1040px; margin: 0 auto; padding: 1.6rem 1.4rem 2.4rem; }
+.site-footer .inner { max-width: 1180px; margin: 0 auto; padding: 1.6rem 1.4rem 2.4rem; }
 .foot-brand { font-family: var(--disp); font-size: 1.05rem; }
 .foot-links { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.7rem 0; }
 .foot-links a { font-weight: 700; font-size: 0.82rem; text-decoration: none; border-bottom: 2px solid transparent; }
@@ -334,6 +347,21 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .flip-sym { font-family: var(--mono); font-weight: 700; }
 .flip-move { font-weight: 800; color: var(--blue); }
 .flip-more { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; white-space: nowrap; text-decoration: none; color: var(--blue); }
+/* 首页右栏仪表盘看板(转向 + mini 战绩榜) */
+.rail { display: flex; flex-direction: column; gap: 1rem; }
+.rail-card { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); background: var(--bg-secondary); padding: 0.7rem 0.8rem; }
+.rail-head { font-family: var(--mono); font-weight: 800; font-size: 0.74rem; color: var(--blue); margin-bottom: 0.5rem; }
+.rail-flip { display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; padding: 0.32rem 0; border-top: 1px solid var(--border); text-decoration: none; font-size: 0.76rem; }
+.rail-flip:first-of-type { border-top: 0; }
+.rail-flip:hover .flip-sym { color: var(--blue); }
+.rail-who { color: var(--text-tertiary); font-size: 0.7rem; width: 100%; }
+.rail-rank { display: grid; grid-template-columns: 1.4rem 1fr auto; align-items: center; gap: 0.4rem; padding: 0.34rem 0; border-top: 1px solid var(--border); text-decoration: none; font-size: 0.8rem; }
+.rail-rank:first-of-type { border-top: 0; }
+.rail-rank:hover { color: var(--blue); }
+.rail-rank-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-rank .up { color: var(--success-ink); font-family: var(--mono); font-weight: 700; }
+.rail-rank .dn { color: var(--error-ink); font-family: var(--mono); font-weight: 700; }
+.rail-more { display: inline-block; margin-top: 0.5rem; font-size: 0.72rem; font-weight: 700; color: var(--blue); text-decoration: none; }
 .legend-note { font-family: var(--mono); font-size: 0.68rem; color: var(--text-tertiary); margin: 0.3rem 0 0.6rem; }
 .news-tag { font-family: var(--mono); font-size: 0.58rem; font-weight: 700; padding: 0.05rem 0.35rem; margin-left: 0.45rem; border: 2px solid var(--ink); background: var(--bg-tertiary); color: var(--text-secondary); vertical-align: middle; white-space: nowrap; }
 /* 多空论据(Bull/Bear 辩论视图,借 TradingAgents):两栏多头 vs 空头 */
@@ -348,6 +376,11 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .debate-empty { color: var(--text-tertiary); font-size: 0.78rem; }
 .debate-split { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--blue); margin: 0.2rem 0 0.4rem; }
 @media (max-width: 640px) { .debate { grid-template-columns: 1fr; } }
+/* /t 双主栏:右列较窄,辩论收 1 栏更易读 */
+.cols-split-right .debate { grid-template-columns: 1fr; }
+/* /p 帖子详情:左原文 + 右 AI 分析(分析略宽) */
+.post-detail { grid-template-columns: 1fr 1.15fr; }
+.post-detail .ai-box { margin-top: 0; }
 /* 博主战绩榜(借 AI-Trader,带 FDR ★) */
 .lb { border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); background: var(--bg-secondary); margin-bottom: 0.8rem; }
 .lb-row { display: grid; grid-template-columns: 2rem 1fr 4.5rem 4.5rem 3rem; align-items: center; gap: 0.4rem; padding: 0.5rem 0.7rem; border-top: 2px solid var(--ink); text-decoration: none; color: var(--text-primary); font-size: 0.84rem; }

@@ -31,7 +31,7 @@ export default function LoginPage() {
   }
 
   return (
-    <>
+    <div className="narrow">
       <h1 className="page-title">{t.login.title}</h1>
       <p className="page-sub">{t.login.sub}</p>
 
@@ -59,6 +59,6 @@ export default function LoginPage() {
           {state === "error" && <p className="hint" style={{ color: "var(--error)" }}>{t.login.error}</p>}
         </form>
       )}
-    </>
+    </div>
   );
 }

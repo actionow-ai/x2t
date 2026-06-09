@@ -34,7 +34,7 @@ export default async function FollowingPage() {
   }));
 
   return (
-    <>
+    <div className="narrow">
       <h1 className="page-title">{t.following.title}</h1>
       <p className="page-sub">{userId ? t.following.subLoggedIn : t.following.subAnon}</p>
 
@@ -51,6 +51,6 @@ export default async function FollowingPage() {
           <FollowingList influencers={list} isLoggedIn={!!userId} followed={[...followed]} />
         </>
       )}
-    </>
+    </div>
   );
 }
