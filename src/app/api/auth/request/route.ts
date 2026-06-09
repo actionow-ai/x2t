@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { createMagicLink } from "@/lib/magic-link";
 import { sendEmail, emailConfigured } from "@/lib/email";
-import { baseUrl } from "@/lib/base-url";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -26,16 +25,15 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
-  const { token } = await createMagicLink(email);
-  const link = `${baseUrl(request)}/api/auth/verify?token=${token}`;
+  const { code } = await createMagicLink(email);
   try {
-    await sendEmail(email, "登录 X2T", `点击登录（15 分钟内有效）：\n${link}`);
+    await sendEmail(email, "X2T 登录验证码", `你的 X2T 登录验证码是：${code}\n15 分钟内有效。如非本人操作请忽略。`);
   } catch (e) {
     // 不把上游错误体外泄,仅服务端记录
     console.error("[auth] 发信失败:", e instanceof Error ? e.message : e);
   }
 
-  // 仅非生产环境回传链接,方便本机直接点击;生产绝不外泄(否则任何人可冒充登录)。
-  const devLink = !emailConfigured() && process.env.NODE_ENV !== "production" ? link : undefined;
-  return Response.json({ ok: true, devLink });
+  // 仅非生产环境回传验证码,方便本机直接登录;生产绝不外泄。
+  const devCode = !emailConfigured() && process.env.NODE_ENV !== "production" ? code : undefined;
+  return Response.json({ ok: true, devCode });
 }

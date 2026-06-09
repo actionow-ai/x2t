@@ -91,6 +91,7 @@ export function PostDetail({ post, dataBySymbol, myVote, locale = "zh" }: Detail
         originalLabel={t.post.original}
         defaultTab={en ? "en" : "zh"}
       />
+      <div className="card-foot">
       <div className="pc-src">
         {post.url && <a href={post.url} target="_blank" rel="noreferrer">{t.common.originalPost} ↗</a>}
         <span>{t.common.notFinancialAdvice}</span>
@@ -108,6 +109,7 @@ export function PostDetail({ post, dataBySymbol, myVote, locale = "zh" }: Detail
           tweetText: `${name}${post.tickers[0] ? ` 对 $${post.tickers[0].symbol}` : ""}${post.analysis ? `: ${stanceText(post.analysis.overallStance, locale)}` : ""}${summary ? ` — ${summary.slice(0, 80)}` : ""}`,
         }}
       />
+      </div>
       </article>
 
       <div className="post-analysis">

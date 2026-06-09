@@ -66,6 +66,7 @@ export function PostCard({ post, selected, locale = "zh" }: { post: PostCardData
         </div>
       )}
 
+      <div className="card-foot">
       <div className="pc-src">
         {post.url && (
           <a href={post.url} target="_blank" rel="noreferrer">{t.common.originalPost} ↗</a>
@@ -87,6 +88,7 @@ export function PostCard({ post, selected, locale = "zh" }: { post: PostCardData
           url: `/p/${post.id}`,
         }}
       />
+      </div>
     </article>
   );
 }

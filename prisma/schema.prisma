@@ -237,7 +237,10 @@ model Delivery {
 model MagicLink {
   token     String    @id
   email     String
+  code      String? // 6 位邮箱验证码(OTP);按 (email, code) 校验
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([email, code])
 }

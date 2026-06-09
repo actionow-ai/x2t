@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useT } from "./LangProvider";
 
 // 分享图卡:客户端 canvas 渲染(绕开 Zeabur next/og 502)。文(tweet)+ 图(卡片)+ 链接,一键发 X。
@@ -141,23 +142,26 @@ export function ShareButton({ spec }: { spec: ShareSpec }) {
   return (
     <>
       <button className="btn ghost share-btn" onClick={toggle}>↗ {t.share.button}</button>
-      {open && (
-        <div className="share-modal-backdrop" onClick={() => setOpen(false)} role="dialog" aria-modal="true">
-          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="share-modal-head">
-              <strong>{t.share.button}</strong>
-              <button className="share-modal-x" onClick={() => setOpen(false)} aria-label={t.common.close}>✕</button>
+      {open &&
+        // portal 到 body:避免被卡片的 hover transform 当成定位祖先而抖动/闪烁
+        createPortal(
+          <div className="share-modal-backdrop" onClick={() => setOpen(false)} role="dialog" aria-modal="true">
+            <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="share-modal-head">
+                <strong>{t.share.button}</strong>
+                <button className="share-modal-x" onClick={() => setOpen(false)} aria-label={t.common.close}>✕</button>
+              </div>
+              <canvas ref={canvasRef} className="share-canvas" />
+              <div className="share-actions">
+                <button className="btn primary" onClick={shareX}>{t.share.toX}</button>
+                {imgUrl && <a className="btn ghost" href={imgUrl} download="x2t-card.png">{t.share.download}</a>}
+                <button className="btn ghost" onClick={copyImg}>{copied ? t.share.copied : t.share.copy}</button>
+              </div>
+              <p className="share-hint">{t.share.hint}</p>
             </div>
-            <canvas ref={canvasRef} className="share-canvas" />
-            <div className="share-actions">
-              <button className="btn primary" onClick={shareX}>{t.share.toX}</button>
-              {imgUrl && <a className="btn ghost" href={imgUrl} download="x2t-card.png">{t.share.download}</a>}
-              <button className="btn ghost" onClick={copyImg}>{copied ? t.share.copied : t.share.copy}</button>
-            </div>
-            <p className="share-hint">{t.share.hint}</p>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

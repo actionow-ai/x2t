@@ -153,8 +153,8 @@ export default async function InfluencerPage({
       </div>
 
       {ledger.length > 0 && (
-        <section className="ledger">
-          <div className="label-sm">{t.influencer.ledgerTitle}（{ledger.length}）</div>
+        <details className="ledger">
+          <summary className="label-sm ledger-summary">{t.influencer.ledgerTitle}（{ledger.length}）</summary>
           <div className="ledger-grid">
             {ledger.map((e) => (
               <Link key={e.symbol} href={`/t/${e.symbol}`} className="ledger-chip" data-stance={e.stance}>
@@ -164,7 +164,7 @@ export default async function InfluencerPage({
               </Link>
             ))}
           </div>
-        </section>
+        </details>
       )}
       </aside>
 

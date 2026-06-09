@@ -35,11 +35,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <header className="site-header">
             <div className="inner">
               <Link href="/" className="brand">X2T</Link>
-              <span className="masthead-tag">{t.header.masthead}</span>
+              <div className="masthead-meta">
+                <span className="masthead-tag">{t.header.masthead}</span>
+                <span className="masthead-disc">{t.header.disclaimer}</span>
+              </div>
               <NavTabs userEmail={user?.email ?? null} isAdmin={admin} />
               <LangSwitch />
             </div>
-            <div className="disclaimer-bar">{t.header.disclaimer}</div>
           </header>
           <main>
             <div className="container">
