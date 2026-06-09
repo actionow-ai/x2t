@@ -75,7 +75,7 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
           <Link href={`/i/${inf.handle}`}>
             <div className="pc-name">{name}</div>
           </Link>
-          <div className="pc-handle">@{inf.handle} · {formatDateTime(post.postedAt)}</div>
+          <div className="pc-handle">@{inf.handle} · {formatDateTime(post.postedAt, locale)}</div>
         </div>
       </div>
 
@@ -119,7 +119,7 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
                   <div key={tk.symbol} className="tcard">
                     <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.3rem" }}>
                       <StanceBadge stance={tk.stance} locale={locale} />
-                      <strong>${tk.symbol}</strong>
+                      <Link href={`/t/${tk.symbol}`} className="tcard-sym"><strong>${tk.symbol}</strong></Link>
                       {ext?.profile?.name && (
                         <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginLeft: "auto" }}>{ext.profile.name}</span>
                       )}

@@ -12,20 +12,20 @@ export default async function SubmitPage() {
 
       <form className="form" action={submitPost}>
         <div>
-          <label>{t.submit.handleLabel} *</label>
-          <input name="handle" placeholder="serenity" required />
+          <label htmlFor="sf-handle">{t.submit.handleLabel} *</label>
+          <input id="sf-handle" name="handle" placeholder="serenity" required />
         </div>
         <div>
-          <label>{t.submit.displayNameLabel}</label>
-          <input name="displayName" placeholder="Serenity" />
+          <label htmlFor="sf-name">{t.submit.displayNameLabel}</label>
+          <input id="sf-name" name="displayName" placeholder="Serenity" />
         </div>
         <div>
-          <label>{t.submit.contentLabel} *</label>
-          <textarea name="contentText" placeholder="Loading up on $NVDA here. Target 1200." required />
+          <label htmlFor="sf-content">{t.submit.contentLabel} *</label>
+          <textarea id="sf-content" name="contentText" placeholder="Loading up on $NVDA here. Target 1200." required />
         </div>
         <div>
-          <label>{t.submit.urlLabel}</label>
-          <input name="url" placeholder="https://x.com/..." />
+          <label htmlFor="sf-url">{t.submit.urlLabel}</label>
+          <input id="sf-url" name="url" placeholder="https://x.com/..." />
         </div>
         <button className="btn primary" type="submit" style={{ alignSelf: "flex-start" }}>
           {t.submit.button}

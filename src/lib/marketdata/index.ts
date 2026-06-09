@@ -5,6 +5,20 @@ import { createFinnhub, finnhubConfigured, finnhubEarnings } from "./finnhub";
 import { exaConfigured, exaNews } from "./exa";
 import { alphaVantageConfigured, avSentiment } from "./alphavantage";
 import { fmpConfigured, fmpEvents } from "./fmp";
+import { nasdaqEnabled, nasdaqEventsFromMap } from "./nasdaq";
+import type { MarketEvent } from "./types";
+
+// 事件源链:Finnhub earnings(免费档,逐标的真实日期)→ Nasdaq 免费日历 map(补 Finnhub 覆盖不到的)→ FMP(降级)。
+async function fetchEvents(sym: string): Promise<MarketEvent[]> {
+  if (finnhubConfigured()) {
+    const e = await finnhubEarnings(sym);
+    if (e.length) return e;
+  }
+  const nas = nasdaqEventsFromMap(sym);
+  if (nas.length) return nas;
+  if (fmpConfigured()) return fmpEvents(sym);
+  return [];
+}
 
 export function getMarketDataProvider(): MarketDataProvider {
   const key = process.env.FINNHUB_API_KEY;
@@ -96,17 +110,12 @@ export async function getExternalDataCached(symbol: string): Promise<ExternalDat
   const sentTtl = Number(process.env.SENTIMENT_TTL_MS ?? 43_200_000); // 12h:迁就 AV 25/day
   const evtTtl = Number(process.env.EVENTS_TTL_MS ?? 43_200_000); // 12h
 
-  // 事件源:优先 Finnhub earnings(免费档含),FMP 仅作降级(其免费档不含财报)
-  const eventsFetcher = finnhubConfigured()
-    ? () => finnhubEarnings(sym)
-    : fmpConfigured()
-      ? () => fmpEvents(sym)
-      : null;
+  const eventsEnabled = finnhubConfigured() || nasdaqEnabled() || fmpConfigured();
 
   const [bundle, sentiment, events] = await Promise.all([
     cachedCategory<ExternalData>(sym, "bundle", bundleTtl, () => fetchBundle(sym)),
     alphaVantageConfigured() ? cachedCategory(sym, "sentiment", sentTtl, () => avSentiment(sym)) : Promise.resolve(null),
-    eventsFetcher ? cachedCategory(sym, "events", evtTtl, eventsFetcher) : Promise.resolve(null),
+    eventsEnabled ? cachedCategory(sym, "events", evtTtl, () => fetchEvents(sym)) : Promise.resolve(null),
   ]);
 
   const result: ExternalData = { ...(bundle ?? {}) };

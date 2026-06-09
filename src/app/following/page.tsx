@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
-import { FollowButton } from "@/components/FollowButton";
-import { AvatarInner } from "@/components/Avatar";
+import { FollowingList } from "@/components/FollowingList";
+import { PushToggle } from "@/components/PushToggle";
 import { getCurrentUserId } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
@@ -24,6 +24,15 @@ export default async function FollowingPage() {
       )
     : new Set<string>();
 
+  const list = influencers.map((inf) => ({
+    id: inf.id,
+    handle: inf.handle,
+    displayName: inf.displayName,
+    avatarUrl: inf.avatarUrl,
+    posts: inf._count.posts,
+    fetchError: !!inf.fetchError,
+  }));
+
   return (
     <>
       <h1 className="page-title">{t.following.title}</h1>
@@ -34,27 +43,13 @@ export default async function FollowingPage() {
           {t.following.empty} <Link href="/submit" style={{ color: "var(--accent)" }}>{t.nav.submit}</Link>
         </div>
       ) : (
-        <div className="dir-grid">
-          {influencers.map((inf) => {
-            const name = inf.displayName ?? inf.handle;
-            return (
-              <div key={inf.id} className="dir-card">
-                <div className="pc-av" style={{ width: "2.4rem", height: "2.4rem" }}>
-                  <AvatarInner src={inf.avatarUrl} name={name} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Link href={`/i/${inf.handle}`}>
-                    <strong style={{ fontWeight: 800 }}>{name}</strong>
-                  </Link>
-                  <div style={{ fontFamily: "var(--mono)", fontSize: "0.7rem", color: "var(--text-secondary)" }}>
-                    @{inf.handle} · {inf._count.posts} {t.following.postsWord}{inf.fetchError ? ` · ${t.following.fetchError}` : ""}
-                  </div>
-                </div>
-                <FollowButton influencerId={inf.id} isLoggedIn={!!userId} initiallyFollowed={followed.has(inf.id)} />
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <div className="follow-pushbar">
+            <PushToggle />
+            <span className="hint" style={{ margin: 0 }}>{t.following.pushHint}</span>
+          </div>
+          <FollowingList influencers={list} isLoggedIn={!!userId} followed={[...followed]} />
+        </>
       )}
     </>
   );

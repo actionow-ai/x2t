@@ -56,14 +56,19 @@ export async function notifyNewPost(postId: string): Promise<{ targeted: number;
     url: `/p/${post.id}`,
   });
 
+  // 一次性查出已投递集合(去重),避免循环内逐 sub findUnique 的 N+1
+  const delivered = new Set(
+    (
+      await prisma.delivery.findMany({
+        where: { postId: post.id, channel: "webpush", pushSubscriptionId: { in: subs.map((s) => s.id) } },
+        select: { pushSubscriptionId: true },
+      })
+    ).map((d) => d.pushSubscriptionId),
+  );
+
   let sent = 0;
   for (const sub of subs) {
-    const already = await prisma.delivery.findUnique({
-      where: {
-        postId_pushSubscriptionId_channel: { postId: post.id, pushSubscriptionId: sub.id, channel: "webpush" },
-      },
-    });
-    if (already) continue;
+    if (delivered.has(sub.id)) continue;
 
     const keys = sub.keysJson as { p256dh: string; auth: string };
     try {
@@ -112,14 +117,18 @@ export async function notifyFlip(
   const text = flips.map((f) => `$${f.symbol} ${stanceZh(f.prevStance)}→${stanceZh(f.newStance)}`).join("、");
   const payload = JSON.stringify({ title: `⇄ ${name} 立场转向`, body: text, url: `/p/${post.id}` });
 
+  const delivered = new Set(
+    (
+      await prisma.delivery.findMany({
+        where: { postId: post.id, channel: "webpush-flip", pushSubscriptionId: { in: subs.map((s) => s.id) } },
+        select: { pushSubscriptionId: true },
+      })
+    ).map((d) => d.pushSubscriptionId),
+  );
+
   let sent = 0;
   for (const sub of subs) {
-    const already = await prisma.delivery.findUnique({
-      where: {
-        postId_pushSubscriptionId_channel: { postId: post.id, pushSubscriptionId: sub.id, channel: "webpush-flip" },
-      },
-    });
-    if (already) continue;
+    if (delivered.has(sub.id)) continue;
 
     const keys = sub.keysJson as { p256dh: string; auth: string };
     try {

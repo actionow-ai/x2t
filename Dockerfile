@@ -6,7 +6,7 @@
 FROM node:22-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates \
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates bash \
   && rm -rf /var/lib/apt/lists/* \
   && corepack enable
 
@@ -23,5 +23,6 @@ COPY . .
 RUN pnpm build
 ENV NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0
 EXPOSE 8080
-# 后台跑 worker（抓取+分析循环），前台跑 web（容器生命周期=web）。
-CMD ["sh", "-c", "pnpm worker & exec pnpm start"]
+# 同容器内跑 worker + web;任一进程退出即整体退出(exit 1)→ Zeabur 重启容器,
+# 避免 worker 静默崩溃后只剩 web 存活、抓取/分析停摆而容器仍 RUNNING。
+CMD ["bash", "-c", "pnpm worker & w=$!; pnpm start & s=$!; wait -n; echo '[entrypoint] a child exited — stopping container to trigger restart'; kill $w $s 2>/dev/null; exit 1"]

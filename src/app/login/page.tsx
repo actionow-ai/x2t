@@ -50,8 +50,8 @@ export default function LoginPage() {
       ) : (
         <form className="form" onSubmit={submit}>
           <div>
-            <label>{t.login.emailLabel}</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <label htmlFor="login-email">{t.login.emailLabel}</label>
+            <input id="login-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
           </div>
           <button className="btn primary" type="submit" disabled={state === "sending"} style={{ alignSelf: "flex-start" }}>
             {state === "sending" ? t.login.sending : t.login.button}

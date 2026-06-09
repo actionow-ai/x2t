@@ -39,7 +39,7 @@ export function PostCard({ post, selected, locale = "zh" }: { post: PostCardData
           <div className="pc-handle">@{inf.handle}</div>
         </div>
         <Link href={`/p/${post.id}`} className="pc-time">
-          {relativeTime(post.postedAt)}
+          {relativeTime(post.postedAt, locale)}
         </Link>
       </div>
 

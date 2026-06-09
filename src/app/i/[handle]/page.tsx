@@ -60,7 +60,7 @@ export default async function InfluencerPage({
           {influencer.bio && <div className="inf-bio">{influencer.bio}</div>}
           <div className="inf-meta">
             {influencer.posts.length} {t.influencer.postsWord}
-            {influencer.lastFetchedAt ? ` · ${t.influencer.lastFetch} ${formatDateTime(influencer.lastFetchedAt)}` : ""}
+            {influencer.lastFetchedAt ? ` · ${t.influencer.lastFetch} ${formatDateTime(influencer.lastFetchedAt, locale)}` : ""}
           </div>
           {influencer.fetchError && (
             <div className="inf-meta" style={{ color: "var(--error)", marginTop: "0.3rem" }}>

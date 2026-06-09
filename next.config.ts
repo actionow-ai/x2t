@@ -7,6 +7,20 @@ const nextConfig: NextConfig = {
   // 否则类型检查阶段易 OOM 导致构建失败。
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  // 基线安全响应头(不含 CSP:站内有 GA/JSON-LD 内联脚本,严格 CSP 需 nonce 改造,后续再上)
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

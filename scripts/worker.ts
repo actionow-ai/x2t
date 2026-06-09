@@ -1,7 +1,10 @@
+import { writeFileSync } from "node:fs";
 import { ingestAll } from "../src/lib/ingest";
 import { analyzePending } from "../src/lib/agent";
 import { runDigest } from "../src/lib/digest";
 import { prisma } from "../src/lib/db";
+import { HEARTBEAT_FILE } from "../src/lib/health";
+import { nasdaqEnabled, buildNasdaqEarningsMap } from "../src/lib/marketdata/nasdaq";
 
 // 加载 .env（独立进程；DB / LLM / 行情 / VAPID key 都从这里来）
 try {
@@ -26,6 +29,8 @@ let stopping = false;
 let lastDigest = Date.now(); // 启动后满 DIGEST_MS 才首发，避免每次重启都发
 let lastGc = 0; // 启动即先 GC 一次过期缓存
 const GC_MS = Number(process.env.CACHE_GC_INTERVAL_MS ?? 3_600_000);
+let lastNasdaq = 0; // Nasdaq 财报 map 每日构建一次
+const NASDAQ_MS = 24 * 3_600_000;
 
 async function tick() {
   const start = Date.now();
@@ -44,6 +49,24 @@ async function tick() {
     );
   } catch (e) {
     console.error("[worker] tick 异常:", e instanceof Error ? e.message : e);
+  }
+
+  // Nasdaq 财报日历 map 每日构建(免费事件源;仅 EVENTS_NASDAQ=1 时)
+  if (nasdaqEnabled() && Date.now() - lastNasdaq >= NASDAQ_MS) {
+    try {
+      const n = await buildNasdaqEarningsMap();
+      lastNasdaq = Date.now();
+      console.log(`[worker] Nasdaq 财报 map:${n} 个标的`);
+    } catch (e) {
+      console.error("[worker] Nasdaq map 构建异常:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // 写心跳(同容器 /tmp,供 /api/health 判活)
+  try {
+    writeFileSync(HEARTBEAT_FILE, String(Date.now()));
+  } catch {
+    /* ignore */
   }
 
   // 过期外部数据缓存 GC(节流,默认每小时一次)

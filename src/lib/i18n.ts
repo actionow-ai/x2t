@@ -118,6 +118,9 @@ const zh = {
     empty: "还没有博主源。去提交页人工添加。",
     postsWord: "帖",
     fetchError: "抓取异常",
+    searchPlaceholder: "搜索博主…",
+    noMatch: "没有匹配的博主。",
+    pushHint: "开启推送:关注的博主一发帖就第一时间通知你。",
   },
   submit: {
     title: "手动提交一条帖子",
@@ -297,6 +300,9 @@ const en: Dict = {
     empty: "No influencer sources yet. Add one on the Submit page.",
     postsWord: "posts",
     fetchError: "fetch error",
+    searchPlaceholder: "Search influencers…",
+    noMatch: "No matching influencers.",
+    pushHint: "Enable push to get notified the moment someone you follow posts.",
   },
   submit: {
     title: "Submit a post",

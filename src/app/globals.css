@@ -17,7 +17,7 @@
 
   --text-primary: #0c0c0c;
   --text-secondary: #57514a;
-  --text-tertiary: #8a847a;
+  --text-tertiary: #6b655b; /* 调深至 ≈4.6:1,过 WCAG AA(原 #8a847a 仅 3.28) */
 
   --lime: #c9f24a;
   --blue: #2b5cff;
@@ -361,6 +361,20 @@ svg text { font-family: var(--mono); font-weight: 700; }
 .graph-slider input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; background: var(--lime); border: 2px solid var(--ink); border-radius: 0; box-shadow: 1px 1px 0 var(--ink); }
 .graph-slider input[type="range"]:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .graph-slider .slider-ends { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.62rem; font-weight: 700; color: var(--text-tertiary); }
+
+/* 波G:详情页可点 ticker、关注页搜索/推送条 */
+.tcard-sym { text-decoration: none; color: var(--ink); }
+.tcard-sym:hover strong { color: var(--blue); }
+.dir-search { width: 100%; margin-bottom: 1rem; padding: 0.55rem 0.7rem; border: 3px solid var(--ink); box-shadow: var(--shadow); background: var(--bg-secondary); font: inherit; }
+.dir-search:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.follow-pushbar { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+
+/* 图谱移动端:控制条 slider 不再 min-width:300px 挤爆,改全宽堆叠 */
+@media (max-width: 640px) {
+  .graph-slider { min-width: 0; flex-basis: 100%; max-width: none; }
+  .graph-controls { gap: 0.5rem; margin-bottom: 0.6rem; }
+  .graph-frame { padding: 0.4rem; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .ticker-track { animation: none; }
