@@ -192,8 +192,9 @@ main { padding: 1.75rem 0 5rem; }
   /* 导航横向可滚(flex 行为继承 ≤960),仅收紧间距/字号 */
   .nav { gap: 0.2rem; margin-left: 0.45rem; -webkit-overflow-scrolling: touch; }
   .nav .tab { font-size: 0.6rem; padding: 0.22rem 0.5rem; }
-  /* 触控目标 ≥44px(WCAG 2.5.5):视觉保持紧凑,用 min-height + 居中扩大命中区 */
-  .btn, .segbtn, .nav .tab, .lang-switch .lang-btn, .graph-panel-x, .foot-links a {
+  /* 触控目标 ≥44px(WCAG 2.5.5):视觉保持紧凑,用 min-height + 居中扩大命中区。
+     汉堡也纳入 → header 内汉堡与语言切换等高一致 */
+  .btn, .segbtn, .nav .tab, .lang-switch .lang-btn, .nav-burger, .graph-panel-x, .foot-links a {
     min-height: 44px;
     display: inline-flex;
     align-items: center;
@@ -521,6 +522,9 @@ svg text { font-family: var(--mono); font-weight: 700; }
 .seg .segbtn { border: 0; border-right: 2px solid var(--ink); }
 .seg .segbtn:last-child { border-right: 0; }
 .segbtn.on { background: var(--lime); color: var(--ink); }
+/* 首页工具栏:seg(全站/已关注)与 .btn(只看信号/推送/RSS)统一尺寸+阴影 */
+.feed-toolbar .seg { box-shadow: var(--shadow); }
+.feed-toolbar .segbtn { font-size: 0.74rem; padding: 0.45rem 0.85rem; display: inline-flex; align-items: center; }
 .seg a.segbtn { text-decoration: none; }
 .seg-sm .segbtn { padding: 0.18rem 0.5rem; font-size: 0.72rem; }
 .seg-sm { display: inline-flex; }
