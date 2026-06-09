@@ -54,6 +54,7 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
   const [pinned, setPinned] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [zoom, setZoom] = useState(1); // 缩放(尤其手机:无原生 pinch 时用 +/- 看局部)
   const [fs, setFs] = useState(false);
   const [drag, setDrag] = useState<Record<string, { x: number; y: number }>>({});
   const frameRef = useRef<HTMLDivElement>(null);
@@ -199,6 +200,10 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
           <button className={`segbtn${stance === "neutral" ? " on" : ""}`} onClick={() => setStance("neutral")}>{t.stance.neutral}</button>
         </div>
         {pinned && <button className="segbtn" onClick={() => { setPinned(null); setSel(null); }}>{t.graph.clearFocus} ✕</button>}
+        <div className="seg" role="group" aria-label={t.graph.zoom}>
+          <button className="segbtn" onClick={() => setZoom((z) => Math.min(4, z * 1.3))} aria-label={`${t.graph.zoom} +`}>+</button>
+          <button className="segbtn" onClick={() => setZoom((z) => Math.max(1, z / 1.3))} aria-label={`${t.graph.zoom} −`}>−</button>
+        </div>
         <button className="segbtn" onClick={() => { if (document.fullscreenElement) document.exitFullscreen(); else frameRef.current?.requestFullscreen(); }}>{fs ? t.graph.exitFull : t.graph.fullscreen}</button>
       </div>
 
@@ -210,7 +215,7 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
         </div>
       ) : (
         <div className={`graph-frame${fs ? " fs" : ""}`} ref={frameRef}>
-          <svg ref={svgRef} viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`} role="img" aria-label={t.graph.title}
+          <svg ref={svgRef} viewBox={`${vb.x + (vb.w * (1 - 1 / zoom)) / 2} ${vb.y + (vb.h * (1 - 1 / zoom)) / 2} ${vb.w / zoom} ${vb.h / zoom}`} role="img" aria-label={t.graph.title}
             onPointerMove={onMove}
             style={{ width: "100%", height: fs ? "100%" : "auto", maxHeight: fs ? "100%" : "78vh", display: "block", touchAction: "none" }}>
             <defs>

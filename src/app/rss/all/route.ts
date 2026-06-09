@@ -23,13 +23,34 @@ export async function GET(request: Request) {
     include: { influencer: true, analysis: true, tickers: { select: { symbol: true, stance: true } } },
   });
 
+  // T2.4 背离:批量取这些标的的新闻情绪,标出"博主立场与市场情绪相悖"的帖(x2t:divergence)
+  const symbols = [...new Set(posts.flatMap((p) => p.tickers.map((t) => t.symbol)))];
+  const sentBy = new Map<string, number>();
+  if (symbols.length) {
+    const rows = await prisma.externalDataCache.findMany({
+      where: { symbol: { in: symbols }, dataType: "sentiment" },
+      orderBy: { fetchedAt: "desc" },
+      select: { symbol: true, payload: true },
+    });
+    for (const r of rows) {
+      if (sentBy.has(r.symbol)) continue;
+      const s = (r.payload as { score?: number } | null)?.score;
+      if (typeof s === "number") sentBy.set(r.symbol, s);
+    }
+  }
+  const diverges = (p: (typeof posts)[number]) =>
+    p.tickers.some((t) => {
+      const sc = sentBy.get(t.symbol);
+      return sc !== undefined && ((t.stance === "bullish" && sc <= -0.15) || (t.stance === "bearish" && sc >= 0.15));
+    });
+
   const self = `${origin}/rss/all${sp.toString() ? `?${sp.toString()}` : ""}`;
   const xml = buildRss({
     title: "X2T · 全站信号流",
     description: "所有博主的最新信号 · 非投资建议",
     selfUrl: self,
     siteUrl: origin,
-    items: posts.map((p) => postToItem(p, origin)),
+    items: posts.map((p) => postToItem(p, origin, diverges(p))),
   });
 
   return new Response(xml, {

@@ -30,9 +30,10 @@ type RssItem = {
   stance?: string;
   confidence?: number | null;
   tickers: { symbol: string; stance: string }[];
+  divergence?: boolean;
 };
 
-export function postToItem(post: PostForRss, siteUrl: string): RssItem {
+export function postToItem(post: PostForRss, siteUrl: string, divergence = false): RssItem {
   const name = post.influencer.displayName ?? post.influencer.handle;
   const firstLine = post.contentText.split("\n")[0].slice(0, 80);
   const description = [
@@ -50,6 +51,7 @@ export function postToItem(post: PostForRss, siteUrl: string): RssItem {
     stance: post.analysis?.overallStance,
     confidence: post.analysis?.confidence ?? null,
     tickers: post.tickers ?? [],
+    divergence,
   };
 }
 
@@ -65,6 +67,7 @@ export function buildRss(opts: {
       const struct = [
         it.stance ? `\n      <x2t:stance>${esc(it.stance)}</x2t:stance>` : "",
         typeof it.confidence === "number" ? `\n      <x2t:confidence>${it.confidence}</x2t:confidence>` : "",
+        it.divergence ? `\n      <x2t:divergence>true</x2t:divergence>` : "",
         ...it.tickers.map((t) => `\n      <x2t:ticker symbol="${esc(t.symbol)}" stance="${esc(t.stance)}" />`),
       ].join("");
       return `
