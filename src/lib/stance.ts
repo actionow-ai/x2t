@@ -210,3 +210,48 @@ export async function detectFlips(
   }
   return flips;
 }
+
+// 博主"立场账本":对每个标的取其最新立场(每标的一条)+ 是否较上一条转向。立场轨迹的核心数据。
+export type LedgerEntry = { symbol: string; stance: Stance; postedAt: Date; postId: string; flipped: boolean };
+export async function getInfluencerLedger(influencerId: string, limit = 80): Promise<LedgerEntry[]> {
+  type Row = { symbol: string; stance: Stance; postedAt: Date; postId: string; prevStance: Stance | null };
+  const rows = await prisma.$queryRaw<Row[]>`
+    SELECT t.symbol, t.stance, t."postedAt", t."postId", t."prevStance"
+    FROM (
+      SELECT pt.symbol, pt.stance, p."postedAt", pt."postId",
+             row_number() OVER (PARTITION BY pt.symbol ORDER BY p."postedAt" DESC) AS rn,
+             lead(pt.stance) OVER (PARTITION BY pt.symbol ORDER BY p."postedAt" DESC) AS "prevStance"
+      FROM "PostTicker" pt
+      JOIN "Post" p ON p.id = pt."postId"
+      WHERE p."influencerId" = ${influencerId}
+    ) t
+    WHERE t.rn = 1
+    ORDER BY t."postedAt" DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({
+    symbol: r.symbol,
+    stance: r.stance,
+    postedAt: new Date(r.postedAt),
+    postId: r.postId,
+    flipped: r.prevStance != null && r.prevStance !== r.stance,
+  }));
+}
+
+// 某票截至某时刻的共识票数(每博主取其在该时刻前的最新立场)。供"近 N 天共识趋势"对比。
+export async function consensusCountsAsOf(symbol: string, asOf: Date): Promise<{ bullish: number; bearish: number; neutral: number }> {
+  const sym = symbol.toUpperCase();
+  const rows = await prisma.$queryRaw<{ stance: Stance }[]>`
+    SELECT t.stance FROM (
+      SELECT pt.stance, row_number() OVER (PARTITION BY p."influencerId" ORDER BY p."postedAt" DESC) AS rn
+      FROM "PostTicker" pt
+      JOIN "Post" p ON p.id = pt."postId"
+      WHERE pt.symbol = ${sym} AND p."postedAt" <= ${asOf}
+    ) t WHERE t.rn = 1
+  `;
+  return {
+    bullish: rows.filter((r) => r.stance === "bullish").length,
+    bearish: rows.filter((r) => r.stance === "bearish").length,
+    neutral: rows.filter((r) => r.stance === "neutral").length,
+  };
+}

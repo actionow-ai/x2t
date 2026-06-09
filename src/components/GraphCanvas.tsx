@@ -189,7 +189,7 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
       <div className="graph-controls">
         <div className="graph-slider">
           <label className="slider-readout" htmlFor="win"><b>{t.graph[STOPS[winIdx].key]}</b> {fEdges.length} {t.graph.relationsWord}</label>
-          <input id="win" type="range" min={0} max={STOPS.length - 1} step={1} value={winIdx} onChange={(e) => setWinIdx(Number(e.target.value))} aria-label={t.graph.winAll} />
+          <input id="win" type="range" min={0} max={STOPS.length - 1} step={1} value={winIdx} onChange={(e) => setWinIdx(Number(e.target.value))} aria-label={t.graph.window} aria-valuetext={t.graph[STOPS[winIdx].key]} />
           <div className="slider-ends"><span>{t.graph.winAll}</span><span>{t.graph.endNarrow}</span></div>
         </div>
         <div className="seg">
@@ -274,13 +274,27 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
             })}
           </svg>
 
+          {/* 屏幕阅读器/键盘等价物:把图里的"博主→标的:立场"关系以列表给出(WCAG 1.1.1) */}
+          <ul className="sr-only">
+            {fEdges.map((e) => {
+              const inf = influencers.find((i) => i.id === e.influencerId);
+              const st = e.stance === "bullish" ? t.stance.bullish : e.stance === "bearish" ? t.stance.bearish : t.stance.neutral;
+              return (
+                <li key={`sr-${e.influencerId}-${e.symbol}`}>
+                  {inf?.displayName ?? inf?.handle ?? ""} → ${e.symbol}: {st}
+                  {e.flipped ? ` (${t.consensus.flipped})` : ""}
+                </li>
+              );
+            })}
+          </ul>
+
           {sel && selNode && (
             <div className="graph-panel">
               <div className="graph-panel-head">
                 <strong>{selNode.kind === "sec" ? `$${selNode.label}` : selNode.label}</strong>
                 <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
                   <Link href={selNode.kind === "sec" ? `/t/${selNode.id}` : `/i/${(influencers.find((i) => i.id === selNode.id)?.handle ?? "")}`} className="graph-panel-link">{t.graph.openPage}</Link>
-                  <button className="graph-panel-x" onClick={() => { setSel(null); setPinned(null); }} aria-label="close">✕</button>
+                  <button className="graph-panel-x" onClick={() => { setSel(null); setPinned(null); }} aria-label={t.common.close}>✕</button>
                 </div>
               </div>
               <div className="graph-panel-list">

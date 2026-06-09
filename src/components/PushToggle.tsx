@@ -25,7 +25,7 @@ export function PushToggle() {
 
   async function enable() {
     if (!VAPID) {
-      alert("VAPID 公钥未配置（NEXT_PUBLIC_VAPID_PUBLIC_KEY）");
+      alert(t.push.notConfigured);
       return;
     }
     setState("working");

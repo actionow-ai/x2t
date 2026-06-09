@@ -31,6 +31,7 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
       "在 rationale 中点明博主观点与当前价格/消息面/市场情绪是一致还是背离、是否临近财报等事件；" +
       "若该标的无 externalData，标注「无外部数据佐证」，不要臆造行情。" +
       "置信度校准：证据充分才给高 confidence；信息不足/仅转发他人/纯提问 → overallStance=neutral 且 confidence 偏低。" +
+      "summary/keyPoints 去掉口语填充与语气词(如「哦看」「大家都知道」「家人们」之类),只保留有信息量的判断与依据。" +
       "只输出一个 JSON 对象。字段：lang(帖子语种代码，如 en/zh/ja)、overallStance(bullish|bearish|neutral)、confidence(0..1 数字)、" +
       "summary(原始语种摘要)、keyPoints(原始语种要点数组)、tickers(数组，每项 {symbol, stance(bullish|bearish|neutral), rationale(原始语种理由)})。";
     const user = JSON.stringify({
