@@ -9,6 +9,7 @@ import { NavTabs } from "@/components/NavTabs";
 import { LangProvider } from "@/components/LangProvider";
 import { LangSwitch } from "@/components/LangSwitch";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { Footer } from "@/components/Footer";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
 import { siteMetadata, websiteJsonLd } from "@/lib/seo";
@@ -45,6 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <PageFx>{children}</PageFx>
             </div>
           </main>
+          <Footer />
           {user && <FollowSync />}
         </LangProvider>
       </body>

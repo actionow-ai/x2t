@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
       posts: {
         orderBy: { postedAt: "desc" },
         take: 50,
-        include: { influencer: true, analysis: true },
+        include: { influencer: true, analysis: true, tickers: { select: { symbol: true, stance: true } } },
       },
     },
   });

@@ -11,8 +11,8 @@ import { getDict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function FeedPage({ searchParams }: { searchParams: Promise<{ s?: string; view?: string }> }) {
-  const { s, view } = await searchParams;
+export default async function FeedPage({ searchParams }: { searchParams: Promise<{ s?: string; view?: string; sig?: string }> }) {
+  const { s, view, sig } = await searchParams;
   const locale = await getLocale();
   const t = getDict(locale);
   const uid = await getCurrentUserId();
@@ -26,8 +26,12 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     followedIds = decodeURIComponent(raw).split(",").map((x) => x.trim()).filter(Boolean);
   }
   const following = view === "following" || (view !== "all" && followedIds.length > 0);
+  const onlySignal = sig === "1"; // 只看有多空观点的帖(滤掉中性新闻搬运噪音)
 
-  const where = following ? { influencerId: { in: followedIds.length ? followedIds : ["__none__"] } } : {};
+  const where = {
+    ...(following ? { influencerId: { in: followedIds.length ? followedIds : ["__none__"] } } : {}),
+    ...(onlySignal ? { analysis: { overallStance: { in: ["bullish", "bearish"] as ("bullish" | "bearish")[] } } } : {}),
+  };
   const posts = await prisma.post.findMany({
     where,
     orderBy: { postedAt: "desc" },
@@ -54,9 +58,15 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
 
       <div className="feed-toolbar">
         <div className="seg">
-          <Link href="/?view=all" className={`segbtn${!following ? " on" : ""}`}>{t.home.viewAll}</Link>
-          <Link href="/?view=following" className={`segbtn${following ? " on" : ""}`}>{t.home.viewFollowing}</Link>
+          <Link href={`/?view=all${onlySignal ? "&sig=1" : ""}`} className={`segbtn${!following ? " on" : ""}`}>{t.home.viewAll}</Link>
+          <Link href={`/?view=following${onlySignal ? "&sig=1" : ""}`} className={`segbtn${following ? " on" : ""}`}>{t.home.viewFollowing}</Link>
         </div>
+        <Link
+          href={`/?view=${following ? "following" : "all"}${onlySignal ? "" : "&sig=1"}`}
+          className={`btn ${onlySignal ? "primary" : "ghost"}`}
+        >
+          {t.home.onlySignal}
+        </Link>
         <PushToggle />
         <a className="btn ghost" href="/rss/all">{t.home.allRss}</a>
       </div>

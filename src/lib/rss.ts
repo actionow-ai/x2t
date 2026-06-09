@@ -1,4 +1,5 @@
 // RSS 2.0 输出 —— 设计文档 §8。无第三方依赖，手搓 XML（带转义）。
+// 除人类可读 description 外，附带 x2t: 命名空间的结构化字段(stance/confidence/ticker),供机器消费。
 
 function esc(s: string): string {
   return s
@@ -15,7 +16,8 @@ export type PostForRss = {
   url: string | null;
   postedAt: Date;
   influencer: { handle: string; displayName: string | null };
-  analysis?: { summary: string } | null;
+  analysis?: { summary: string; overallStance?: string; confidence?: number | null } | null;
+  tickers?: { symbol: string; stance: string }[];
 };
 
 type RssItem = {
@@ -25,6 +27,9 @@ type RssItem = {
   pubDate: Date;
   description: string;
   author: string;
+  stance?: string;
+  confidence?: number | null;
+  tickers: { symbol: string; stance: string }[];
 };
 
 export function postToItem(post: PostForRss, siteUrl: string): RssItem {
@@ -42,6 +47,9 @@ export function postToItem(post: PostForRss, siteUrl: string): RssItem {
     pubDate: post.postedAt,
     description,
     author: name,
+    stance: post.analysis?.overallStance,
+    confidence: post.analysis?.confidence ?? null,
+    tickers: post.tickers ?? [],
   };
 }
 
@@ -53,21 +61,26 @@ export function buildRss(opts: {
   items: RssItem[];
 }): string {
   const items = opts.items
-    .map(
-      (it) => `
+    .map((it) => {
+      const struct = [
+        it.stance ? `\n      <x2t:stance>${esc(it.stance)}</x2t:stance>` : "",
+        typeof it.confidence === "number" ? `\n      <x2t:confidence>${it.confidence}</x2t:confidence>` : "",
+        ...it.tickers.map((t) => `\n      <x2t:ticker symbol="${esc(t.symbol)}" stance="${esc(t.stance)}" />`),
+      ].join("");
+      return `
     <item>
       <title>${esc(it.title)}</title>
       <link>${esc(it.link)}</link>
       <guid isPermaLink="false">${esc(it.guid)}</guid>
       <pubDate>${it.pubDate.toUTCString()}</pubDate>
       <dc:creator>${esc(it.author)}</dc:creator>
-      <description>${esc(it.description)}</description>
-    </item>`,
-    )
+      <description>${esc(it.description)}</description>${struct}
+    </item>`;
+    })
     .join("");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:x2t="https://x2t.actionow.ai/ns">
   <channel>
     <title>${esc(opts.title)}</title>
     <link>${esc(opts.siteUrl)}</link>

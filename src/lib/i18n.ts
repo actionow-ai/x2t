@@ -55,6 +55,7 @@ const zh = {
     viewFollowing: "已关注",
     followEmpty: "你还没关注博主。",
     discover: "去发现博主",
+    onlySignal: "只看信号",
   },
   post: {
     ai: "AI 分析",
@@ -177,6 +178,17 @@ const zh = {
     flipNote: "人近期转向",
     methodNote: "口径:每位博主取其对该标的的最新一条立场计数(每人一票)。",
   },
+  footer: {
+    tagline: "金融博主信号聚合 + AI 双语分析",
+    about: "关于",
+    terms: "服务条款",
+    privacy: "隐私政策",
+    disclaimer: "免责声明",
+    report: "内容纠错 / 下架",
+    sourceNote: "内容来自公开渠道(X / Reddit / 新闻 RSS),版权归原作者;立场标签由 AI 自动生成,可能有误。",
+    notAdvice: "X2T 仅聚合公开内容与公开市场数据,不构成任何投资建议。",
+    rights: "开源项目 · MIT",
+  },
   admin: {
     title: "管理后台",
     sub: "数据管理 · 仅管理员可见",
@@ -254,6 +266,7 @@ const en: Dict = {
     viewFollowing: "Following",
     followEmpty: "You're not following anyone yet.",
     discover: "Discover influencers",
+    onlySignal: "Signals only",
   },
   post: {
     ai: "AI Analysis",
@@ -375,6 +388,17 @@ const en: Dict = {
     verdictNeutral: "neutral / split",
     flipNote: "recently flipped",
     methodNote: "Method: one vote per influencer, counting each one's latest stance on this ticker.",
+  },
+  footer: {
+    tagline: "Financial influencer signals + bilingual AI analysis",
+    about: "About",
+    terms: "Terms",
+    privacy: "Privacy",
+    disclaimer: "Disclaimer",
+    report: "Report / takedown",
+    sourceNote: "Content comes from public sources (X / Reddit / news RSS); copyright belongs to the original authors. Stance labels are AI-generated and may be wrong.",
+    notAdvice: "X2T only aggregates public posts and public market data and is not investment advice.",
+    rights: "Open source · MIT",
   },
   admin: {
     title: "Admin",

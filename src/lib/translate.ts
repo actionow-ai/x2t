@@ -34,6 +34,13 @@ export function translateConfigured(): boolean {
 
 const LANG_NAME: Record<"zh" | "en", string> = { zh: "简体中文", en: "英文" };
 
+// 译文质检兜底:空/异常短(疑似被截断或漏译)→ 回退原文,避免出现半截没翻的内容。
+function safe(translated: unknown, original: string): string {
+  if (typeof translated !== "string" || !translated.trim()) return original;
+  if (original.length > 20 && translated.length < original.length * 0.25) return original;
+  return translated;
+}
+
 // 翻成单一目标语种;任何异常/解析失败 → 返回 null,调用方回退原文。
 export async function translateTo(input: TranslateInput, target: "zh" | "en"): Promise<TranslateOutput | null> {
   const flash = flashProvider();
@@ -53,8 +60,8 @@ export async function translateTo(input: TranslateInput, target: "zh" | "en"): P
       if (t?.symbol) rationales[String(t.symbol).toUpperCase()] = typeof t.rationale === "string" ? t.rationale : "";
     }
     return {
-      content: typeof p.content === "string" && p.content ? p.content : input.content,
-      summary: typeof p.summary === "string" && p.summary ? p.summary : input.summary,
+      content: safe(p.content, input.content),
+      summary: safe(p.summary, input.summary),
       keyPoints: Array.isArray(p.keyPoints) ? p.keyPoints.map((x: unknown) => String(x)) : input.keyPoints,
       rationales,
     };

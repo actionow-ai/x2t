@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { ExternalData } from "@/lib/marketdata";
-import { CashtagText } from "./CashtagText";
+import { PostContentTabs } from "./PostContentTabs";
 import { StanceBadge, stanceText } from "./StanceBadge";
 import { AvatarInner } from "./Avatar";
 import { formatDateTime } from "@/lib/time";
@@ -64,8 +64,6 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
   const kpRaw = en && post.analysis?.keyPointsEn ? post.analysis.keyPointsEn : post.analysis?.keyPoints;
   const keyPoints = (kpRaw as string[] | undefined) ?? [];
   const summary = post.analysis ? (en && post.analysis.summaryEn ? post.analysis.summaryEn : post.analysis.summary) : "";
-  const content = (en ? post.contentEn : post.contentZh) || post.contentText;
-  const isTranslated = !!post.lang && (en ? !post.lang.startsWith("en") : !post.lang.startsWith("zh")) && post.contentText !== content;
 
   return (
     <article className="post-card">
@@ -79,15 +77,14 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
         </div>
       </div>
 
-      <div className="pc-text">
-        <CashtagText text={content} />
-      </div>
-      {isTranslated && (
-        <details className="orig-text">
-          <summary>{t.post.original}{post.lang ? ` · ${post.lang.toUpperCase()}` : ""}</summary>
-          <div className="pc-text" style={{ marginTop: "0.4rem", opacity: 0.8 }}><CashtagText text={post.contentText} /></div>
-        </details>
-      )}
+      <PostContentTabs
+        original={post.contentText}
+        zh={post.contentZh || post.contentText}
+        en={post.contentEn || post.contentText}
+        origLang={post.lang}
+        originalLabel={t.post.original}
+        defaultTab={en ? "en" : "zh"}
+      />
       <div className="pc-src">
         {post.url && <a href={post.url} target="_blank" rel="noreferrer">{t.common.originalPost} ↗</a>}
         <span>{t.common.notFinancialAdvice}</span>

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     where,
     orderBy: { postedAt: "desc" },
     take: 100,
-    include: { influencer: true, analysis: true },
+    include: { influencer: true, analysis: true, tickers: { select: { symbol: true, stance: true } } },
   });
 
   const title = handles.length

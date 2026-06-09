@@ -282,6 +282,21 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .inf-bio { font-size: 0.95rem; font-weight: 500; line-height: 1.5; margin-bottom: 0.7rem; color: var(--text-secondary); }
 .inf-meta { font-family: var(--mono); font-weight: 700; font-size: 0.74rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
+/* ===================== FOOTER / LEGAL ===================== */
+.site-footer { border-top: 4px solid var(--ink); background: var(--paper); margin-top: 3rem; }
+.site-footer .inner { max-width: 1040px; margin: 0 auto; padding: 1.6rem 1.4rem 2.4rem; }
+.foot-brand { font-family: var(--disp); font-size: 1.05rem; }
+.foot-links { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.7rem 0; }
+.foot-links a { font-weight: 700; font-size: 0.82rem; text-decoration: none; border-bottom: 2px solid transparent; }
+.foot-links a:hover { border-bottom-color: var(--ink); }
+.foot-note { font-size: 0.72rem; color: var(--text-secondary); margin: 0.3rem 0; max-width: 70ch; }
+.foot-rights { font-family: var(--mono); font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.8rem; }
+.legal { max-width: 70ch; }
+.legal h2 { font-family: var(--disp); font-size: 1.15rem; margin: 1.4rem 0 0.4rem; }
+.legal p, .legal li { font-size: 0.9rem; line-height: 1.6; color: var(--text-secondary); }
+.legal a { color: var(--accent); }
+.legal ul { padding-left: 1.2rem; }
+
 /* ===================== AI 信任元素 ===================== */
 .conf-pill { font-family: var(--mono); font-size: 0.66rem; font-weight: 700; padding: 0.05rem 0.4rem; border: 2px solid var(--ink); background: var(--paper); }
 .ai-hint { font-size: 0.64rem; color: var(--text-tertiary); font-style: italic; }
@@ -356,6 +371,8 @@ svg text { font-family: var(--mono); font-weight: 700; }
 .seg .segbtn:last-child { border-right: 0; }
 .segbtn.on { background: var(--lime); color: var(--ink); }
 .seg a.segbtn { text-decoration: none; }
+.seg-sm .segbtn { padding: 0.18rem 0.5rem; font-size: 0.72rem; }
+.seg-sm { display: inline-flex; }
 .feed-toolbar { display: flex; gap: 0.6rem; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; }
 .segbtn:hover:not(.on) { color: var(--ink); }
 .graph-controls > .segbtn { border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
