@@ -37,6 +37,14 @@ const zh = {
     none: "无",
     close: "关闭",
   },
+  share: {
+    button: "分享",
+    toX: "发到 X",
+    download: "下载图片",
+    copy: "复制图片",
+    copied: "已复制",
+    hint: "X 不支持直接附图:点「发到 X」会带上文字+链接;再「复制/下载图片」手动贴进推文即可。",
+  },
   stance: {
     bullish: "看多",
     bearish: "看空",
@@ -289,6 +297,14 @@ const en: Dict = {
     delete: "Delete",
     none: "None",
     close: "Close",
+  },
+  share: {
+    button: "Share",
+    toX: "Post to X",
+    download: "Download",
+    copy: "Copy image",
+    copied: "Copied",
+    hint: "X can't attach images directly: 'Post to X' fills text + link; copy/download the image and paste it into your post.",
   },
   stance: {
     bullish: "Bullish",

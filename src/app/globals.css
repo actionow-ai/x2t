@@ -367,6 +367,12 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .rail-rank .dn { color: var(--error-ink); font-family: var(--mono); font-weight: 700; }
 .rail-more { display: inline-block; margin-top: 0.5rem; font-size: 0.72rem; font-weight: 700; color: var(--blue); text-decoration: none; }
 .legend-note { font-family: var(--mono); font-size: 0.68rem; color: var(--text-tertiary); margin: 0.3rem 0 0.6rem; }
+/* 分享图卡弹层 */
+.share-wrap { display: inline-block; position: relative; }
+.share-pop { margin-top: 0.6rem; border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); background: var(--bg-secondary); padding: 0.7rem; max-width: 460px; }
+.share-canvas { width: 100%; height: auto; border: 2px solid var(--ink); display: block; background: var(--paper); }
+.share-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.share-hint { font-size: 0.68rem; color: var(--text-tertiary); margin: 0.5rem 0 0; line-height: 1.4; }
 .news-tag { font-family: var(--mono); font-size: 0.58rem; font-weight: 700; padding: 0.05rem 0.35rem; margin-left: 0.45rem; border: 2px solid var(--ink); background: var(--bg-tertiary); color: var(--text-secondary); vertical-align: middle; white-space: nowrap; }
 /* 多空论据(Bull/Bear 辩论视图,借 TradingAgents):两栏多头 vs 空头 */
 .debate { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 0.4rem 0 1rem; }

@@ -1,5 +1,6 @@
 import { getStockConsensus, getStockDebate } from "@/lib/stance";
 import { isNewsAccount } from "@/lib/account";
+import { ShareButton } from "@/components/ShareButton";
 import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
 import { relativeTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
@@ -55,6 +56,17 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
           {small ? `${t.consensus.smallSample} · ` : ""}
           {t.consensus.methodNote}
         </p>
+      )}
+      {n > 0 && (
+        <ShareButton
+          spec={{
+            brandLine: `$${c.symbol}${c.name ? ` · ${c.name}` : ""}`,
+            headline: `${t.consensus.verdictPrefix} ${n} ${t.consensus.peopleWord}${verdict ? `，${verdict}` : ""}`,
+            sub: `▲${c.bullish} ▼${c.bearish} · ${c.neutral} ${t.stance.neutral}`,
+            accent: verdict && overall === "bullish" ? "bull" : verdict && overall === "bearish" ? "bear" : "neutral",
+            tweetText: `$${c.symbol}: ${verdict ?? `▲${c.bullish} ▼${c.bearish}`} — ${t.consensus.verdictPrefix} ${n} ${t.consensus.peopleWord}。`,
+          }}
+        />
       )}
 
       {n === 0 ? (

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import type { ExternalData } from "@/lib/marketdata";
 import { PostContentTabs } from "./PostContentTabs";
 import { StanceBadge, stanceText } from "./StanceBadge";
+import { ShareButton } from "./ShareButton";
 import { AvatarInner } from "./Avatar";
 import { formatDateTime } from "@/lib/time";
 import { getDict, type Locale } from "@/lib/i18n";
@@ -90,6 +91,15 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
         {post.url && <a href={post.url} target="_blank" rel="noreferrer">{t.common.originalPost} ↗</a>}
         <span>{t.common.notFinancialAdvice}</span>
       </div>
+      <ShareButton
+        spec={{
+          brandLine: `${name}${post.tickers[0] ? ` · $${post.tickers[0].symbol}` : ""}`,
+          headline: summary ? summary.slice(0, 56) : post.tickers[0] ? `$${post.tickers[0].symbol}` : name,
+          sub: post.analysis ? `${t.stance.overallPrefix}${stanceText(post.analysis.overallStance, locale)}` : undefined,
+          accent: post.analysis?.overallStance === "bullish" ? "bull" : post.analysis?.overallStance === "bearish" ? "bear" : "neutral",
+          tweetText: `${name}${post.tickers[0] ? ` 对 $${post.tickers[0].symbol}` : ""}${post.analysis ? `: ${stanceText(post.analysis.overallStance, locale)}` : ""}${summary ? ` — ${summary.slice(0, 80)}` : ""}`,
+        }}
+      />
       </article>
 
       <div className="post-analysis">
