@@ -59,12 +59,17 @@ main { padding: 1.75rem 0 5rem; }
 .cols-rail, .cols-side, .cols-split { display: grid; gap: 1.6rem; align-items: start; }
 .cols-rail { grid-template-columns: minmax(0, 1fr) 304px; }
 .cols-side { grid-template-columns: 320px minmax(0, 1fr); }
-.cols-split { grid-template-columns: 1.45fr 1fr; }
-.col-sticky { position: sticky; top: 86px; }
+.cols-split { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+.col-sticky { position: sticky; top: 70px; }
 .narrow { max-width: 760px; }
 @media (max-width: 960px) {
   .cols-rail, .cols-side, .cols-split { grid-template-columns: 1fr; }
   .col-sticky { position: static; }
+  /* 平板/窄屏 header:藏掉装饰副标、nav 横向可滚、整条保持单行不换行挤压 */
+  .masthead-tag { display: none; }
+  .nav { flex: 1 1 0; min-width: 0; margin-left: 0.6rem; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav .tab { white-space: nowrap; flex: 0 0 auto; }
 }
 
 /* ===================== TICKER TAPE ===================== */
@@ -89,8 +94,9 @@ main { padding: 1.75rem 0 5rem; }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* ===================== MASTHEAD ===================== */
-.site-header { background: var(--paper); border-bottom: 4px solid var(--ink); }
-.site-header .inner { max-width: 1180px; margin: 0 auto; padding: 0.85rem 1.4rem; display: flex; align-items: center; gap: 0.8rem; }
+/* 滚动时吸顶(行情带在上方,随滚动划走;只有 masthead 粘住) */
+.site-header { background: var(--paper); border-bottom: 4px solid var(--ink); position: sticky; top: 0; z-index: 50; }
+.site-header .inner { max-width: 1180px; margin: 0 auto; padding: 0.7rem 1.4rem; display: flex; align-items: center; gap: 0.8rem; }
 .brand {
   font-family: var(--disp);
   font-size: 1.5rem;
@@ -167,13 +173,11 @@ main { padding: 1.75rem 0 5rem; }
 @media (max-width: 640px) {
   main { padding: 0.85rem 0 3.5rem; }
   .container { padding: 0 0.7rem; }
-  .site-header .inner { padding: 0.5rem 0.7rem; gap: 0.45rem; flex-wrap: wrap; }
-  .masthead-tag { display: none; }
+  .site-header .inner { padding: 0.5rem 0.7rem; gap: 0.45rem; flex-wrap: nowrap; }
   .brand { font-size: 1.1rem; padding: 0.18rem 0.36rem 0.1rem; border-width: 2px; box-shadow: 2px 2px 0 var(--ink); }
-  /* 导航改横向可滚,不再换行挤成误触温床 */
-  .nav { gap: 0.2rem; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  .nav::-webkit-scrollbar { display: none; }
-  .nav .tab { font-size: 0.6rem; padding: 0.22rem 0.5rem; white-space: nowrap; flex: 0 0 auto; }
+  /* 导航横向可滚(flex 行为继承 ≤960),仅收紧间距/字号 */
+  .nav { gap: 0.2rem; margin-left: 0.45rem; -webkit-overflow-scrolling: touch; }
+  .nav .tab { font-size: 0.6rem; padding: 0.22rem 0.5rem; }
   /* 触控目标 ≥44px(WCAG 2.5.5):视觉保持紧凑,用 min-height + 居中扩大命中区 */
   .btn, .segbtn, .nav .tab, .lang-switch .lang-btn, .graph-panel-x, .foot-links a {
     min-height: 44px;
@@ -379,8 +383,10 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 /* /t 双主栏:右列较窄,辩论收 1 栏更易读 */
 .cols-split-right .debate { grid-template-columns: 1fr; }
 /* /p 帖子详情:左原文 + 右 AI 分析(分析略宽) */
-.post-detail { grid-template-columns: 1fr 1.15fr; }
+.post-detail { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
 .post-detail .ai-box { margin-top: 0; }
+/* 必须放在 .post-detail 规则之后:否则同特异性下被上面的非媒体规则按源序覆盖,≤960 收不了单栏 */
+@media (max-width: 960px) { .post-detail { grid-template-columns: 1fr; } }
 /* 博主战绩榜(借 AI-Trader,带 FDR ★) */
 .lb { border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); background: var(--bg-secondary); margin-bottom: 0.8rem; }
 .lb-row { display: grid; grid-template-columns: 2rem 1fr 4.5rem 4.5rem 3rem; align-items: center; gap: 0.4rem; padding: 0.5rem 0.7rem; border-top: 2px solid var(--ink); text-decoration: none; color: var(--text-primary); font-size: 0.84rem; }
