@@ -26,6 +26,7 @@ export function createOpenAiCompatible(cfg: {
         ],
         response_format: { type: "json_object" },
         temperature: 0.2,
+        max_tokens: Number(process.env.LLM_MAX_TOKENS ?? 4000), // 输出封顶,防异常长输出烧 token
       });
       return res.choices[0]?.message?.content ?? "";
     },

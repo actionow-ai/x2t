@@ -121,13 +121,31 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
   }
 }
 
+// 当日已分析帖数(内存计数,重启归零的软成本闸)。ANALYZE_DAILY_CAP=0 表示不限。
+let _budgetDay = "";
+let _budgetCount = 0;
+
 /** 批量处理 analysis_status=pending 的帖子（小并发池，吞吐↑；并发度 ANALYZE_CONCURRENCY，默认 3）。 */
 export async function analyzePending(limit = 20): Promise<{ processed: number; ok: number }> {
+  // 当日分析上限:防 backfill / 批量 reanalyze 烧爆 LLM 额度
+  const cap = Number(process.env.ANALYZE_DAILY_CAP ?? 0);
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== _budgetDay) {
+    _budgetDay = today;
+    _budgetCount = 0;
+  }
+  if (cap > 0 && _budgetCount >= cap) {
+    console.warn(`[agent] 已达当日分析上限 ${cap},暂停分析(ANALYZE_DAILY_CAP)`);
+    return { processed: 0, ok: 0 };
+  }
+  const take = cap > 0 ? Math.min(limit, cap - _budgetCount) : limit;
+
   const pending = await prisma.post.findMany({
     where: { analysisStatus: "pending" },
     orderBy: { postedAt: "desc" },
-    take: limit,
+    take,
   });
+  _budgetCount += pending.length;
   const conc = Math.max(1, Math.min(8, Number(process.env.ANALYZE_CONCURRENCY ?? 3)));
   let ok = 0;
   let idx = 0;

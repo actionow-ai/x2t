@@ -282,6 +282,15 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .inf-bio { font-size: 0.95rem; font-weight: 500; line-height: 1.5; margin-bottom: 0.7rem; color: var(--text-secondary); }
 .inf-meta { font-family: var(--mono); font-weight: 700; font-size: 0.74rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
+/* ===================== ERROR / SKELETON ===================== */
+.errbox { background: var(--bg-secondary); border: 3px solid var(--ink); box-shadow: var(--shadow); padding: 1.4rem 1.5rem; max-width: 540px; margin: 2rem auto; }
+.errbox h2 { font-family: var(--disp); font-size: 1.4rem; margin: 0 0 0.5rem; }
+.errbox p { color: var(--text-secondary); margin: 0 0 1rem; }
+.errbox-digest { display: block; margin-top: 0.8rem; font-family: var(--mono); font-size: 0.7rem; color: var(--text-tertiary); }
+.skel-card { height: 92px; border: 3px solid var(--ink); background: linear-gradient(100deg, color-mix(in srgb, var(--ink) 5%, #fff) 30%, color-mix(in srgb, var(--ink) 11%, #fff) 50%, color-mix(in srgb, var(--ink) 5%, #fff) 70%); background-size: 200% 100%; animation: skel 1.3s ease-in-out infinite; }
+@keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel-card { animation: none; } }
+
 /* ===================== ROWS / DIRECTORY ===================== */
 .dir-grid { display: grid; grid-template-columns: 1fr; gap: 0.8rem; min-width: 0; }
 /* min-width:0 让 grid item 可收缩到内容以下，否则内部 nowrap 长文本会撑爆轨道、溢出容器并把操作按钮挤出屏幕 */

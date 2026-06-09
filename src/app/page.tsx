@@ -32,7 +32,18 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     where,
     orderBy: { postedAt: "desc" },
     take: 50,
-    include: { influencer: true, analysis: true, tickers: true },
+    // 显式 select:只取卡片用到的列,绝不带出 rawJson/mediaJson 大字段
+    select: {
+      id: true,
+      contentText: true,
+      contentZh: true,
+      contentEn: true,
+      url: true,
+      postedAt: true,
+      influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
+      analysis: { select: { summary: true, summaryEn: true, overallStance: true } },
+      tickers: { select: { symbol: true, stance: true } },
+    },
   });
   const detail = s ? await getPostDetail(s) : null;
 

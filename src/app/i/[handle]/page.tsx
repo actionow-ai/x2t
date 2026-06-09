@@ -25,7 +25,17 @@ export default async function InfluencerPage({
       posts: {
         orderBy: { postedAt: "desc" },
         take: 50,
-        include: { influencer: true, analysis: true, tickers: true },
+        select: {
+          id: true,
+          contentText: true,
+          contentZh: true,
+          contentEn: true,
+          url: true,
+          postedAt: true,
+          influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
+          analysis: { select: { summary: true, summaryEn: true, overallStance: true } },
+          tickers: { select: { symbol: true, stance: true } },
+        },
       },
     },
   });

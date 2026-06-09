@@ -11,19 +11,45 @@ import Link from "next/link";
 export async function getPostDetail(id: string) {
   const post = await prisma.post.findUnique({
     where: { id },
-    include: { influencer: true, analysis: true, tickers: { include: { security: true } } },
+    select: {
+      id: true,
+      contentText: true,
+      contentZh: true,
+      contentEn: true,
+      lang: true,
+      url: true,
+      postedAt: true,
+      analysisStatus: true,
+      influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
+      analysis: { select: { summary: true, summaryEn: true, keyPoints: true, keyPointsEn: true, overallStance: true, confidence: true, model: true } },
+      tickers: { select: { symbol: true, stance: true, rationale: true, rationaleEn: true } },
+    },
   });
   if (!post) return null;
 
   const symbols = post.tickers.map((t) => t.symbol);
+  // 合并 bundle(行情/概况/新闻) + sentiment + events 三类缓存(各存独立行),每类取最新
   const caches = symbols.length
     ? await prisma.externalDataCache.findMany({
-        where: { symbol: { in: symbols }, dataType: "bundle" },
+        where: { symbol: { in: symbols }, dataType: { in: ["bundle", "sentiment", "events"] } },
         orderBy: { fetchedAt: "desc" },
+        select: { symbol: true, dataType: true, payload: true },
       })
     : [];
   const dataBySymbol = new Map<string, ExternalData>();
-  for (const c of caches) if (!dataBySymbol.has(c.symbol)) dataBySymbol.set(c.symbol, c.payload as ExternalData);
+  const seen = new Set<string>();
+  for (const c of caches) {
+    const key = `${c.symbol}:${c.dataType}`;
+    if (seen.has(key)) continue; // 每 (symbol,dataType) 取最新一条
+    seen.add(key);
+    const p = c.payload as Record<string, unknown> | null;
+    if (!p) continue;
+    const cur = dataBySymbol.get(c.symbol) ?? ({} as ExternalData);
+    if (c.dataType === "bundle") Object.assign(cur, p);
+    else if (c.dataType === "sentiment" && typeof (p as { score?: unknown }).score === "number") cur.sentiment = p as ExternalData["sentiment"];
+    else if (c.dataType === "events" && Array.isArray(p) && p.length) cur.events = p as ExternalData["events"];
+    dataBySymbol.set(c.symbol, cur);
+  }
 
   return { post, dataBySymbol };
 }

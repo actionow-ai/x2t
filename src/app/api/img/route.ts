@@ -1,3 +1,5 @@
+import dns from "node:dns/promises";
+import net from "node:net";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
@@ -24,7 +26,48 @@ function allowedHost(host: string): boolean {
   return ALLOW_EXACT.has(h) || ALLOW_SUFFIX.some((s) => h.endsWith(s));
 }
 
+// 私网 / 回环 / 链路本地 / 元数据地址 —— 防 SSRF 打内网与云元数据(169.254.169.254)
+function isPrivateIp(ip: string): boolean {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split(".").map(Number);
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+  }
+  const l = ip.toLowerCase();
+  return l === "::1" || l.startsWith("fc") || l.startsWith("fd") || l.startsWith("fe80") || l.includes("127.") || l.includes("169.254") || l.includes("10.") || l.includes("192.168");
+}
+
+// host 既在白名单、解析出的 IP 又非私网才放行(DNS 解析失败不阻断,交由 fetch 自然失败)
+async function hostSafe(host: string): Promise<boolean> {
+  if (!allowedHost(host)) return false;
+  try {
+    const addrs = await dns.lookup(host, { all: true });
+    return addrs.length > 0 && !addrs.some((a) => isPrivateIp(a.address));
+  } catch {
+    return true;
+  }
+}
+
 const MAX_BYTES = 3 * 1024 * 1024; // 3MB 上限
+const TIMEOUT = () => AbortSignal.timeout(Number(process.env.IMG_PROXY_TIMEOUT_MS ?? 8000));
+const UA = "Mozilla/5.0 (compatible; X2T/1.0; +https://x2t.actionow.ai)";
+
+// 手动跟随重定向:每一跳都复检 https + 白名单 + 私网 IP(默认 fetch 跟随重定向会绕过首跳校验 → SSRF)
+async function fetchFollow(url: URL, depth = 0): Promise<Response> {
+  if (depth > 3) throw new Error("too many redirects");
+  if (url.protocol !== "https:") throw new Error("https only");
+  if (!(await hostSafe(url.hostname))) throw new Error("host not allowed");
+  const res = await fetch(url.toString(), {
+    headers: { "User-Agent": UA, Accept: "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8" },
+    redirect: "manual",
+    signal: TIMEOUT(),
+  });
+  if (res.status >= 300 && res.status < 400) {
+    const loc = res.headers.get("location");
+    if (!loc) throw new Error("redirect without location");
+    return fetchFollow(new URL(loc, url), depth + 1);
+  }
+  return res;
+}
 
 export async function GET(req: Request) {
   if (!rateLimit(`img:${clientIp(req)}`, 600, 60_000)) {
@@ -43,14 +86,7 @@ export async function GET(req: Request) {
   if (!allowedHost(target.hostname)) return new Response("host not allowed", { status: 403 });
 
   try {
-    const upstream = await fetch(target.toString(), {
-      headers: {
-        // 带常规 UA + Referer,绕过部分防盗链
-        "User-Agent": "Mozilla/5.0 (compatible; X2T/1.0; +https://x2t.actionow.ai)",
-        Accept: "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
-      },
-      signal: AbortSignal.timeout(Number(process.env.IMG_PROXY_TIMEOUT_MS ?? 8000)),
-    });
+    const upstream = await fetchFollow(target);
     if (!upstream.ok) return new Response("upstream " + upstream.status, { status: 502 });
     const ct = upstream.headers.get("content-type") ?? "";
     if (!ct.startsWith("image/")) return new Response("not an image", { status: 415 });
@@ -63,7 +99,6 @@ export async function GET(req: Request) {
       headers: {
         "Content-Type": ct,
         "Content-Length": String(buf.byteLength),
-        // 浏览器缓存 1 天,CDN/边缘缓存 30 天 —— 头像极少变,省带宽
         "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400",
       },
     });

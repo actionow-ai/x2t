@@ -1,48 +1,61 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
+import { getLocale } from "@/lib/i18n-server";
+import { getDict } from "@/lib/i18n";
 
 type Item = { symbol: string; stance: string; price?: number; changePct?: number };
 
-// 顶部行情带：重复填满整宽 + 无缝循环。
-export async function TickerTape() {
-  const rows = await prisma.postTicker.findMany({
-    orderBy: { post: { postedAt: "desc" } },
-    take: 40,
-    select: { symbol: true, stance: true },
-  });
-
-  const seen = new Set<string>();
-  const items: Item[] = [];
-  for (const r of rows) {
-    if (seen.has(r.symbol)) continue;
-    seen.add(r.symbol);
-    items.push({ symbol: r.symbol, stance: r.stance });
-    if (items.length >= 14) break;
-  }
-
-  if (items.length > 0) {
-    const caches = await prisma.externalDataCache.findMany({
-      where: { symbol: { in: items.map((i) => i.symbol) }, dataType: "bundle" },
-      orderBy: { fetchedAt: "desc" },
+// 行情带数据：进程级数据缓存 60s,避免全站每次导航都打 DB(TickerTape 在 root layout)。
+const getTickerItems = unstable_cache(
+  async (): Promise<Item[]> => {
+    const rows = await prisma.postTicker.findMany({
+      orderBy: { post: { postedAt: "desc" } },
+      take: 40,
+      select: { symbol: true, stance: true },
     });
-    const priceBy = new Map<string, { price?: number; changePct?: number }>();
-    for (const c of caches) {
-      if (priceBy.has(c.symbol)) continue;
-      const q = (c.payload as { quote?: { price?: number; changePct?: number } } | null)?.quote;
-      if (q) priceBy.set(c.symbol, { price: q.price, changePct: q.changePct });
+    const seen = new Set<string>();
+    const items: Item[] = [];
+    for (const r of rows) {
+      if (seen.has(r.symbol)) continue;
+      seen.add(r.symbol);
+      items.push({ symbol: r.symbol, stance: r.stance });
+      if (items.length >= 14) break;
     }
-    for (const it of items) {
-      const p = priceBy.get(it.symbol);
-      if (p) {
-        it.price = p.price;
-        it.changePct = p.changePct;
+    if (items.length > 0) {
+      const caches = await prisma.externalDataCache.findMany({
+        where: { symbol: { in: items.map((i) => i.symbol) }, dataType: "bundle" },
+        orderBy: { fetchedAt: "desc" },
+        select: { symbol: true, payload: true },
+      });
+      const priceBy = new Map<string, { price?: number; changePct?: number }>();
+      for (const c of caches) {
+        if (priceBy.has(c.symbol)) continue;
+        const q = (c.payload as { quote?: { price?: number; changePct?: number } } | null)?.quote;
+        if (q) priceBy.set(c.symbol, { price: q.price, changePct: q.changePct });
+      }
+      for (const it of items) {
+        const p = priceBy.get(it.symbol);
+        if (p) {
+          it.price = p.price;
+          it.changePct = p.changePct;
+        }
       }
     }
-  }
+    return items;
+  },
+  ["ticker-tape"],
+  { revalidate: 60 },
+);
+
+// 顶部行情带：重复填满整宽 + 无缝循环。
+export async function TickerTape() {
+  const items = await getTickerItems();
 
   if (items.length === 0) {
+    const t = getDict(await getLocale());
     return (
       <div className="ticker">
-        <div className="ticker-empty">AWAITING SIGNALS — pnpm poll:once &amp;&amp; pnpm analyze:once</div>
+        <div className="ticker-empty">{t.common.loading}</div>
       </div>
     );
   }
