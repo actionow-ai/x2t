@@ -60,12 +60,13 @@ main { padding: 1.75rem 0 5rem; }
 .cols-rail { grid-template-columns: minmax(0, 1fr) 304px; }
 .cols-side { grid-template-columns: 320px minmax(0, 1fr); }
 .cols-split { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
-.col-sticky { position: sticky; top: 70px; }
+/* sticky 侧栏:内容(如长账本)超过一屏时内部可滚,不再把底部钉在视口外滚不到 */
+.col-sticky { position: sticky; top: 70px; max-height: calc(100vh - 84px); overflow-y: auto; overflow-x: visible; padding-right: 4px; scrollbar-width: thin; }
 /* 单栏页主体占满容器宽度(与多栏页一致;容器本身已 1180px 居中) */
 .narrow { width: 100%; }
 @media (max-width: 960px) {
   .cols-rail, .cols-side, .cols-split { grid-template-columns: 1fr; }
-  .col-sticky { position: static; }
+  .col-sticky { position: static; max-height: none; overflow: visible; padding-right: 0; }
   /* 平板/窄屏 header:藏掉装饰副标(保留免责小字);nav 收进汉堡抽屉。
      用 .site-header 前缀提高特异性,否则被后面的基础规则按源序覆盖 */
   .site-header .masthead-tag { display: none; }
