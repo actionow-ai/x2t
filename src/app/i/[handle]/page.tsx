@@ -5,7 +5,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { AvatarInner } from "@/components/Avatar";
 import { StanceBadge } from "@/components/StanceBadge";
 import { getCurrentUserId } from "@/lib/auth";
-import { getInfluencerLedger } from "@/lib/stance";
+import { getInfluencerLedger, getInfluencerWinRate } from "@/lib/stance";
 import { formatDateTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
@@ -60,6 +60,8 @@ export default async function InfluencerPage({
   const bias = directional < 3 ? null : bull / directional >= 0.66 ? t.influencer.biasBull : bull / directional <= 0.34 ? t.influencer.biasBear : t.influencer.biasBalanced;
   // T2.1 立场账本:对各标的的当前立场 + 转向
   const ledger = await getInfluencerLedger(influencer.id);
+  // T2.5 历史胜率(平台回算,基于 PriceDaily;样本不足时为 null)
+  const winRate = await getInfluencerWinRate(influencer.id);
 
   const userId = await getCurrentUserId();
   const followed = userId
@@ -88,6 +90,11 @@ export default async function InfluencerPage({
               <span className="dn">▼{bear}</span>
               <span style={{ color: "var(--text-tertiary)" }}>●{neut}</span>
               {bias && <span className="bias-tag">{bias}</span>}
+              {winRate && (
+                <span className="bias-tag" title={t.influencer.winRateHint} style={{ background: winRate.hitRate >= 0.5 ? "var(--lime)" : "var(--bg-secondary)" }}>
+                  {t.influencer.winRate} {Math.round(winRate.hitRate * 100)}% · {winRate.samples} {t.influencer.samples}
+                </span>
+              )}
             </div>
           )}
           {influencer.bio && (

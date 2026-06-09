@@ -138,6 +138,16 @@ model ExternalDataCache {
   @@index([expiresAt])
 }
 
+// 每标的每日收盘价(来源 Stooq 免费历史)。供"博主立场→N 日前瞻收益"的历史胜率回算。
+model PriceDaily {
+  symbol String
+  date   DateTime @db.Date
+  close  Float
+
+  @@id([symbol, date])
+  @@index([symbol, date])
+}
+
 // ---------- 用户 · 订阅 · 推送 ----------
 
 model User {

@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import { ingestAll } from "../src/lib/ingest";
 import { analyzePending } from "../src/lib/agent";
 import { runDigest } from "../src/lib/digest";
+import { backfillPrices } from "../src/lib/prices";
 import { prisma } from "../src/lib/db";
 import { HEARTBEAT_FILE } from "../src/lib/health";
 import { nasdaqEnabled, buildNasdaqEarningsMap } from "../src/lib/marketdata/nasdaq";
@@ -29,6 +30,8 @@ let stopping = false;
 let lastDigest = Date.now(); // 启动后满 DIGEST_MS 才首发，避免每次重启都发
 let lastGc = 0; // 启动即先 GC 一次过期缓存
 const GC_MS = Number(process.env.CACHE_GC_INTERVAL_MS ?? 3_600_000);
+let lastPrice = 0; // 启动即先回填一次价格
+const PRICE_MS = Number(process.env.PRICE_BACKFILL_INTERVAL_MS ?? 86_400_000); // 默认每天
 let lastNasdaq = 0; // Nasdaq 财报 map 每日构建一次
 const NASDAQ_MS = 24 * 3_600_000;
 
@@ -67,6 +70,18 @@ async function tick() {
     writeFileSync(HEARTBEAT_FILE, String(Date.now()));
   } catch {
     /* ignore */
+  }
+
+  // 每日价格回填(Stooq 历史日线 → PriceDaily,供博主历史胜率回算;节流默认每天)
+  if (Date.now() - lastPrice >= PRICE_MS) {
+    try {
+      const syms = (await prisma.postTicker.findMany({ select: { symbol: true }, distinct: ["symbol"], take: 800 })).map((r) => r.symbol);
+      const r = await backfillPrices(syms);
+      lastPrice = Date.now();
+      console.log(`[worker] 价格回填：${r.symbols} 标的 / ${r.rows} 行`);
+    } catch (e) {
+      console.error("[worker] 价格回填异常:", e instanceof Error ? e.message : e);
+    }
   }
 
   // 过期外部数据缓存 GC(节流,默认每小时一次)

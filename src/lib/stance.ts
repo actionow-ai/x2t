@@ -238,6 +238,53 @@ export async function getInfluencerLedger(influencerId: string, limit = 80): Pro
   }));
 }
 
+// 博主历史胜率:对每条多/空 call,取入场价(call 当日或之后首个交易日收盘)与 N 日后收盘,
+// 看多则涨为命中、看空则跌为命中。用 PriceDaily(Stooq 历史)回算。无足够价格数据 → null。
+export async function getInfluencerWinRate(
+  influencerId: string,
+  horizonDays = 7,
+): Promise<{ hitRate: number; samples: number; avgReturn: number } | null> {
+  const calls = await prisma.postTicker.findMany({
+    where: { post: { influencerId }, stance: { in: ["bullish", "bearish"] } },
+    select: { symbol: true, stance: true, post: { select: { postedAt: true } } },
+  });
+  if (!calls.length) return null;
+
+  const symbols = [...new Set(calls.map((c) => c.symbol))];
+  const prices = await prisma.priceDaily.findMany({
+    where: { symbol: { in: symbols } },
+    orderBy: { date: "asc" },
+    select: { symbol: true, date: true, close: true },
+  });
+  if (!prices.length) return null;
+  const bySym = new Map<string, { t: number; close: number }[]>();
+  for (const p of prices) {
+    if (!bySym.has(p.symbol)) bySym.set(p.symbol, []);
+    bySym.get(p.symbol)!.push({ t: new Date(p.date).getTime(), close: p.close });
+  }
+  // 取 arr 中第一个 t >= target 的收盘(已按 date 升序)
+  const firstAtOrAfter = (arr: { t: number; close: number }[], target: number) => arr.find((x) => x.t >= target);
+
+  let hits = 0;
+  let samples = 0;
+  let sumRet = 0;
+  for (const c of calls) {
+    const arr = bySym.get(c.symbol);
+    if (!arr) continue;
+    const callT = new Date(c.post.postedAt).setUTCHours(0, 0, 0, 0);
+    const entry = firstAtOrAfter(arr, callT);
+    if (!entry) continue;
+    const exit = firstAtOrAfter(arr, entry.t + horizonDays * 86_400_000);
+    if (!exit) continue; // 还没到 N 日后
+    samples++;
+    const ret = (exit.close - entry.close) / entry.close;
+    sumRet += c.stance === "bullish" ? ret : -ret;
+    if (c.stance === "bullish" ? ret > 0 : ret < 0) hits++;
+  }
+  if (samples === 0) return null;
+  return { hitRate: hits / samples, samples, avgReturn: sumRet / samples };
+}
+
 // 某票截至某时刻的共识票数(每博主取其在该时刻前的最新立场)。供"近 N 天共识趋势"对比。
 export async function consensusCountsAsOf(symbol: string, asOf: Date): Promise<{ bullish: number; bearish: number; neutral: number }> {
   const sym = symbol.toUpperCase();
