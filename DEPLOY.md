@@ -45,7 +45,7 @@ RSSHub 同样支持 `/reddit/...`、`/stocktwits/...` 等大量路由（见 http
 
 ## 3. 生产部署（docker compose）
 
-镜像见 `Dockerfile`（多目标：`app` 精简 standalone、`worker` 后台管道）。
+镜像见 `Dockerfile`（**单一合并镜像**：一个容器内由进程监督脚本同时跑 web `next start` 与后台 worker，任一退出则整体退出让平台重启）。早期的「多目标 app/worker」方案因 zbpack 限制已废弃,详见下方踩坑。
 
 ```bash
 # 0. 准备 .env（至少 AUTH_SECRET；要变真则填 LLM/Finnhub/SMTP/TWITTER_AUTH_TOKEN）

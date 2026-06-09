@@ -19,7 +19,9 @@
     "analyze:once": "tsx scripts/analyze.ts --once",
     "worker": "tsx scripts/worker.ts",
     "worker:once": "tsx scripts/worker.ts --once",
-    "digest": "tsx scripts/digest.ts"
+    "digest": "tsx scripts/digest.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -47,7 +49,8 @@
     "prisma": "^6.3.0",
     "sharp": "^0.34.5",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
