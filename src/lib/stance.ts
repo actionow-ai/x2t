@@ -343,3 +343,33 @@ export async function getInfluencerWinRate(
     rate: { beatRate: beats / samples, ci: wilson95(beats, samples), avgExcess: sumExcess / samples, lowSample: samples < WINRATE_CONFIDENT },
   };
 }
+
+// 某票的"多空论据"——借鉴 TradingAgents 的 Bull vs Bear 辩论,但零 LLM 成本:
+// 直接取各博主对该票最新一条多/空帖的 AI rationale,分多头/空头两栏。把"谁多谁空"升级成"多空在争什么"。
+export type DebatePoint = { handle: string; displayName: string | null; rationale: string; postId: string };
+export async function getStockDebate(symbol: string, locale: "zh" | "en"): Promise<{ bull: DebatePoint[]; bear: DebatePoint[] }> {
+  const sym = symbol.toUpperCase();
+  type Row = { stance: Stance; handle: string; displayName: string | null; postId: string; rationale: string | null; rationaleEn: string | null };
+  const rows = await prisma.$queryRaw<Row[]>`
+    SELECT t.stance, t.handle, t."displayName", t."postId", t.rationale, t."rationaleEn"
+    FROM (
+      SELECT pt.stance, inf.handle, inf."displayName", pt."postId", pt.rationale, pt."rationaleEn",
+             row_number() OVER (PARTITION BY p."influencerId" ORDER BY p."postedAt" DESC) AS rn
+      FROM "PostTicker" pt
+      JOIN "Post" p ON p.id = pt."postId"
+      JOIN "Influencer" inf ON inf.id = p."influencerId"
+      WHERE pt.symbol = ${sym} AND pt.stance IN ('bullish','bearish')
+    ) t WHERE t.rn = 1
+    ORDER BY t."postId" DESC
+  `;
+  const pick = (r: Row): DebatePoint => ({
+    handle: r.handle,
+    displayName: r.displayName,
+    postId: r.postId,
+    rationale: (locale === "en" ? r.rationaleEn : r.rationale) ?? r.rationale ?? r.rationaleEn ?? "",
+  });
+  return {
+    bull: rows.filter((r) => r.stance === "bullish" && (r.rationale || r.rationaleEn)).map(pick).slice(0, 4),
+    bear: rows.filter((r) => r.stance === "bearish" && (r.rationale || r.rationaleEn)).map(pick).slice(0, 4),
+  };
+}

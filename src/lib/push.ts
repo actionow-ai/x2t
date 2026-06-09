@@ -33,13 +33,18 @@ export async function savePushSubscription(input: PushSubInput) {
   });
 }
 
+// 每订阅每天每渠道的推送上限(借 PanWatch notify_policy,防同一天多次翻转/发帖刷屏)。
+const NEWPOST_DAILY_CAP = Number(process.env.NEWPOST_DAILY_CAP ?? 12);
+const FLIP_DAILY_CAP = Number(process.env.FLIP_DAILY_CAP ?? 6);
+
 /**
  * 共享投递:把一条 payload 推给所有 followFilter 含该博主的订阅。
  * - 按 (post × 订阅 × 渠道) 去重(一次性查 delivered 集合,避免循环内 N+1)
+ * - dailyCap:每订阅每天该渠道达上限则跳过(防刷屏)
  * - 端点过期(404/410) → 清理订阅;其它失败记 failed
- * notifyNewPost / notifyFlip 共用,只是 channel + payload 不同。
+ * notifyNewPost / notifyFlip 共用,只是 channel + payload + cap 不同。
  */
-async function deliverToFollowers(influencerId: string, postId: string, channel: string, payload: string): Promise<{ targeted: number; sent: number }> {
+async function deliverToFollowers(influencerId: string, postId: string, channel: string, payload: string, dailyCap: number): Promise<{ targeted: number; sent: number }> {
   const subs = await prisma.pushSubscription.findMany({ where: { followFilter: { array_contains: influencerId } } });
   if (!subs.length) return { targeted: 0, sent: 0 };
 
@@ -52,9 +57,24 @@ async function deliverToFollowers(influencerId: string, postId: string, channel:
     ).map((d) => d.pushSubscriptionId),
   );
 
+  // 日上限:批量查今日该渠道已发条数(每订阅),达上限的跳过。
+  const overCap = new Set<string>();
+  if (dailyCap > 0) {
+    const since = new Date();
+    since.setUTCHours(0, 0, 0, 0);
+    const counts = await prisma.delivery.groupBy({
+      by: ["pushSubscriptionId"],
+      where: { channel, status: "sent", sentAt: { gte: since }, pushSubscriptionId: { in: subs.map((s) => s.id) } },
+      _count: { _all: true },
+    });
+    for (const c of counts) {
+      if (c.pushSubscriptionId && c._count._all >= dailyCap) overCap.add(c.pushSubscriptionId);
+    }
+  }
+
   let sent = 0;
   for (const sub of subs) {
-    if (delivered.has(sub.id)) continue;
+    if (delivered.has(sub.id) || overCap.has(sub.id)) continue;
     const keys = sub.keysJson as { p256dh: string; auth: string };
     try {
       await webpush.sendNotification({ endpoint: sub.endpoint, keys }, payload);
@@ -80,7 +100,7 @@ export async function notifyNewPost(postId: string): Promise<{ targeted: number;
 
   const name = post.influencer.displayName ?? post.influencer.handle;
   const payload = JSON.stringify({ title: `${name} 发新帖`, body: post.contentText.slice(0, 120), url: `/p/${post.id}` });
-  return deliverToFollowers(post.influencerId, post.id, "webpush", payload);
+  return deliverToFollowers(post.influencerId, post.id, "webpush", payload, NEWPOST_DAILY_CAP);
 }
 
 function stanceZh(s: string): string {
@@ -99,6 +119,6 @@ export async function notifyFlip(
   const name = post.influencer.displayName ?? post.influencer.handle;
   const text = flips.map((f) => `$${f.symbol} ${stanceZh(f.prevStance)}→${stanceZh(f.newStance)}`).join("、");
   const payload = JSON.stringify({ title: `⇄ ${name} 立场转向`, body: text, url: `/p/${post.id}` });
-  const { sent } = await deliverToFollowers(post.influencerId, post.id, "webpush-flip", payload);
+  const { sent } = await deliverToFollowers(post.influencerId, post.id, "webpush-flip", payload, FLIP_DAILY_CAP);
   return { sent };
 }

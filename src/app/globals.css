@@ -336,6 +336,17 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .flip-more { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; white-space: nowrap; text-decoration: none; color: var(--blue); }
 .legend-note { font-family: var(--mono); font-size: 0.68rem; color: var(--text-tertiary); margin: 0.3rem 0 0.6rem; }
 .news-tag { font-family: var(--mono); font-size: 0.58rem; font-weight: 700; padding: 0.05rem 0.35rem; margin-left: 0.45rem; border: 2px solid var(--ink); background: var(--bg-tertiary); color: var(--text-secondary); vertical-align: middle; white-space: nowrap; }
+/* 多空论据(Bull/Bear 辩论视图,借 TradingAgents):两栏多头 vs 空头 */
+.debate { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 0.4rem 0 1rem; }
+.debate-col { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); background: var(--bg-secondary); padding: 0.5rem; }
+.debate-head { font-family: var(--mono); font-weight: 800; font-size: 0.78rem; margin-bottom: 0.4rem; }
+.debate-head.up { color: var(--success-ink); }
+.debate-head.dn { color: var(--error-ink); }
+.debate-pt { display: block; font-size: 0.76rem; line-height: 1.35; padding: 0.3rem 0; border-top: 1px solid var(--border); text-decoration: none; color: var(--text-primary); }
+.debate-pt:first-of-type { border-top: 0; }
+.debate-pt:hover { color: var(--blue); }
+.debate-empty { color: var(--text-tertiary); font-size: 0.78rem; }
+@media (max-width: 640px) { .debate { grid-template-columns: 1fr; } }
 .diverge-chip { margin-left: 0.4rem; font-size: 0.62rem; font-weight: 700; padding: 0.02rem 0.34rem; border: 1.5px solid var(--error); color: var(--ink); background: color-mix(in srgb, var(--error) 14%, #fff); }
 
 /* ===================== ERROR / SKELETON ===================== */

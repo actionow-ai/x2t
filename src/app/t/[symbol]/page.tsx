@@ -1,4 +1,4 @@
-import { getStockConsensus } from "@/lib/stance";
+import { getStockConsensus, getStockDebate } from "@/lib/stance";
 import { isNewsAccount } from "@/lib/account";
 import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
 import { relativeTime } from "@/lib/time";
@@ -19,6 +19,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
   const locale = await getLocale();
   const t = getDict(locale);
   const c = await getStockConsensus(symbol);
+  const debate = await getStockDebate(symbol, locale === "en" ? "en" : "zh");
 
   const cx = 170;
   const cy = 150;
@@ -94,6 +95,31 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
           </div>
 
           <p className="legend-note">{t.consensus.legend}</p>
+
+          {(debate.bull.length > 0 || debate.bear.length > 0) && (
+            <>
+              <div className="label-sm">{t.consensus.debateTitle}</div>
+              <div className="debate">
+                <div className="debate-col bull">
+                  <div className="debate-head up">▲ {t.consensus.bullCase}</div>
+                  {debate.bull.length === 0 ? <p className="debate-empty">—</p> : debate.bull.map((d) => (
+                    <Link key={`bull-${d.postId}`} href={`/p/${d.postId}`} className="debate-pt">
+                      <b>{d.displayName ?? d.handle}</b>: {d.rationale}
+                    </Link>
+                  ))}
+                </div>
+                <div className="debate-col bear">
+                  <div className="debate-head dn">▼ {t.consensus.bearCase}</div>
+                  {debate.bear.length === 0 ? <p className="debate-empty">—</p> : debate.bear.map((d) => (
+                    <Link key={`bear-${d.postId}`} href={`/p/${d.postId}`} className="debate-pt">
+                      <b>{d.displayName ?? d.handle}</b>: {d.rationale}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="label-sm">{t.consensus.latestStance}</div>
           <div className="feed">
             {c.stances.map((s) => (

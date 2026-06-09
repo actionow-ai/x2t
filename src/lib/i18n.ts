@@ -201,6 +201,9 @@ const zh = {
     noChange: "持平",
     smallSample: "样本较少,仅供参考、不下结论",
     legend: "▲ 看多 · ▼ 看空 · — 中性 · ⇄ 近期转向",
+    debateTitle: "多空在争什么",
+    bullCase: "多头论据",
+    bearCase: "空头论据",
   },
   footer: {
     tagline: "金融博主信号聚合 + AI 双语分析",
@@ -436,6 +439,9 @@ const en: Dict = {
     noChange: "no change",
     smallSample: "Small sample — informational only, no verdict",
     legend: "▲ bullish · ▼ bearish · — neutral · ⇄ recent flip",
+    debateTitle: "What the debate is about",
+    bullCase: "Bull case",
+    bearCase: "Bear case",
   },
   footer: {
     tagline: "Financial influencer signals + bilingual AI analysis",
