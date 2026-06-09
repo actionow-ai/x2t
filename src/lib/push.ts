@@ -33,6 +33,26 @@ export async function savePushSubscription(input: PushSubInput) {
   });
 }
 
+/** 告警事件:推给某用户自己的所有订阅(规则命中时用)。 */
+export async function sendAlertToUser(userId: string, title: string, body: string, url: string): Promise<number> {
+  if (!configure()) return 0;
+  const subs = await prisma.pushSubscription.findMany({ where: { userId } });
+  if (!subs.length) return 0;
+  const payload = JSON.stringify({ title, body, url });
+  let sent = 0;
+  for (const sub of subs) {
+    const keys = sub.keysJson as { p256dh: string; auth: string };
+    try {
+      await webpush.sendNotification({ endpoint: sub.endpoint, keys }, payload);
+      sent++;
+    } catch (err: unknown) {
+      const sc = (err as { statusCode?: number }).statusCode;
+      if (sc === 404 || sc === 410) await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+    }
+  }
+  return sent;
+}
+
 // 通知治理(借 PanWatch notify_policy + daily_stock_analysis 的 COOLDOWN/QUIET_HOURS):
 // 日上限 + 冷却(两次推送最小间隔)+ 静音时段(UTC)。后两者默认关闭,配 env 才生效。
 const NEWPOST_DAILY_CAP = Number(process.env.NEWPOST_DAILY_CAP ?? 12);

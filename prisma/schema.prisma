@@ -159,6 +159,26 @@ model User {
 
   follows           Follow[]
   pushSubscriptions PushSubscription[]
+  alertRules        AlertRule[]
+}
+
+// 可组合告警规则(借鉴 PanWatch notify_policy:用户自定义 AND/OR 条件,命中才推)。
+model AlertRule {
+  id          String    @id @default(cuid())
+  userId      String
+  symbol      String? // null = 任意标的
+  minBull     Int       @default(0) // 看多博主数 ≥(0=不启用此条件)
+  minBear     Int       @default(0) // 看空博主数 ≥
+  onFlip      Boolean   @default(false) // 出现立场翻转
+  combine     String    @default("or") // and | or:多个条件如何组合
+  active      Boolean   @default(true)
+  lastFiredAt DateTime? // 冷却:避免同一规则反复轰炸
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([symbol])
 }
 
 model Follow {

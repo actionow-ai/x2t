@@ -13,6 +13,7 @@ export function NavTabs({ userEmail, isAdmin = false }: { userEmail: string | nu
     { href: "/", label: t.nav.signals },
     { href: "/graph", label: t.nav.graph },
     { href: "/leaderboard", label: t.nav.board },
+    { href: "/alerts", label: t.nav.alerts },
     { href: "/following", label: t.nav.following },
     { href: "/submit", label: t.nav.submit },
   ];

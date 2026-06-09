@@ -5,6 +5,7 @@ import { analysisSchema } from "./agent-schema";
 import { translateTo, type TranslateOutput } from "./translate";
 import { detectFlips } from "./stance";
 import { notifyFlip } from "./push";
+import { evaluateAlerts } from "./alerts";
 
 import { extractCashtags, isValidSymbol } from "./symbol";
 
@@ -100,12 +101,14 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
       await tx.post.update({ where: { id: post.id }, data: { lang, contentZh, contentEn, analysisStatus: "done" } });
     });
 
-    // 转向检测 → 「立场转向」推送（失败不影响分析）
+    // 转向检测 → 「立场转向」推送 + 可组合告警评估（失败不影响分析）
     try {
       const flips = await detectFlips(post.id);
       if (flips.length) await notifyFlip(post.id, flips);
+      const symbols = (await prisma.postTicker.findMany({ where: { postId: post.id }, select: { symbol: true } })).map((t) => t.symbol);
+      if (symbols.length) await evaluateAlerts(symbols, new Set(flips.map((f) => f.symbol)));
     } catch (err) {
-      console.error("[agent] 转向通知失败:", err instanceof Error ? err.message : err);
+      console.error("[agent] 转向/告警通知失败:", err instanceof Error ? err.message : err);
     }
 
     return { ok: true, tickers: parsed.tickers.length };
