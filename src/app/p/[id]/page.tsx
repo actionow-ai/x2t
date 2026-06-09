@@ -26,9 +26,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title,
     description,
     alternates: { canonical: `/p/${id}` },
-    // 不写死 images:由同级 opengraph-image.tsx 动态生成(博主+立场+标的分享卡)
-    openGraph: { type: "article", title, description, url: `/p/${id}` },
-    twitter: { card: "summary_large_image", title, description },
+    // 静态 og.png 兜底:next/og 动态 OG 在 Zeabur nodejs/standalone runtime 下 502(wasm 不兼容),已回退
+    openGraph: { type: "article", title, description, url: `/p/${id}`, images: ["/og.png"] },
+    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
   };
 }
 
