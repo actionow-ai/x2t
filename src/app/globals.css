@@ -334,6 +334,7 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .flip-sym { font-family: var(--mono); font-weight: 700; }
 .flip-move { font-weight: 800; color: var(--blue); }
 .flip-more { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; white-space: nowrap; text-decoration: none; color: var(--blue); }
+.legend-note { font-family: var(--mono); font-size: 0.68rem; color: var(--text-tertiary); margin: 0.3rem 0 0.6rem; }
 .diverge-chip { margin-left: 0.4rem; font-size: 0.62rem; font-weight: 700; padding: 0.02rem 0.34rem; border: 1.5px solid var(--error); color: var(--ink); background: color-mix(in srgb, var(--error) 14%, #fff); }
 
 /* ===================== ERROR / SKELETON ===================== */

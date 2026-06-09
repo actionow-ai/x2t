@@ -92,6 +92,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
             </svg>
           </div>
 
+          <p className="legend-note">{t.consensus.legend}</p>
           <div className="label-sm">{t.consensus.latestStance}</div>
           <div className="feed">
             {c.stances.map((s) => (

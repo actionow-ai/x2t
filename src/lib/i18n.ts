@@ -196,6 +196,7 @@ const zh = {
     trend7d: "近 7 天",
     noChange: "持平",
     smallSample: "样本较少,仅供参考、不下结论",
+    legend: "▲ 看多 · ▼ 看空 · — 中性 · ⇄ 近期转向",
   },
   footer: {
     tagline: "金融博主信号聚合 + AI 双语分析",
@@ -426,6 +427,7 @@ const en: Dict = {
     trend7d: "Last 7 days",
     noChange: "no change",
     smallSample: "Small sample — informational only, no verdict",
+    legend: "▲ bullish · ▼ bearish · — neutral · ⇄ recent flip",
   },
   footer: {
     tagline: "Financial influencer signals + bilingual AI analysis",
