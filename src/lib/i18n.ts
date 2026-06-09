@@ -21,10 +21,12 @@ const zh = {
     admin: "管理",
     login: "登录",
     logout: "退出",
+    menu: "菜单",
   },
   header: {
     masthead: "Signals · Intelligence",
     disclaimer: "非投资建议 · 仅聚合公开内容与公开市场数据 · NOT FINANCIAL ADVICE",
+    disclaimerShort: "非投资建议 · NOT FINANCIAL ADVICE",
   },
   common: {
     notFinancialAdvice: "非投资建议",
@@ -311,10 +313,12 @@ const en: Dict = {
     admin: "Admin",
     login: "Log in",
     logout: "Log out",
+    menu: "Menu",
   },
   header: {
     masthead: "Signals · Intelligence",
     disclaimer: "Not financial advice · Aggregates public posts & public market data only · NOT FINANCIAL ADVICE",
+    disclaimerShort: "Not financial advice",
   },
   common: {
     notFinancialAdvice: "Not financial advice",

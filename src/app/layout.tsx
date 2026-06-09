@@ -37,7 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/" className="brand">X2T</Link>
               <div className="masthead-meta">
                 <span className="masthead-tag">{t.header.masthead}</span>
-                <span className="masthead-disc">{t.header.disclaimer}</span>
+                <span className="masthead-disc">{t.header.disclaimerShort}</span>
               </div>
               <NavTabs userEmail={user?.email ?? null} isAdmin={admin} />
               <LangSwitch />
