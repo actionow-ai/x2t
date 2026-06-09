@@ -282,6 +282,16 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .inf-bio { font-size: 0.95rem; font-weight: 500; line-height: 1.5; margin-bottom: 0.7rem; color: var(--text-secondary); }
 .inf-meta { font-family: var(--mono); font-weight: 700; font-size: 0.74rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
+/* ===================== AI 信任元素 ===================== */
+.conf-pill { font-family: var(--mono); font-size: 0.66rem; font-weight: 700; padding: 0.05rem 0.4rem; border: 2px solid var(--ink); background: var(--paper); }
+.ai-hint { font-size: 0.64rem; color: var(--text-tertiary); font-style: italic; }
+.method-note { font-size: 0.68rem; color: var(--text-tertiary); margin: -0.4rem 0 1.1rem; }
+.track-row { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; margin-top: 0.4rem; font-family: var(--mono); font-size: 0.74rem; }
+.track-row b { font-size: 0.9rem; }
+.track-row .up { color: var(--success); }
+.track-row .dn { color: var(--error); }
+.diverge-chip { margin-left: 0.4rem; font-size: 0.62rem; font-weight: 700; padding: 0.02rem 0.34rem; border: 1.5px solid var(--error); color: var(--ink); background: color-mix(in srgb, var(--error) 14%, #fff); }
+
 /* ===================== ERROR / SKELETON ===================== */
 .errbox { background: var(--bg-secondary); border: 3px solid var(--ink); box-shadow: var(--shadow); padding: 1.4rem 1.5rem; max-width: 540px; margin: 2rem auto; }
 .errbox h2 { font-family: var(--disp); font-size: 1.4rem; margin: 0 0 0.5rem; }

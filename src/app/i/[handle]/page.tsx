@@ -43,6 +43,16 @@ export default async function InfluencerPage({
 
   const name = influencer.displayName ?? influencer.handle;
 
+  // 客观战绩(平台统计,非博主自述):覆盖标的数 + 立场分布。替代不可验证的吹捧 bio。
+  const tickerRows = await prisma.postTicker.findMany({
+    where: { post: { influencerId: influencer.id } },
+    select: { symbol: true, stance: true },
+  });
+  const symbolSet = new Set(tickerRows.map((r) => r.symbol));
+  const bull = tickerRows.filter((r) => r.stance === "bullish").length;
+  const bear = tickerRows.filter((r) => r.stance === "bearish").length;
+  const neut = tickerRows.filter((r) => r.stance === "neutral").length;
+
   const userId = await getCurrentUserId();
   const followed = userId
     ? !!(await prisma.follow.findUnique({ where: { userId_influencerId: { userId, influencerId: influencer.id } } }))
@@ -62,6 +72,15 @@ export default async function InfluencerPage({
             {influencer.posts.length} {t.influencer.postsWord}
             {influencer.lastFetchedAt ? ` · ${t.influencer.lastFetch} ${formatDateTime(influencer.lastFetchedAt, locale)}` : ""}
           </div>
+          {tickerRows.length > 0 && (
+            <div className="track-row" title={t.influencer.trackHint}>
+              <span><b>{symbolSet.size}</b> {t.influencer.covered}</span>
+              <span><b>{tickerRows.length}</b> {t.influencer.calls}</span>
+              <span className="up">▲{bull}</span>
+              <span className="dn">▼{bear}</span>
+              <span style={{ color: "var(--text-tertiary)" }}>●{neut}</span>
+            </div>
+          )}
           {influencer.fetchError && (
             <div className="inf-meta" style={{ color: "var(--error)", marginTop: "0.3rem" }}>
               {t.influencer.fetchError}：{influencer.fetchError}

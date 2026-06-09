@@ -9,7 +9,7 @@ export function relativeTime(date: Date, locale: Locale = "zh"): string {
   const m = Math.floor(s / 60);
   if (m < 60) return en ? `${m}m ago` : `${m} 分钟前`;
   const h = Math.floor(m / 60);
-  if (h < 24) return en ? `${h}h ago` : `${h}h 前`;
+  if (h < 24) return en ? `${h}h ago` : `${h} 小时前`;
   const d = Math.floor(h / 24);
   if (d < 30) return en ? `${d}d ago` : `${d} 天前`;
   return date.toLocaleDateString(en ? "en-US" : "zh-CN");

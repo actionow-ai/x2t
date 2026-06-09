@@ -29,6 +29,8 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
   });
 
   const overall = c.bullish > c.bearish ? "bullish" : c.bearish > c.bullish ? "bearish" : "neutral";
+  const flips = c.stances.filter((s) => s.flipped).length;
+  const verdict = overall === "bullish" ? t.consensus.verdictBull : overall === "bearish" ? t.consensus.verdictBear : t.consensus.verdictNeutral;
 
   return (
     <>
@@ -39,9 +41,11 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
         )}
       </h1>
       <p className="page-sub">
-        {t.consensus.whoTalking} ${c.symbol} · {t.consensus.consensusWord}{" "}
-        <StanceBadge stance={overall} locale={locale} label={`▲${c.bullish} ▼${c.bearish} —${c.neutral}`} />
+        {t.consensus.whoTalking} ${c.symbol} · {t.consensus.verdictPrefix} {n} {t.consensus.peopleWord}，<strong>{verdict}</strong>{" "}
+        <StanceBadge stance={overall} locale={locale} label={`▲${c.bullish} ▼${c.bearish} · ${c.neutral} ${t.stance.neutral}`} />
+        {flips > 0 ? ` · ${flips} ${t.consensus.flipNote}` : ""}
       </p>
+      {n > 0 && <p className="method-note">{t.consensus.methodNote}</p>}
 
       {n === 0 ? (
         <div className="empty">{t.consensus.noOne} ${c.symbol}。</div>
@@ -91,7 +95,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
                   <Link href={`/i/${s.handle}`}>
                     <strong style={{ fontSize: "0.85rem" }}>{s.displayName ?? s.handle}</strong>
                   </Link>
-                  <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)" }}>{relativeTime(s.postedAt)}</div>
+                  <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)" }}>{relativeTime(s.postedAt, locale)}</div>
                 </div>
                 <StanceBadge stance={s.stance} locale={locale} />
                 {s.flipped && (

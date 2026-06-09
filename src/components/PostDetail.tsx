@@ -99,13 +99,13 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
             <StanceBadge stance={post.analysis.overallStance} locale={locale} label={`${t.stance.overallPrefix}${stanceText(post.analysis.overallStance, locale)}`} />
             {typeof post.analysis.confidence === "number" && (
-              <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                {t.post.confidence} {Math.round(post.analysis.confidence * 100)}%
+              // 定性档而非伪精确百分比:避免"看多置信度70%"诱导跟单
+              <span className="conf-pill">
+                {post.analysis.confidence >= 0.66 ? t.post.confHigh : post.analysis.confidence >= 0.4 ? t.post.confMed : t.post.confLow}
               </span>
             )}
-            {post.analysis.model && (
-              <span style={{ fontSize: "0.66rem", color: "var(--text-tertiary)", marginLeft: "auto" }}>{post.analysis.model}</span>
-            )}
+            {/* 紧贴立场的 AI 免责微提示(把免责贴到伤害点);不再泄露内部模型串 */}
+            <span className="ai-hint" style={{ marginLeft: "auto" }}>{t.post.aiHint}</span>
           </div>
 
           <div style={{ fontSize: "0.86rem", lineHeight: 1.5, marginBottom: "0.6rem" }}>{summary}</div>
@@ -139,14 +139,17 @@ export function PostDetail({ post, dataBySymbol, locale = "zh" }: Detail & { loc
                     {ext?.news && ext.news.length > 0 && (
                       <div className="ext-line">{t.post.news} {ext.news.slice(0, 2).map((n) => n.headline).join(" · ")}</div>
                     )}
-                    {ext?.sentiment && typeof ext.sentiment.score === "number" && (
-                      <div className="ext-line">
-                        {t.post.sentiment}{" "}
-                        <span className={ext.sentiment.score >= 0 ? "up" : "dn"}>
-                          {ext.sentiment.label} ({ext.sentiment.score >= 0 ? "+" : ""}{ext.sentiment.score})
-                        </span>
-                      </div>
-                    )}
+                    {ext?.sentiment && typeof ext.sentiment.score === "number" && (() => {
+                      const sc = ext.sentiment!.score;
+                      // 背离:博主立场与市场新闻情绪相悖 —— 这是产品真洞见,显式标出而非藏起来
+                      const diverges = (tk.stance === "bullish" && sc <= -0.15) || (tk.stance === "bearish" && sc >= 0.15);
+                      return (
+                        <div className="ext-line">
+                          {t.post.sentiment} <span className={sc >= 0.15 ? "up" : sc <= -0.15 ? "dn" : ""}>{ext!.sentiment!.label}</span>
+                          {diverges && <span className="diverge-chip" title={t.post.divergenceHint}>{t.post.divergence}</span>}
+                        </div>
+                      );
+                    })()}
                     {ext?.events && ext.events.length > 0 && (
                       <div className="ext-line">{t.post.events} {ext.events.map((e) => `${e.title} · ${e.date}`).join(" · ")}</div>
                     )}
