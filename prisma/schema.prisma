@@ -69,6 +69,7 @@ model Post {
   fetchedAt      DateTime       @default(now())
   rawJson        Json?
   analysisStatus AnalysisStatus @default(pending)
+  analysisAttempts Int          @default(0) // 失败重试计数:达上限(ANALYZE_MAX_ATTEMPTS)后不再自动重试
 
   influencer Influencer    @relation(fields: [influencerId], references: [id], onDelete: Cascade)
   analysis   PostAnalysis?

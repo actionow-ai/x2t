@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import Parser from "rss-parser";
 import type { Connector, InfluencerSource, NormalizedPost, FetchResult } from "./types";
 
@@ -34,17 +35,18 @@ export const rssConnector: Connector = {
     const posts: NormalizedPost[] = [];
 
     for (const item of feed.items) {
-      const platformPostId = item.guid ?? item.link ?? (item.title && item.pubDate ? `${item.title}::${item.pubDate}` : undefined);
-      if (!platformPostId) continue;
-
       const contentText = (item.contentSnippet ?? item.content ?? item.title ?? "").trim();
       if (!contentText) continue;
 
-      const postedAt = item.isoDate
-        ? new Date(item.isoDate)
-        : item.pubDate
-          ? new Date(item.pubDate)
-          : new Date();
+      // 去重键:优先 guid/link;都缺时用正文稳定 hash —— 不依赖易变的 pubDate 文本格式(RSSHub 实例/时区切换会改格式 → 旧版同帖去重键漂移造重复)
+      const platformPostId = item.guid ?? item.link ?? `h:${createHash("sha1").update(contentText).digest("hex").slice(0, 24)}`;
+
+      // postedAt 是"最新立场/转向"的时间命脉:无可信日期就跳过该 item,绝不用 now() 兜底
+      // (否则旧帖被当成全站最新,污染共识与转向判定)
+      const iso = item.isoDate ?? item.pubDate;
+      if (!iso) continue;
+      const postedAt = new Date(iso);
+      if (Number.isNaN(postedAt.getTime())) continue;
 
       posts.push({
         platformPostId,

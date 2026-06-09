@@ -11,6 +11,10 @@ export function getMarketDataProvider(): MarketDataProvider {
   return key ? createFinnhub(key) : createMockMarketData();
 }
 
+// 进程内 in-flight 去重:同 (symbol,dataType) 的并发请求共享一次抓取,
+// 避免并发分析同标的时把紧额度外部 API(如 AV 25/day)打成双倍。
+const inflight = new Map<string, Promise<unknown>>();
+
 // 按"类别"独立缓存:不同维度 TTL 差异大(行情分钟级、情绪/事件按天)。
 // external_data_cache.dataType 区分类别;命中未过期则复用,否则跑 fetcher 后写缓存。
 // 写缓存前 security 必须已存在(FK)——由 getExternalDataCached 顶部统一确保。
@@ -20,23 +24,36 @@ async function cachedCategory<T extends object>(
   ttlMs: number,
   fetcher: () => Promise<T | null>,
 ): Promise<T | null> {
-  const cached = await prisma.externalDataCache.findFirst({
-    where: { symbol: sym, dataType, expiresAt: { gt: new Date() } },
-    orderBy: { fetchedAt: "desc" },
-  });
-  if (cached) return cached.payload as T;
+  const ikey = `${sym}:${dataType}`;
+  const existing = inflight.get(ikey);
+  if (existing) return existing as Promise<T | null>;
 
-  let data: T | null = null;
+  const run = (async (): Promise<T | null> => {
+    const cached = await prisma.externalDataCache.findFirst({
+      where: { symbol: sym, dataType, expiresAt: { gt: new Date() } },
+      orderBy: { fetchedAt: "desc" },
+    });
+    if (cached) return cached.payload as T;
+
+    let data: T | null = null;
+    try {
+      data = await fetcher();
+    } catch (e) {
+      console.error(`[marketdata] ${sym}/${dataType} 获取失败:`, e instanceof Error ? e.message : e);
+    }
+    // 即便为空也缓存(空对象),避免在 TTL 内反复打外部 API（尤其 AV 25/day 这种紧额度）。
+    await prisma.externalDataCache.create({
+      data: { symbol: sym, dataType, payload: (data ?? {}) as object, expiresAt: new Date(Date.now() + ttlMs) },
+    });
+    return data;
+  })();
+
+  inflight.set(ikey, run);
   try {
-    data = await fetcher();
-  } catch (e) {
-    console.error(`[marketdata] ${sym}/${dataType} 获取失败:`, e instanceof Error ? e.message : e);
+    return await run;
+  } finally {
+    inflight.delete(ikey);
   }
-  // 即便为空也缓存(空对象),避免在 TTL 内反复打外部 API（尤其 AV 25/day 这种紧额度）。
-  await prisma.externalDataCache.create({
-    data: { symbol: sym, dataType, payload: (data ?? {}) as object, expiresAt: new Date(Date.now() + ttlMs) },
-  });
-  return data;
 }
 
 // 行情/概况/新闻 bundle(含 Exa 语义新闻增强)。

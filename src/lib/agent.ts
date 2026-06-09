@@ -15,9 +15,27 @@ function extractCashtags(text: string): string[] {
   return [...out];
 }
 
-// 像合法代码才落库:1-6 字母(可带 .X/-X 后缀)或 4-6 位数字(A/港股)。过滤 LLM 杜撰的词。
+// 常见"看着像代码、实则不是"的宏观/缩写词黑名单(LLM 偶尔会吐进 tickers[])。
+// 注意:BTC/ETH/SOL 等加密代码是 3 字母真标的,不在此列。
+const NOT_TICKERS = new Set([
+  "AI", "AGI", "LLM", "ML", "API", "UI", "UX", "CEO", "CFO", "CTO", "COO", "SEC", "FDA", "FTC", "DOJ", "IRS",
+  "FED", "FOMC", "CPI", "PPI", "GDP", "PMI", "ISM", "EPS", "PE", "PEG", "ROE", "ROI", "ROIC", "EV", "IPO",
+  "ETF", "ETN", "ESG", "EBITDA", "USA", "USD", "EUR", "GBP", "JPY", "CNY", "RMB", "YOY", "QOQ", "MOM",
+  "ATH", "ATL", "WTI", "OPEC", "CES", "AGM", "FAQ", "Q1", "Q2", "Q3", "Q4", "H1", "H2", "FY", "TBD", "DD", "YOLO", "FOMO", "HODL",
+]);
+
+// 像合法代码才落库:1-6 字母(可带 .X/-X 后缀)或 4-6 位数字(A/港股);过滤黑名单词与年份号。
 function isValidSymbol(s: string): boolean {
-  return /^[A-Z]{1,6}([.-][A-Z]{1,4})?$/.test(s) || /^[0-9]{4,6}$/.test(s);
+  if (NOT_TICKERS.has(s)) return false;
+  if (/^[A-Z]{1,6}([.-][A-Z]{1,4})?$/.test(s)) return true;
+  if (/^[0-9]{4,6}$/.test(s)) {
+    if (s.length === 4) {
+      const n = Number(s);
+      if (n >= 1990 && n <= 2099) return false; // 4 位且像年份 → 噪音,非代码
+    }
+    return true;
+  }
+  return false;
 }
 
 /** 分析一条帖子：候选 ticker → 外部数据 → LLM 结构化分析 → 落库。失败标 failed。 */
@@ -116,7 +134,7 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
     return { ok: true, tickers: parsed.tickers.length };
   } catch (err) {
     console.error(`[agent] post ${postId} 分析失败:`, err instanceof Error ? err.message : err);
-    await prisma.post.update({ where: { id: postId }, data: { analysisStatus: "failed" } }).catch(() => {});
+    await prisma.post.update({ where: { id: postId }, data: { analysisStatus: "failed", analysisAttempts: { increment: 1 } } }).catch(() => {});
     return { ok: false, tickers: 0 };
   }
 }
@@ -140,8 +158,12 @@ export async function analyzePending(limit = 20): Promise<{ processed: number; o
   }
   const take = cap > 0 ? Math.min(limit, cap - _budgetCount) : limit;
 
+  // pending + failed(未达重试上限):瞬时失败(超时/网络抖动)可退避重试,达上限才终态,既不死循环也不留永久空洞
+  const maxAttempts = Number(process.env.ANALYZE_MAX_ATTEMPTS ?? 3);
   const pending = await prisma.post.findMany({
-    where: { analysisStatus: "pending" },
+    where: {
+      OR: [{ analysisStatus: "pending" }, { analysisStatus: "failed", analysisAttempts: { lt: maxAttempts } }],
+    },
     orderBy: { postedAt: "desc" },
     take,
   });

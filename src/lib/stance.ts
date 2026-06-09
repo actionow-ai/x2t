@@ -30,33 +30,42 @@ export type StockConsensus = {
  */
 export async function getStockConsensus(symbol: string, windowDays?: number): Promise<StockConsensus> {
   const sym = symbol.toUpperCase();
-  const rows = await prisma.postTicker.findMany({
-    where: { symbol: sym },
-    include: { post: { include: { influencer: true } } },
-    orderBy: { post: { postedAt: "desc" } },
-    take: Number(process.env.CONSENSUS_SCAN_CAP ?? 2000), // 兜底:取最近 N 条(时间倒序),够算"每博主最新+转向"
-  });
+  // 每博主取该票最近两条立场(rn=1 最新、rn=2 上一条供转向),窗口函数一次查全 ——
+  // 不再像旧版那样全局 take 截断,避免热门票下低频博主的"最新一条/上一条"被截掉导致共识与转向算错。
+  type Row = { stance: Stance; influencerId: string; postedAt: Date; postId: string; handle: string; displayName: string | null; rn: number };
+  const rows = await prisma.$queryRaw<Row[]>`
+    SELECT t.stance, t."influencerId", t."postedAt", t."postId", t.handle, t."displayName", t.rn::int AS rn
+    FROM (
+      SELECT pt.stance, p."influencerId", p."postedAt", pt."postId", inf.handle, inf."displayName",
+             row_number() OVER (PARTITION BY p."influencerId" ORDER BY p."postedAt" DESC) AS rn
+      FROM "PostTicker" pt
+      JOIN "Post" p ON p.id = pt."postId"
+      JOIN "Influencer" inf ON inf.id = p."influencerId"
+      WHERE pt.symbol = ${sym}
+    ) t
+    WHERE t.rn <= 2
+    ORDER BY t."influencerId", t.rn
+  `;
 
-  const byInf = new Map<string, typeof rows>();
+  const byInf = new Map<string, Row[]>();
   for (const r of rows) {
-    const id = r.post.influencerId;
-    if (!byInf.has(id)) byInf.set(id, []);
-    byInf.get(id)!.push(r);
+    if (!byInf.has(r.influencerId)) byInf.set(r.influencerId, []);
+    byInf.get(r.influencerId)!.push(r);
   }
 
   const since = windowDays ? Date.now() - windowDays * 86_400_000 : 0;
   const stances: InfluencerStance[] = [];
   for (const list of byInf.values()) {
-    const latest = list[0];
-    if (latest.post.postedAt.getTime() < since) continue; // 窗口外不计入共识
-    const prev = list[1];
+    const latest = list.find((r) => r.rn === 1) ?? list[0];
+    if (new Date(latest.postedAt).getTime() < since) continue; // 窗口外不计入共识
+    const prev = list.find((r) => r.rn === 2);
     stances.push({
-      influencerId: latest.post.influencerId,
-      handle: latest.post.influencer.handle,
-      displayName: latest.post.influencer.displayName,
+      influencerId: latest.influencerId,
+      handle: latest.handle,
+      displayName: latest.displayName,
       stance: latest.stance,
       postId: latest.postId,
-      postedAt: latest.post.postedAt,
+      postedAt: new Date(latest.postedAt),
       prevStance: prev ? prev.stance : null,
       flipped: prev ? prev.stance !== latest.stance : false,
     });
@@ -106,15 +115,42 @@ export async function getGraphData(): Promise<GraphData> {
 
   const windowDays = Number(process.env.GRAPH_WINDOW_DAYS ?? 90);
   const since = new Date(Date.now() - windowDays * 86_400_000);
-  const rows = await prisma.postTicker.findMany({
-    where: { post: { postedAt: { gte: since } } },
-    include: { post: { include: { influencer: true } } },
-    orderBy: { post: { postedAt: "desc" } },
-    take: Number(process.env.GRAPH_SCAN_CAP ?? 5000),
-  });
+  // 每 (博主×票) 取最新一条边(rn=1);转向 = 最新立场 ≠ 紧邻上一条(lead)。
+  // 窗口内一次查全,DISTINCT 到"每对一行",不再用扫描上限截断(旧版 take 会漏边/漏转向)。
+  type GRow = {
+    influencerId: string;
+    symbol: string;
+    stance: Stance;
+    postedAt: Date;
+    postId: string;
+    handle: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    contentText: string;
+    contentZh: string | null;
+    contentEn: string | null;
+    prevStance: Stance | null;
+  };
+  const rows = await prisma.$queryRaw<GRow[]>`
+    SELECT t."influencerId", t.symbol, t.stance, t."postedAt", t."postId",
+           t.handle, t."displayName", t."avatarUrl",
+           t."contentText", t."contentZh", t."contentEn", t."prevStance"
+    FROM (
+      SELECT p."influencerId", pt.symbol, pt.stance, p."postedAt", pt."postId",
+             inf.handle, inf."displayName", inf."avatarUrl",
+             p."contentText", p."contentZh", p."contentEn",
+             row_number() OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt" DESC) AS rn,
+             lead(pt.stance) OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt" DESC) AS "prevStance"
+      FROM "PostTicker" pt
+      JOIN "Post" p ON p.id = pt."postId"
+      JOIN "Influencer" inf ON inf.id = p."influencerId"
+      WHERE p."postedAt" >= ${since}
+    ) t
+    WHERE t.rn = 1
+    ORDER BY t."postedAt" DESC
+  `;
 
   const edges: GraphData["edges"] = [];
-  const edgeByPair = new Map<string, GraphData["edges"][number]>();
   const influencers = new Map<
     string,
     { id: string; handle: string; displayName: string | null; avatarUrl: string | null; count: number }
@@ -122,33 +158,23 @@ export async function getGraphData(): Promise<GraphData> {
   const secCount = new Map<string, number>();
 
   for (const r of rows) {
-    const key = `${r.post.influencerId}::${r.symbol}`;
-    const existing = edgeByPair.get(key);
-    if (existing) {
-      // 更早一条同 (博主×票) 的立场与最新不同 → 转向
-      if (!existing.flipped && r.stance !== existing.stance) existing.flipped = true;
-      continue;
-    }
-    // 第一条 = 最新（rows 时间倒序）
-    const edge = {
-      influencerId: r.post.influencerId,
+    edges.push({
+      influencerId: r.influencerId,
       symbol: r.symbol,
       stance: r.stance,
-      ts: r.post.postedAt.getTime(),
-      flipped: false,
+      ts: new Date(r.postedAt).getTime(),
+      flipped: r.prevStance != null && r.prevStance !== r.stance,
       postId: r.postId,
-      snippet: snip(r.post.contentText) ?? "",
-      snippetZh: snip(r.post.contentZh),
-      snippetEn: snip(r.post.contentEn),
-    };
-    edgeByPair.set(key, edge);
-    edges.push(edge);
-    const prev = influencers.get(r.post.influencerId);
-    influencers.set(r.post.influencerId, {
-      id: r.post.influencerId,
-      handle: r.post.influencer.handle,
-      displayName: r.post.influencer.displayName,
-      avatarUrl: r.post.influencer.avatarUrl,
+      snippet: snip(r.contentText) ?? "",
+      snippetZh: snip(r.contentZh),
+      snippetEn: snip(r.contentEn),
+    });
+    const prev = influencers.get(r.influencerId);
+    influencers.set(r.influencerId, {
+      id: r.influencerId,
+      handle: r.handle,
+      displayName: r.displayName,
+      avatarUrl: r.avatarUrl,
       count: (prev?.count ?? 0) + 1,
     });
     secCount.set(r.symbol, (secCount.get(r.symbol) ?? 0) + 1);
