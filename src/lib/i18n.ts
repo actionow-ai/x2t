@@ -14,6 +14,7 @@ const zh = {
   nav: {
     signals: "信号流",
     graph: "图谱",
+    board: "战绩榜",
     following: "关注",
     submit: "提交",
     admin: "管理",
@@ -125,6 +126,18 @@ const zh = {
     openPage: "打开页面",
     hint2: "拖动节点可重新排布 · 点击节点查看关联帖子 · 边越新越粗、蓝色虚线 ⇄ = 近期转向",
   },
+  board: {
+    title: "博主战绩榜",
+    sub: "按「跑赢同期大盘」率排名 · ★ = 经多重比较校正后仍显著强于抛硬币",
+    blogger: "博主",
+    beatRate: "跑赢大盘",
+    excess: "平均超额",
+    samples: "样本",
+    empty: "暂无足够样本的博主上榜(需满 10 次已结算的多空判断)。战绩随价格数据与时间累积。",
+    sigHint: "经 Benjamini-Hochberg FDR 多重比较校正后显著(并非排行靠前的运气)",
+    followCurve: "如果跟单 vs 大盘",
+    methodNote: "口径:每条多空判断 5 个交易日后,跟随其方向的收益是否跑赢同期 SPY;满 10 次上榜;★ 经 FDR 校正防多重比较假阳性。仅美股、退市/无价不计入。非投资建议。",
+  },
   following: {
     title: "关注管理",
     subLoggedIn: "管理你关注的博主 · 已登录，云端同步",
@@ -204,6 +217,8 @@ const zh = {
     debateTitle: "多空在争什么",
     bullCase: "多头论据",
     bearCase: "空头论据",
+    debateSplit: "多空分歧",
+    debateOneSided: "暂无明显对立观点",
   },
   footer: {
     tagline: "金融博主信号聚合 + AI 双语分析",
@@ -252,6 +267,7 @@ const en: Dict = {
   nav: {
     signals: "Signals",
     graph: "Graph",
+    board: "Leaderboard",
     following: "Following",
     submit: "Submit",
     admin: "Admin",
@@ -363,6 +379,18 @@ const en: Dict = {
     openPage: "Open page",
     hint2: "Drag nodes to rearrange · tap a node for related posts · newer edges bolder, blue dashed ⇄ = recent flip",
   },
+  board: {
+    title: "Influencer leaderboard",
+    sub: "Ranked by rate of beating the market · ★ = significantly better than a coin flip after multiple-comparison correction",
+    blogger: "Influencer",
+    beatRate: "Beat market",
+    excess: "Avg excess",
+    samples: "Samples",
+    empty: "No influencer has enough samples yet (needs 10 resolved directional calls). Track records accrue with price data and time.",
+    sigHint: "Significant after Benjamini-Hochberg FDR correction (not just luck from ranking high)",
+    followCurve: "If you followed vs market",
+    methodNote: "Method: for each call, did following its direction over 5 trading days beat same-window SPY; listed from 10 calls; ★ passes FDR correction against multiple comparisons. US tickers only, delisted/no-price excluded. Not investment advice.",
+  },
   following: {
     title: "Following",
     subLoggedIn: "Manage who you follow · signed in, synced to cloud",
@@ -442,6 +470,8 @@ const en: Dict = {
     debateTitle: "What the debate is about",
     bullCase: "Bull case",
     bearCase: "Bear case",
+    debateSplit: "Split",
+    debateOneSided: "No clear opposing view yet",
   },
   footer: {
     tagline: "Financial influencer signals + bilingual AI analysis",

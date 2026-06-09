@@ -5,9 +5,10 @@ import { PostCard } from "@/components/PostCard";
 import { FollowButton } from "@/components/FollowButton";
 import { AvatarInner } from "@/components/Avatar";
 import { StanceBadge } from "@/components/StanceBadge";
+import { EquitySparkline } from "@/components/EquitySparkline";
 import { getCurrentUserId } from "@/lib/auth";
 import { isNewsAccount } from "@/lib/account";
-import { getInfluencerLedger, getInfluencerWinRate } from "@/lib/stance";
+import { getInfluencerLedger, getInfluencerWinRate, getInfluencerEquityCurve } from "@/lib/stance";
 import { formatDateTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
@@ -15,8 +16,9 @@ import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-// 胜率回算偏重,缓存 1 小时,移出首屏同步路径(工程审计 P0)。
+// 胜率/权益曲线回算偏重,缓存 1 小时,移出首屏同步路径(工程审计 P0)。
 const getWinRateCached = unstable_cache((id: string) => getInfluencerWinRate(id), ["influencer-winrate"], { revalidate: 3600 });
+const getEquityCached = unstable_cache((id: string) => getInfluencerEquityCurve(id), ["influencer-equity"], { revalidate: 3600 });
 
 export default async function InfluencerPage({
   params,
@@ -67,6 +69,8 @@ export default async function InfluencerPage({
   const ledger = await getInfluencerLedger(influencer.id);
   // T2.5 历史胜率(跑赢大盘率,平台回算;样本<30 或无基准时为 null;缓存 1h)
   const winRate = await getWinRateCached(influencer.id);
+  // 波Q "如果跟单 vs 大盘"权益曲线(借 Vibe/AI-Trader)
+  const equity = await getEquityCached(influencer.id);
 
   const userId = await getCurrentUserId();
   const followed = userId
@@ -112,6 +116,17 @@ export default async function InfluencerPage({
                   {t.influencer.winRateBuilding} {winRate.samples}/10
                 </span>
               )}
+            </div>
+          )}
+          {equity && (
+            <div className="equity-wrap">
+              <EquitySparkline points={equity.points} />
+              <div className="equity-cap">
+                <span style={{ color: "var(--blue)", fontWeight: 700 }}>
+                  {t.board.followCurve}: {equity.totalFollow > 0 ? "+" : ""}{(equity.totalFollow * 100).toFixed(1)}%
+                </span>
+                <span>SPY {equity.totalSpy > 0 ? "+" : ""}{(equity.totalSpy * 100).toFixed(1)}%</span>
+              </div>
             </div>
           )}
           {influencer.bio && (

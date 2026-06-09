@@ -22,10 +22,12 @@ export async function runDigest(): Promise<{ users: number; sent: number }> {
     if (posts.length === 0) continue;
 
     // 立场转向(头部钩子):该用户关注的博主过去 24h 有谁对某标的改变了立场
+    // 防抖(借 daily_stock_analysis):只突出【方向反转】(看多↔看空),滤掉中性↔X 的低含金量摆动,避免狼来了。
     const flipLines: string[] = [];
     for (const p of posts) {
       const name = p.influencer.displayName ?? p.influencer.handle;
       for (const f of await detectFlips(p.id)) {
+        if (f.prevStance === "neutral" || f.newStance === "neutral") continue; // 仅保留多↔空的真反转
         flipLines.push(`[转向] ${name} 对 $${f.symbol}：${f.prevStance} → ${f.newStance}`);
       }
     }

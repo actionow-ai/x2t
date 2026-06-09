@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import type { Stance } from "@prisma/client";
+import { binomTestGreater, benjaminiHochberg } from "./stats";
 
 // 时效性 / 立场逻辑 —— 设计文档 §6。
 // 核心：每帖是带时间戳的立场快照；派生"博主×股票当前立场"= 最新一条；转向 = 与上一条不同。
@@ -285,21 +286,17 @@ export function wilson95(hits: number, n: number): [number, number] {
  * - 样本 < WINRATE_MIN 返回 null(不展示);返回 Wilson 95% 置信区间 + 平均超额收益。
  * - 退市/无价标的因拉不到价被自然排除(幸存者偏差),文案需注明。
  */
-export type WinRate = {
-  samples: number;
-  // 样本 >= SHOW 才有比率;否则 rate=null(展示为"积累中 N/SHOW")
-  rate: { beatRate: number; ci: [number, number]; avgExcess: number; lowSample: boolean } | null;
-};
-export async function getInfluencerWinRate(
-  influencerId: string,
-  horizonTradingDays = 5, // ≈ 1 周
-): Promise<WinRate | null> {
+
+// 单条已结算 call(供胜率/权益曲线/排行榜共用,避免重复 SQL)。
+type ResolvedCall = { postedAt: number; aligned: number; spy: number; excess: number; beat: boolean };
+
+// 解析某博主所有【已到第 N 交易日且有 SPY 价】的多/空 call,按时间升序返回。无价/无基准则空。
+async function resolveCalls(influencerId: string, horizonTradingDays = 5): Promise<ResolvedCall[]> {
   const calls = await prisma.postTicker.findMany({
     where: { post: { influencerId }, stance: { in: ["bullish", "bearish"] } },
     select: { symbol: true, stance: true, post: { select: { postedAt: true } } },
   });
-  if (calls.length === 0) return null;
-
+  if (calls.length === 0) return [];
   const symbols = [...new Set([...calls.map((c) => c.symbol), BENCHMARK_SYMBOL])];
   const prices = await prisma.priceDaily.findMany({
     where: { symbol: { in: symbols } },
@@ -312,36 +309,86 @@ export async function getInfluencerWinRate(
     bySym.get(p.symbol)!.push({ t: new Date(p.date).getTime(), close: p.close });
   }
   const spy = bySym.get(BENCHMARK_SYMBOL);
-  if (!spy || !spy.length) return null; // 无基准则不出胜率
+  if (!spy || !spy.length) return [];
   const closeAtOrAfter = (arr: { t: number; close: number }[], target: number) => arr.find((x) => x.t >= target)?.close;
 
-  let beats = 0;
-  let samples = 0;
-  let sumExcess = 0;
+  const out: ResolvedCall[] = [];
   for (const c of calls) {
     const arr = bySym.get(c.symbol);
     if (!arr) continue;
     const callT = new Date(c.post.postedAt).setUTCHours(0, 0, 0, 0);
     const ei = arr.findIndex((x) => x.t >= callT);
-    if (ei < 0 || ei + horizonTradingDays >= arr.length) continue; // 无入场或未到第 N 个交易日
+    if (ei < 0 || ei + horizonTradingDays >= arr.length) continue;
     const entry = arr[ei];
     const exit = arr[ei + horizonTradingDays];
     const spyEntry = closeAtOrAfter(spy, entry.t);
     const spyExit = closeAtOrAfter(spy, exit.t);
     if (spyEntry === undefined || spyExit === undefined) continue;
     const raw = (exit.close - entry.close) / entry.close;
-    const aligned = c.stance === "bullish" ? raw : -raw; // 跟随方向的收益
-    const excess = aligned - (spyExit - spyEntry) / spyEntry; // 相对大盘的超额
-    samples++;
-    sumExcess += excess;
-    if (excess > 0) beats++;
+    const aligned = c.stance === "bullish" ? raw : -raw;
+    const spyRet = (spyExit - spyEntry) / spyEntry;
+    out.push({ postedAt: callT, aligned, spy: spyRet, excess: aligned - spyRet, beat: aligned - spyRet > 0 });
   }
-  if (samples === 0) return null; // 还没有任何已结算样本
-  if (samples < WINRATE_SHOW) return { samples, rate: null }; // 积累中
+  out.sort((a, b) => a.postedAt - b.postedAt);
+  return out;
+}
+
+export type WinRate = {
+  samples: number;
+  // 样本 >= SHOW 才有比率;否则 rate=null(展示为"积累中 N/SHOW")
+  rate: { beatRate: number; ci: [number, number]; avgExcess: number; lowSample: boolean } | null;
+};
+export async function getInfluencerWinRate(influencerId: string): Promise<WinRate | null> {
+  const r = await resolveCalls(influencerId);
+  if (r.length === 0) return null;
+  if (r.length < WINRATE_SHOW) return { samples: r.length, rate: null };
+  const beats = r.filter((x) => x.beat).length;
+  const avgExcess = r.reduce((s, x) => s + x.excess, 0) / r.length;
   return {
-    samples,
-    rate: { beatRate: beats / samples, ci: wilson95(beats, samples), avgExcess: sumExcess / samples, lowSample: samples < WINRATE_CONFIDENT },
+    samples: r.length,
+    rate: { beatRate: beats / r.length, ci: wilson95(beats, r.length), avgExcess, lowSample: r.length < WINRATE_CONFIDENT },
   };
+}
+
+// "如果跟单 vs SPY"权益曲线(借鉴 Vibe-Trading / AI-Trader):逐条已结算 call 累加跟随方向收益 vs 同期 SPY。
+// 把"跑赢大盘 X%"从一个数字变成一条可看的轨迹。返回累计收益点(加法,单位=收益占比)。
+export type EquityCurve = { points: { follow: number; spy: number }[]; samples: number; totalFollow: number; totalSpy: number };
+export async function getInfluencerEquityCurve(influencerId: string): Promise<EquityCurve | null> {
+  const r = await resolveCalls(influencerId);
+  if (r.length < WINRATE_SHOW) return null;
+  let f = 0;
+  let s = 0;
+  const points = r.map((x) => {
+    f += x.aligned;
+    s += x.spy;
+    return { follow: f, spy: s };
+  });
+  return { points, samples: r.length, totalFollow: f, totalSpy: s };
+}
+
+// 博主战绩排行榜(借鉴 AI-Trader):按"跑赢大盘"率排序,并用 BH-FDR 校正多重比较——
+// 同时比 N 个博主时,不校正会让榜首必混进"幸运儿"假阳性;significant=在 FDR 下显著强于抛硬币。
+export type LeaderRow = { handle: string; displayName: string | null; beatRate: number; samples: number; avgExcess: number; significant: boolean };
+export async function getLeaderboard(minSamples = WINRATE_SHOW): Promise<LeaderRow[]> {
+  const infs = await prisma.influencer.findMany({ select: { id: true, handle: true, displayName: true } });
+  const rows: (Omit<LeaderRow, "significant"> & { pvalue: number })[] = [];
+  for (const inf of infs) {
+    const r = await resolveCalls(inf.id);
+    if (r.length < minSamples) continue;
+    const beats = r.filter((x) => x.beat).length;
+    rows.push({
+      handle: inf.handle,
+      displayName: inf.displayName,
+      beatRate: beats / r.length,
+      samples: r.length,
+      avgExcess: r.reduce((acc, x) => acc + x.excess, 0) / r.length,
+      pvalue: binomTestGreater(beats, r.length),
+    });
+  }
+  const sig = benjaminiHochberg(rows.map((r) => r.pvalue));
+  return rows
+    .map((r, i) => ({ handle: r.handle, displayName: r.displayName, beatRate: r.beatRate, samples: r.samples, avgExcess: r.avgExcess, significant: sig[i] }))
+    .sort((a, b) => b.beatRate - a.beatRate || b.samples - a.samples);
 }
 
 // 某票的"多空论据"——借鉴 TradingAgents 的 Bull vs Bear 辩论,但零 LLM 成本:

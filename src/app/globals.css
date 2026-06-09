@@ -346,7 +346,23 @@ a.badge:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1p
 .debate-pt:first-of-type { border-top: 0; }
 .debate-pt:hover { color: var(--blue); }
 .debate-empty { color: var(--text-tertiary); font-size: 0.78rem; }
+.debate-split { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--blue); margin: 0.2rem 0 0.4rem; }
 @media (max-width: 640px) { .debate { grid-template-columns: 1fr; } }
+/* 博主战绩榜(借 AI-Trader,带 FDR ★) */
+.lb { border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); background: var(--bg-secondary); margin-bottom: 0.8rem; }
+.lb-row { display: grid; grid-template-columns: 2rem 1fr 4.5rem 4.5rem 3rem; align-items: center; gap: 0.4rem; padding: 0.5rem 0.7rem; border-top: 2px solid var(--ink); text-decoration: none; color: var(--text-primary); font-size: 0.84rem; }
+.lb-row:first-child { border-top: 0; }
+.lb-row:not(.lb-head):hover { background: var(--lime); }
+.lb-head { font-family: var(--mono); font-weight: 700; font-size: 0.7rem; color: var(--text-secondary); background: var(--bg-tertiary); }
+.lb-rank { font-family: var(--mono); font-weight: 800; color: var(--text-tertiary); }
+.lb-name { font-weight: 700; display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
+.lb-num { font-family: var(--mono); text-align: right; }
+.lb-num.up { color: var(--success-ink); }
+.lb-num.dn { color: var(--error-ink); }
+.lb-sig { color: var(--blue); font-weight: 800; }
+/* 如果跟单权益曲线 sparkline */
+.equity { margin: 0.5rem 0 0.2rem; }
+.equity-cap { font-family: var(--mono); font-size: 0.66rem; color: var(--text-tertiary); display: flex; gap: 0.8rem; margin-top: 0.2rem; }
 .diverge-chip { margin-left: 0.4rem; font-size: 0.62rem; font-weight: 700; padding: 0.02rem 0.34rem; border: 1.5px solid var(--error); color: var(--ink); background: color-mix(in srgb, var(--error) 14%, #fff); }
 
 /* ===================== ERROR / SKELETON ===================== */

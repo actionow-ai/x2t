@@ -99,6 +99,11 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
           {(debate.bull.length > 0 || debate.bear.length > 0) && (
             <>
               <div className="label-sm">{t.consensus.debateTitle}</div>
+              <p className="debate-split">
+                {debate.bull.length > 0 && debate.bear.length > 0
+                  ? `${t.consensus.debateSplit}: ${debate.bull.length} ${t.stance.bullish} vs ${debate.bear.length} ${t.stance.bearish}`
+                  : t.consensus.debateOneSided}
+              </p>
               <div className="debate">
                 <div className="debate-col bull">
                   <div className="debate-head up">▲ {t.consensus.bullCase}</div>
