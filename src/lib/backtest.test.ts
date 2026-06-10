@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { settleCalls, wilson95, type RawCall, type PricePoint } from "./stance";
+import { settleCalls, wilson95, recencyWeightedBeatRate, brierScore, type RawCall, type PricePoint } from "./stance";
 
 const DAY = 86_400_000;
 const series = (closes: number[]): PricePoint[] => closes.map((close, i) => ({ t: i * DAY, close }));
@@ -89,5 +89,34 @@ describe("settleCalls(回测配对结算)", () => {
 describe("wilson95 边界", () => {
   it("n=0 返回全区间 [0,1](无信息)", () => {
     expect(wilson95(0, 0)).toEqual([0, 1]);
+  });
+});
+
+describe("recencyWeightedBeatRate(近期加权胜率)", () => {
+  it("全 beat→1、全 miss→0、空→null", () => {
+    expect(recencyWeightedBeatRate([{ postedAt: 0, beat: true }], 180 * DAY, 100 * DAY)).toBeCloseTo(1, 6);
+    expect(recencyWeightedBeatRate([{ postedAt: 0, beat: false }], 180 * DAY, 100 * DAY)).toBe(0);
+    expect(recencyWeightedBeatRate([], 180 * DAY, 0)).toBeNull();
+  });
+  it("近期 beat + 2 个半衰期前 miss → 加权 0.8(近期权重 1 vs 远期 0.25)", () => {
+    const r = recencyWeightedBeatRate(
+      [
+        { postedAt: 0, beat: true },
+        { postedAt: -360 * DAY, beat: false }, // age = 2×180d 半衰期 → 权重 0.25
+      ],
+      180 * DAY,
+      0,
+    );
+    expect(r).toBeCloseTo(0.8, 2);
+  });
+});
+
+describe("brierScore(校准分)", () => {
+  it("置信度1+beat→0、置信度0+beat→1", () => {
+    expect(brierScore([{ confidence: 1, beat: true }])).toBeCloseTo(0, 6);
+    expect(brierScore([{ confidence: 0, beat: true }])).toBeCloseTo(1, 6);
+  });
+  it("无置信度的样本不计入,全无 → null", () => {
+    expect(brierScore([{ beat: true }, { confidence: null, beat: false }])).toBeNull();
   });
 });

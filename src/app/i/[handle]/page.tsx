@@ -91,6 +91,7 @@ export default async function InfluencerPage({
   const bt = await getBacktest(influencer.id);
   const winRate = bt.winRate;
   const equity = bt.equity;
+  const calibration = bt.calibration;
 
   const userId = await getCurrentUserId();
   const followed = userId
@@ -161,6 +162,18 @@ export default async function InfluencerPage({
               )}
               {!winRate && (
                 <span className="bias-tag" style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}>{t.influencer.winRateNone}</span>
+              )}
+            </div>
+          )}
+          {calibration?.recencyWeightedRate != null && (
+            <div className="track-row" title={t.influencer.calibHint} style={{ marginTop: "0.3rem" }}>
+              <span style={{ color: "var(--text-tertiary)" }}>{t.influencer.calibration}</span>
+              <span className="bias-tag">{t.influencer.recencyRate} {Math.round(calibration.recencyWeightedRate * 100)}%</span>
+              {calibration.h5Rate != null && calibration.h20Rate != null && (
+                <span className="bias-tag">5d {Math.round(calibration.h5Rate * 100)}% · 20d {Math.round(calibration.h20Rate * 100)}%</span>
+              )}
+              {calibration.brier != null && (
+                <span className="bias-tag" title={t.influencer.brierHint}>Brier {calibration.brier.toFixed(2)}</span>
               )}
             </div>
           )}

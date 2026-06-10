@@ -306,8 +306,8 @@ export function wilson95(hits: number, n: number): [number, number] {
  */
 
 // 单条已结算 call(供胜率/权益曲线/排行榜共用,避免重复 SQL)。
-export type ResolvedCall = { postedAt: number; aligned: number; spy: number; excess: number; beat: boolean };
-export type RawCall = { symbol: string; stance: "bullish" | "bearish"; postedAtMs: number };
+export type ResolvedCall = { postedAt: number; aligned: number; spy: number; excess: number; beat: boolean; confidence?: number | null };
+export type RawCall = { symbol: string; stance: "bullish" | "bearish"; postedAtMs: number; confidence?: number | null };
 export type PricePoint = { t: number; close: number };
 
 // 入场 bar 距发帖最大容差:超过视为左删失(post 早于价格窗口/长数据缺口),剔除而非吸附到最旧 bar(stataudit-1)。
@@ -335,7 +335,7 @@ export function settleCalls(calls: RawCall[], bySym: Map<string, PricePoint[]>, 
   };
 
   // 1) 定位每个 call 的入场 index(严格晚于发帖时间戳)
-  type Located = { symbol: string; stance: "bullish" | "bearish"; ei: number; arr: PricePoint[] };
+  type Located = { symbol: string; stance: "bullish" | "bearish"; ei: number; arr: PricePoint[]; confidence?: number | null };
   const bySymCalls = new Map<string, Located[]>();
   for (const c of calls) {
     const arr = bySym.get(c.symbol);
@@ -345,7 +345,7 @@ export function settleCalls(calls: RawCall[], bySym: Map<string, PricePoint[]>, 
     // 入场 bar 距发帖过远 = 左删失(post 早于价格窗口):剔除,勿吸附到最旧 bar 注入凭空的"跑赢"样本(stataudit-1)
     if (arr[ei].t - c.postedAtMs > MAX_ENTRY_GAP_MS) continue;
     if (!bySymCalls.has(c.symbol)) bySymCalls.set(c.symbol, []);
-    bySymCalls.get(c.symbol)!.push({ symbol: c.symbol, stance: c.stance, ei, arr });
+    bySymCalls.get(c.symbol)!.push({ symbol: c.symbol, stance: c.stance, ei, arr, confidence: c.confidence });
   }
 
   const out: ResolvedCall[] = [];
@@ -375,7 +375,7 @@ export function settleCalls(calls: RawCall[], bySym: Map<string, PricePoint[]>, 
       const spyRet = (spyExit - spyEntry) / spyEntry;
       const benchRet = c.stance === "bullish" ? spyRet : -spyRet; // 空头对照做空 SPY(市场中性)
       const excess = aligned - benchRet;
-      out.push({ postedAt: entry.t, aligned, spy: spyRet, excess, beat: excess > 0 });
+      out.push({ postedAt: entry.t, aligned, spy: spyRet, excess, beat: excess > 0, confidence: c.confidence });
     }
   }
   out.sort((a, b) => a.postedAt - b.postedAt);
@@ -393,14 +393,19 @@ async function getSpySeries(sinceMs: number): Promise<PricePoint[]> {
   return spyMemo.data.filter((x) => x.t >= sinceMs);
 }
 
-// 解析某博主所有【已结算】的多/空 call(取数 + 调纯函数 settleCalls)。无价/无基准则空。
-async function resolveCalls(influencerId: string, horizonTradingDays = 5): Promise<ResolvedCall[]> {
+// 取某博主回测所需原始数据(calls + 价格 + SPY),供 resolveCalls / 多 horizon 校准复用一次取数。
+async function fetchCallData(influencerId: string): Promise<{ rawCalls: RawCall[]; bySym: Map<string, PricePoint[]>; spy: PricePoint[] } | null> {
   const calls = await prisma.postTicker.findMany({
     where: { post: { influencerId }, stance: { in: ["bullish", "bearish"] } },
-    select: { symbol: true, stance: true, post: { select: { postedAt: true } } },
+    select: { symbol: true, stance: true, post: { select: { postedAt: true, analysis: { select: { confidence: true } } } } },
   });
-  if (calls.length === 0) return [];
-  const rawCalls: RawCall[] = calls.map((c) => ({ symbol: c.symbol, stance: c.stance as "bullish" | "bearish", postedAtMs: new Date(c.post.postedAt).getTime() }));
+  if (calls.length === 0) return null;
+  const rawCalls: RawCall[] = calls.map((c) => ({
+    symbol: c.symbol,
+    stance: c.stance as "bullish" | "bearish",
+    postedAtMs: new Date(c.post.postedAt).getTime(),
+    confidence: c.post.analysis?.confidence ?? null,
+  }));
   const since = new Date(Math.min(...rawCalls.map((c) => c.postedAtMs)));
   since.setUTCHours(0, 0, 0, 0);
   const symbols = [...new Set(rawCalls.map((c) => c.symbol))];
@@ -415,7 +420,50 @@ async function resolveCalls(influencerId: string, horizonTradingDays = 5): Promi
     bySym.get(p.symbol)!.push({ t: new Date(p.date).getTime(), close: p.close });
   }
   const spy = await getSpySeries(since.getTime());
-  return settleCalls(rawCalls, bySym, spy, horizonTradingDays);
+  return { rawCalls, bySym, spy };
+}
+
+// 解析某博主所有【已结算】的多/空 call(取数 + 调纯函数 settleCalls)。无价/无基准则空。
+async function resolveCalls(influencerId: string, horizonTradingDays = 5): Promise<ResolvedCall[]> {
+  const data = await fetchCallData(influencerId);
+  if (!data) return [];
+  return settleCalls(data.rawCalls, data.bySym, data.spy, horizonTradingDays);
+}
+
+// 近期加权胜率(纯函数):按 exp(-ln2·age/半衰期) 衰减,近期判断权重更高,解决"老 call 永久撑排名"。
+export function recencyWeightedBeatRate(calls: { postedAt: number; beat: boolean }[], halflifeMs: number, now: number): number | null {
+  let wSum = 0;
+  let wBeat = 0;
+  for (const c of calls) {
+    const w = Math.exp((-Math.LN2 * (now - c.postedAt)) / halflifeMs);
+    wSum += w;
+    if (c.beat) wBeat += w;
+  }
+  return wSum > 0 ? wBeat / wSum : null;
+}
+// Brier 校准分(纯函数):用 AI 置信度当"该 call 跑赢 SPY 的预测概率",越低越校准(只统计有置信度的 call)。
+export function brierScore(calls: { confidence?: number | null; beat: boolean }[]): number | null {
+  const w = calls.filter((c) => typeof c.confidence === "number");
+  if (!w.length) return null;
+  return w.reduce((s, c) => s + Math.pow((c.confidence as number) - (c.beat ? 1 : 0), 2), 0) / w.length;
+}
+
+export type Calibration = { samples: number; recencyWeightedRate: number | null; brier: number | null; h5Rate: number | null; h20Rate: number | null };
+const HALFLIFE_MS = Number(process.env.WINRATE_HALFLIFE_DAYS ?? 180) * 86_400_000;
+// 博主校准度:近期加权胜率 + Brier + 5d/20d 双 horizon(一次取数,settle 两次)。样本 < SHOW 返回占位。
+export async function getInfluencerCalibration(influencerId: string): Promise<Calibration | null> {
+  const data = await fetchCallData(influencerId);
+  if (!data) return null;
+  const r5 = settleCalls(data.rawCalls, data.bySym, data.spy, 5);
+  if (r5.length < WINRATE_SHOW) return { samples: r5.length, recencyWeightedRate: null, brier: null, h5Rate: null, h20Rate: null };
+  const r20 = settleCalls(data.rawCalls, data.bySym, data.spy, 20);
+  return {
+    samples: r5.length,
+    recencyWeightedRate: recencyWeightedBeatRate(r5, HALFLIFE_MS, Date.now()),
+    brier: brierScore(r5),
+    h5Rate: r5.filter((c) => c.beat).length / r5.length,
+    h20Rate: r20.length ? r20.filter((c) => c.beat).length / r20.length : null,
+  };
 }
 
 export type WinRate = {
@@ -451,16 +499,33 @@ export async function getInfluencerEquityCurve(influencerId: string): Promise<Eq
   return equityFromResolved(await resolveCalls(influencerId));
 }
 
-// 博主页一次结算同时出胜率 + 权益曲线(避免二者各跑一遍 resolveCalls,性能 P0-2/架构 P1-4)。
-export async function getInfluencerBacktest(influencerId: string): Promise<{ winRate: WinRate | null; equity: EquityCurve | null }> {
-  const r = await resolveCalls(influencerId);
-  return { winRate: winRateFromResolved(r), equity: equityFromResolved(r) };
+// 博主页一次结算同时出胜率 + 权益曲线 + 校准度(避免各跑一遍 resolveCalls,性能 P0-2/架构 P1-4)。
+export async function getInfluencerBacktest(
+  influencerId: string,
+): Promise<{ winRate: WinRate | null; equity: EquityCurve | null; calibration: Calibration | null }> {
+  const data = await fetchCallData(influencerId);
+  if (!data) return { winRate: null, equity: null, calibration: null };
+  const r5 = settleCalls(data.rawCalls, data.bySym, data.spy, 5);
+  const winRate = winRateFromResolved(r5);
+  const equity = equityFromResolved(r5);
+  let calibration: Calibration | null = null;
+  if (r5.length >= WINRATE_SHOW) {
+    const r20 = settleCalls(data.rawCalls, data.bySym, data.spy, 20);
+    calibration = {
+      samples: r5.length,
+      recencyWeightedRate: recencyWeightedBeatRate(r5, HALFLIFE_MS, Date.now()),
+      brier: brierScore(r5),
+      h5Rate: r5.filter((c) => c.beat).length / r5.length,
+      h20Rate: r20.length ? r20.filter((c) => c.beat).length / r20.length : null,
+    };
+  }
+  return { winRate, equity, calibration };
 }
 
 // 博主战绩排行榜(借鉴 AI-Trader):按"跑赢大盘"率排序,并用 BH-FDR 校正多重比较——
 // 同时比 N 个博主时,不校正会让榜首必混进"幸运儿"假阳性;significant=在 FDR 下显著强于抛硬币。
 // ciLow = Wilson 95% 下界(经样本量收缩的保守胜率),作排序键 + 可展示"至少跑赢"。
-export type LeaderRow = { handle: string; displayName: string | null; beatRate: number; samples: number; avgExcess: number; significant: boolean; ciLow: number };
+export type LeaderRow = { handle: string; displayName: string | null; beatRate: number; samples: number; avgExcess: number; significant: boolean; ciLow: number; recencyRate: number | null };
 export async function getLeaderboard(minSamples = WINRATE_SHOW): Promise<LeaderRow[]> {
   const infs = await prisma.influencer.findMany({ select: { id: true, handle: true, displayName: true } });
   const rows: (LeaderRow & { pvalue: number })[] = [];
@@ -475,6 +540,7 @@ export async function getLeaderboard(minSamples = WINRATE_SHOW): Promise<LeaderR
       samples: r.length,
       avgExcess: r.reduce((acc, x) => acc + x.excess, 0) / r.length,
       ciLow: wilson95(beats, r.length)[0],
+      recencyRate: recencyWeightedBeatRate(r, HALFLIFE_MS, Date.now()),
       significant: false,
       pvalue: binomTestGreater(beats, r.length),
     });
@@ -484,7 +550,7 @@ export async function getLeaderboard(minSamples = WINRATE_SHOW): Promise<LeaderR
   // 排序键改为 Wilson 下界而非裸 beatRate——否则 n=10 蒙对 8 次(80%)会排在 n=120 的 65% 之上,
   // 小样本噪声盖过真 alpha(统计审计 P2-8)。
   rows.sort((a, b) => b.ciLow - a.ciLow || b.samples - a.samples);
-  return rows.map((r) => ({ handle: r.handle, displayName: r.displayName, beatRate: r.beatRate, samples: r.samples, avgExcess: r.avgExcess, significant: r.significant, ciLow: r.ciLow }));
+  return rows.map((r) => ({ handle: r.handle, displayName: r.displayName, beatRate: r.beatRate, samples: r.samples, avgExcess: r.avgExcess, significant: r.significant, ciLow: r.ciLow, recencyRate: r.recencyRate }));
 }
 
 // 某票的"多空论据"——借鉴 TradingAgents 的 Bull vs Bear 辩论,但零 LLM 成本:

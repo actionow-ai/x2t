@@ -53,7 +53,12 @@ export default async function LeaderboardPage() {
                   {r.significant && <span className="lb-sig" title={t.board.sigHint}>★</span>}
                   {isNewsAccount(r.handle) && <span className="news-tag">{t.influencer.newsAccount}</span>}
                 </span>
-                <span className={`lb-num ${r.beatRate >= 0.5 ? "up" : "dn"}`}>{Math.round(r.beatRate * 100)}%</span>
+                <span className={`lb-num ${r.beatRate >= 0.5 ? "up" : "dn"}`} title={t.board.recencyHint}>
+                  {Math.round(r.beatRate * 100)}%
+                  {r.recencyRate != null && (
+                    <span style={{ color: "var(--text-tertiary)", fontWeight: 400, fontSize: "0.76em" }}> · {t.board.recencyCol} {Math.round(r.recencyRate * 100)}%</span>
+                  )}
+                </span>
                 <span className={`lb-num ${r.avgExcess >= 0 ? "up" : "dn"}`}>
                   {r.avgExcess > 0 ? "+" : ""}
                   {(r.avgExcess * 100).toFixed(1)}%
