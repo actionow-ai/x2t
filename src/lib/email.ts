@@ -54,7 +54,11 @@ export async function sendEmail(to: string, subject: string, text: string, opts?
     return { sent: true };
   }
 
-  // 3) 控制台兜底（dev / 未配邮件时）
-  console.log(`\n──── [email:mock] ────\nto: ${to}\nsubject: ${subject}\n${text}\n─────────────────────\n`);
+  // 3) 控制台兜底（dev / 未配邮件时）。生产环境只警告不打印正文,避免漏配邮件时验证码(OTP)进日志(安全)。
+  if (process.env.NODE_ENV === "production") {
+    console.warn(`[email] 未配邮件服务,跳过发送(to=${to})——生产请配 CF_EMAIL_* 或 SMTP_*。`);
+  } else {
+    console.log(`\n──── [email:mock] ────\nto: ${to}\nsubject: ${subject}\n${text}\n─────────────────────\n`);
+  }
   return { sent: false };
 }

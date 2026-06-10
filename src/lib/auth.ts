@@ -91,3 +91,9 @@ export async function getCurrentUser() {
   if (!user || user.tokenVersion !== p.tv) return null; // 用户不存在或会话已撤销
   return user;
 }
+
+// 写路径用:校验 tokenVersion(撤销点)后返回 userId。比廉价版 getCurrentUserId 多一次 DB 查,
+// 但杜绝"已登出/已撤销的旧 cookie 仍能发帖、改告警、改关注、改订阅"(安全 MEDIUM-2)。
+export async function requireUserId(): Promise<string | null> {
+  return (await getCurrentUser())?.id ?? null;
+}

@@ -1,6 +1,5 @@
-import dns from "node:dns/promises";
-import net from "node:net";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { hostResolvesPublic } from "@/lib/ssrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,25 +25,10 @@ function allowedHost(host: string): boolean {
   return ALLOW_EXACT.has(h) || ALLOW_SUFFIX.some((s) => h.endsWith(s));
 }
 
-// 私网 / 回环 / 链路本地 / 元数据地址 —— 防 SSRF 打内网与云元数据(169.254.169.254)
-function isPrivateIp(ip: string): boolean {
-  if (net.isIPv4(ip)) {
-    const [a, b] = ip.split(".").map(Number);
-    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
-  }
-  const l = ip.toLowerCase();
-  return l === "::1" || l.startsWith("fc") || l.startsWith("fd") || l.startsWith("fe80") || l.includes("127.") || l.includes("169.254") || l.includes("10.") || l.includes("192.168");
-}
-
-// host 既在白名单、解析出的 IP 又非私网才放行(DNS 解析失败不阻断,交由 fetch 自然失败)
+// host 既在图片 CDN 白名单、解析出的 IP 又非私网才放行(私网检查复用 lib/ssrf)。
 async function hostSafe(host: string): Promise<boolean> {
   if (!allowedHost(host)) return false;
-  try {
-    const addrs = await dns.lookup(host, { all: true });
-    return addrs.length > 0 && !addrs.some((a) => isPrivateIp(a.address));
-  } catch {
-    return true;
-  }
+  return hostResolvesPublic(host);
 }
 
 const MAX_BYTES = 3 * 1024 * 1024; // 3MB 上限

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import Parser from "rss-parser";
 import type { Connector, InfluencerSource, NormalizedPost, FetchResult } from "./types";
+import { hostResolvesPublic } from "../ssrf";
 
 // 默认抓取适配器：把任意 RSS（RSSHub / Nitter / Substack / 新闻源）拉成规范化帖子。
 // sourceConfig 两种写法：
@@ -12,26 +13,34 @@ const parser = new Parser({
   headers: { "User-Agent": "Mozilla/5.0 (compatible; X2T/1.0; +https://github.com/actionow-ai/x2t)" },
 });
 
-function resolveFeedUrl(source: InfluencerSource): string | undefined {
+function resolveFeedUrl(source: InfluencerSource): { url: string; viaHub: boolean } | undefined {
   const cfg = source.sourceConfig;
   const explicit = cfg.feedUrl as string | undefined;
-  if (explicit) return explicit;
+  if (explicit) return { url: explicit, viaHub: false };
   const path = cfg.feedPath as string | undefined;
-  if (!path) return undefined;
+  // feedPath 必须是相对 RSSHUB_BASE_URL 的路径:拒绝绝对 URL / 协议相对(否则 new URL 会用它覆盖 base,
+  // 可指向 169.254.169.254 等内网元数据 —— SSRF 纵深防御)。
+  if (!path || !path.startsWith("/") || path.startsWith("//")) return undefined;
   const base = process.env.RSSHUB_BASE_URL || "http://localhost:51200";
-  return new URL(path, base).toString();
+  return { url: new URL(path, base).toString(), viaHub: true };
 }
 
 export const rssConnector: Connector = {
   kind: "rss",
 
   async fetch(source: InfluencerSource): Promise<FetchResult> {
-    const feedUrl = resolveFeedUrl(source);
-    if (!feedUrl) {
-      throw new Error(`博主 ${source.handle} 缺少 sourceConfig.feedUrl 或 feedPath`);
+    const resolved = resolveFeedUrl(source);
+    if (!resolved) {
+      throw new Error(`博主 ${source.handle} 缺少合法 sourceConfig.feedUrl 或 feedPath`);
+    }
+    // 显式 feedUrl 必须是公网 http(s)(防 sourceConfig 指向内网元数据);经 RSSHub 的信任配置 base 不另检。
+    if (!resolved.viaHub) {
+      const u = new URL(resolved.url);
+      if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error("unsupported feed protocol");
+      if (!(await hostResolvesPublic(u.hostname))) throw new Error("feed host not allowed");
     }
 
-    const feed = await parser.parseURL(feedUrl);
+    const feed = await parser.parseURL(resolved.url);
     const posts: NormalizedPost[] = [];
 
     for (const item of feed.items) {

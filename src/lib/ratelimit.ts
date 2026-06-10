@@ -26,7 +26,11 @@ let _redis: Redis | null | undefined;
 function getRedis(): Redis | null {
   if (_redis !== undefined) return _redis;
   const url = process.env.REDIS_URL;
-  if (!url) return (_redis = null);
+  if (!url) {
+    if (process.env.NODE_ENV === "production")
+      console.warn("[ratelimit] 未配 REDIS_URL:多实例/重启下限流为单进程,验证码暴力防护按副本数倍增——生产建议配 Redis。");
+    return (_redis = null);
+  }
   try {
     const r = new Redis(url, { maxRetriesPerRequest: 1, enableOfflineQueue: false, lazyConnect: false });
     r.on("error", () => {}); // 静默:连接异常由各调用 try/catch 降级到内存
@@ -58,12 +62,14 @@ export async function rateLimit(key: string, max: number, windowMs: number): Pro
  * 取 X-Forwarded-For 的【最后一段】——由可信反代(Zeabur)追加,客户端可伪造前缀但改不了它,
  * 防止"自带 XFF 每请求换 IP 绕过限流"(安全审计 中危)。回退 x-real-ip。
  */
-export function clientIp(req: Request): string {
-  const h = req.headers;
+export function clientIpFrom(h: { get(name: string): string | null }): string {
   const xff = h.get("x-forwarded-for");
   if (xff) {
     const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
     if (parts.length) return parts[parts.length - 1];
   }
   return (h.get("x-real-ip") || "unknown").trim();
+}
+export function clientIp(req: Request): string {
+  return clientIpFrom(req.headers);
 }

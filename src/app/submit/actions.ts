@@ -4,13 +4,13 @@ import crypto from "node:crypto";
 import { prisma } from "@/lib/db";
 import { storePost } from "@/lib/ingest";
 import { notifyNewPost } from "@/lib/push";
-import { getCurrentUserId } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import { rateLimit } from "@/lib/ratelimit";
 import { redirect } from "next/navigation";
 
 export async function submitPost(formData: FormData) {
-  // 鉴权:必须登录(杜绝匿名灌库 + 触发全员推送)
-  const uid = await getCurrentUserId();
+  // 鉴权:必须登录且会话未撤销(杜绝匿名灌库 + 触发全员推送)
+  const uid = await requireUserId();
   if (!uid) throw new Error("请先登录再提交");
   if (!(await rateLimit(`submit:${uid}`, 10, 60 * 60 * 1000))) throw new Error("提交过于频繁，请稍后再试");
 

@@ -5,6 +5,8 @@ import { prisma } from "./db";
 
 export async function createMagicLink(email: string): Promise<{ token: string; code: string; userId: string }> {
   const user = await prisma.user.upsert({ where: { email }, create: { email }, update: {} });
+  // 作废该邮箱旧的未用码:同邮箱同一时刻只保留一个有效码,收紧 6 位码暴力枚举面(安全 MEDIUM-3)
+  await prisma.magicLink.updateMany({ where: { email, usedAt: null }, data: { usedAt: new Date() } });
   const token = crypto.randomBytes(32).toString("hex");
   // 6 位邮箱验证码(OTP):用 crypto 取 0-999999,补零
   const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");

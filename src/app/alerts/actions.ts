@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { getCurrentUserId } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import { isValidSymbol } from "@/lib/symbol";
 
 export async function createAlert(formData: FormData) {
-  const uid = await getCurrentUserId();
+  const uid = await requireUserId();
   if (!uid) return;
 
   const rawSym = String(formData.get("symbol") ?? "").trim().replace(/^\$/, "").toUpperCase();
@@ -27,7 +27,7 @@ export async function createAlert(formData: FormData) {
 }
 
 export async function deleteAlert(formData: FormData) {
-  const uid = await getCurrentUserId();
+  const uid = await requireUserId();
   if (!uid) return;
   const id = String(formData.get("id") ?? "");
   await prisma.alertRule.deleteMany({ where: { id, userId: uid } }); // deleteMany 带 userId 守卫:只能删自己的

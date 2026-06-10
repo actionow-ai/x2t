@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { getCurrentUserId } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 // 当前用户关注的博主 id 列表
 export async function GET() {
-  const userId = await getCurrentUserId();
+  const userId = await requireUserId();
   if (!userId) return Response.json({ loggedIn: false, follows: [] });
   const rows = await prisma.follow.findMany({ where: { userId }, select: { influencerId: true } });
   return Response.json({ loggedIn: true, follows: rows.map((r) => r.influencerId) });
@@ -16,7 +16,7 @@ const schema = z.object({ influencerId: z.string() });
 
 // 切换关注（登录用户写 follows 表，云同步）
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
+  const userId = await requireUserId();
   if (!userId) return Response.json({ error: "not logged in" }, { status: 401 });
 
   let body: unknown;
