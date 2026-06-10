@@ -309,6 +309,9 @@ export type ResolvedCall = { postedAt: number; aligned: number; spy: number; exc
 export type RawCall = { symbol: string; stance: "bullish" | "bearish"; postedAtMs: number };
 export type PricePoint = { t: number; close: number };
 
+// 入场 bar 距发帖最大容差:超过视为左删失(post 早于价格窗口/长数据缺口),剔除而非吸附到最旧 bar(stataudit-1)。
+const MAX_ENTRY_GAP_MS = Number(process.env.MAX_ENTRY_GAP_DAYS ?? 10) * 86_400_000;
+
 /**
  * 纯函数:把多/空 call 配对历史价格结算成"超额收益"样本(可单测,不碰 DB)。修复统计审计三个 P0/P1:
  * - P0-2 look-ahead:入场取【严格晚于发帖时间戳】的第一根日线收盘(价格日期为当日 00:00 UTC,
@@ -319,7 +322,16 @@ export type PricePoint = { t: number; close: number };
  */
 export function settleCalls(calls: RawCall[], bySym: Map<string, PricePoint[]>, spy: PricePoint[], horizon: number): ResolvedCall[] {
   if (!spy.length) return [];
-  const closeAtOrAfter = (arr: PricePoint[], target: number) => arr.find((x) => x.t >= target)?.close;
+  // SPY 基准用"不晚于标的 bar 日"的最近收盘对齐:原 closeAtOrAfter 对加密周末入场会取到下周一 SPY,
+  // 使 aligned 与 benchRet 度量不同时间窗;且 SPY 缺当日 bar 时会取不到而误丢样本(stataudit-2)。
+  const closeAtOrBefore = (arr: PricePoint[], target: number) => {
+    let v: number | undefined;
+    for (const x of arr) {
+      if (x.t <= target) v = x.close;
+      else break;
+    }
+    return v;
+  };
 
   // 1) 定位每个 call 的入场 index(严格晚于发帖时间戳)
   type Located = { symbol: string; stance: "bullish" | "bearish"; ei: number; arr: PricePoint[] };
@@ -329,6 +341,8 @@ export function settleCalls(calls: RawCall[], bySym: Map<string, PricePoint[]>, 
     if (!arr || !arr.length) continue;
     const ei = arr.findIndex((x) => x.t > c.postedAtMs);
     if (ei < 0) continue;
+    // 入场 bar 距发帖过远 = 左删失(post 早于价格窗口):剔除,勿吸附到最旧 bar 注入凭空的"跑赢"样本(stataudit-1)
+    if (arr[ei].t - c.postedAtMs > MAX_ENTRY_GAP_MS) continue;
     if (!bySymCalls.has(c.symbol)) bySymCalls.set(c.symbol, []);
     bySymCalls.get(c.symbol)!.push({ symbol: c.symbol, stance: c.stance, ei, arr });
   }
@@ -352,8 +366,8 @@ export function settleCalls(calls: RawCall[], bySym: Map<string, PricePoint[]>, 
       if (exitIdx <= c.ei || exitIdx >= c.arr.length) continue; // 出场无效或未到期
       const entry = c.arr[c.ei];
       const exit = c.arr[exitIdx];
-      const spyEntry = closeAtOrAfter(spy, entry.t);
-      const spyExit = closeAtOrAfter(spy, exit.t);
+      const spyEntry = closeAtOrBefore(spy, entry.t);
+      const spyExit = closeAtOrBefore(spy, exit.t);
       if (spyEntry === undefined || spyExit === undefined) continue;
       const raw = (exit.close - entry.close) / entry.close;
       const aligned = c.stance === "bullish" ? raw : -raw;

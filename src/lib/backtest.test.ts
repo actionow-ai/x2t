@@ -59,6 +59,26 @@ describe("settleCalls(回测配对结算)", () => {
     expect(r[0].beat).toBe(true);
   });
 
+  it("call 早于价格窗口 → 左删失剔除,不吸附到最旧 bar 注入脏样本(stataudit-1)", () => {
+    // Y 只有 day100+ 的价格;call 发于 day0,最近入场 bar(day100)距发帖 100 天 > 10 天容差 → 跳过
+    const Y = Array.from({ length: 110 }, (_, i) => ({ t: (100 + i) * DAY, close: 100 + i }));
+    const calls: RawCall[] = [{ symbol: "Y", stance: "bullish", postedAtMs: 0 }];
+    expect(settleCalls(calls, new Map([["Y", Y]]), spy, 5)).toHaveLength(0);
+  });
+
+  it("SPY 缺当日 bar 时用不晚于该日的最近收盘(不再因 closeAtOrAfter 取不到而丢样本,stataudit-2)", () => {
+    const Y = series([100, 101, 102, 103, 104, 110]); // day0..5
+    const sparseSpy: PricePoint[] = [
+      { t: 0, close: 100 },
+      { t: 2 * DAY, close: 101 },
+      { t: 4 * DAY, close: 102 },
+    ]; // 缺 day5
+    const calls: RawCall[] = [{ symbol: "Y", stance: "bullish", postedAtMs: at(0) - 1 }];
+    const r = settleCalls(calls, new Map([["Y", Y]]), sparseSpy, 5);
+    expect(r).toHaveLength(1); // 旧 closeAtOrAfter 会因 day5 无 SPY 取不到而 0 样本
+    expect(r[0].beat).toBe(true);
+  });
+
   it("无基准价则无样本", () => {
     const Y = series([100, 110, 120, 130, 140, 150]);
     const calls: RawCall[] = [{ symbol: "Y", stance: "bullish", postedAtMs: at(0) - 1 }];
