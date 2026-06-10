@@ -1,5 +1,5 @@
 import { createCanvas, GlobalFonts, type SKRSContext2D } from "@napi-rs/canvas";
-import { ARCHIVO_800_B64, ARCHIVO_700_B64, SPACE_MONO_700_B64 } from "./og-font";
+import { ARCHIVO_800_B64, SPACE_MONO_700_B64 } from "./og-font";
 
 // 动态 OG 分享卡:@napi-rs/canvas 原生渲染(无 wasm,避 Zeabur next/og 502)。
 // 视觉与站点/ShareButton 分享卡严格一致:米色纸底 + 墨黑粗边 + lime 品牌块 + Archivo/Space Mono。
@@ -13,8 +13,7 @@ const accentColor = (a?: string) => (a === "bull" ? "#0a7d37" : a === "bear" ? "
 let registered = false;
 function ensureFonts() {
   if (registered) return;
-  GlobalFonts.register(Buffer.from(ARCHIVO_800_B64, "base64"), "OGDisplay"); // 品牌 / 主句 / 副句
-  GlobalFonts.register(Buffer.from(ARCHIVO_700_B64, "base64"), "OGMedium"); // 顶部小字
+  GlobalFonts.register(Buffer.from(ARCHIVO_800_B64, "base64"), "OGDisplay"); // 品牌 / 主句 / 副句 / 小字
   GlobalFonts.register(Buffer.from(SPACE_MONO_700_B64, "base64"), "OGMono"); // 页脚
   registered = true;
 }
@@ -73,7 +72,7 @@ export function renderOgCard(spec: OgSpec): Buffer {
 
   // 顶部小字(品牌行)
   ctx.fillStyle = MUTED;
-  ctx.font = "34px OGMedium";
+  ctx.font = "32px OGDisplay";
   ctx.fillText(spec.brand.slice(0, 48), 60, 230);
 
   // 主句(墨黑,最多 2 行)
