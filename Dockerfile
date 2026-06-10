@@ -25,4 +25,5 @@ ENV NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0
 EXPOSE 8080
 # 同容器内跑 worker + web;任一进程退出即整体退出(exit 1)→ Zeabur 重启容器,
 # 避免 worker 静默崩溃后只剩 web 存活、抓取/分析停摆而容器仍 RUNNING。
-CMD ["bash", "-c", "pnpm worker & w=$!; pnpm start & s=$!; wait -n; echo '[entrypoint] a child exited — stopping container to trigger restart'; kill $w $s 2>/dev/null; exit 1"]
+# trap 把 SIGTERM/SIGINT 转发给子进程(让 worker 的优雅退出生效,原 bash PID1 不转发 → 部署时直接 SIGKILL 硬杀)
+CMD ["bash", "-c", "trap 'kill -TERM $w $s 2>/dev/null' TERM INT; pnpm worker & w=$!; pnpm start & s=$!; wait -n; echo '[entrypoint] a child exited — stopping container to trigger restart'; kill $w $s 2>/dev/null; exit 1"]

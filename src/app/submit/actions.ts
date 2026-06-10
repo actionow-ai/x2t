@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
 export async function submitPost(formData: FormData) {
   // 鉴权:必须登录且会话未撤销(杜绝匿名灌库 + 触发全员推送)
   const uid = await requireUserId();
-  if (!uid) throw new Error("请先登录再提交");
+  if (!uid) redirect("/login"); // 跳登录页,而非 throw(生产 Next 会把错误脱敏成 digest,用户看不到原因)
   if (!(await rateLimit(`submit:${uid}`, 10, 60 * 60 * 1000))) throw new Error("提交过于频繁，请稍后再试");
 
   const handle = String(formData.get("handle") ?? "").trim().slice(0, 64);

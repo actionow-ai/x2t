@@ -35,7 +35,8 @@ export function createFinnhub(apiKey: string): MarketDataProvider {
   const base = "https://finnhub.io/api/v1";
 
   async function getJson(url: string): Promise<unknown> {
-    const res = await fetch(url);
+    // 接超时(原裸 fetch 无超时,undici 默认 300s,单标的可挂 5 分钟拖死分析池,运维 H7)
+    const res = await fetch(url, { signal: AbortSignal.timeout(Number(process.env.MARKETDATA_HTTP_TIMEOUT_MS ?? 10000)) });
     if (!res.ok) throw new Error(`finnhub ${res.status}`);
     return res.json();
   }

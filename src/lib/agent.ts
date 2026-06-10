@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { getLlmProvider } from "./llm";
+import { getLlmProvider, isLlmConfigured } from "./llm";
 import { getExternalDataCached } from "./marketdata";
 import { analysisSchema } from "./agent-schema";
 import { translateTo, type TranslateOutput } from "./translate";
@@ -13,6 +13,10 @@ import { extractCashtags, isValidSymbol } from "./symbol";
 export async function analyzePost(postId: string): Promise<{ ok: boolean; tickers: number }> {
   const post = await prisma.post.findUnique({ where: { id: postId }, include: { influencer: true } });
   if (!post) return { ok: false, tickers: 0 };
+  // 生产环境若 LLM 无 key(会降级 mock):不要把占位分析当真写入(以 done 永久污染、需手工清洗),跳过留 pending
+  if (process.env.NODE_ENV === "production" && !isLlmConfigured()) {
+    return { ok: false, tickers: 0 };
+  }
 
   try {
     // 1. cashtag 候选 → 2. 取（缓存的）外部数据
@@ -122,40 +126,45 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
     return { ok: true, tickers: parsed.tickers.length };
   } catch (err) {
     console.error(`[agent] post ${postId} 分析失败:`, err instanceof Error ? err.message : err);
-    await prisma.post.update({ where: { id: postId }, data: { analysisStatus: "failed", analysisAttempts: { increment: 1 } } }).catch(() => {});
+    // 指数退避:故障(如 LLM 宕机)期间不在 1-2 个 tick 内烧光 attempts,留时间自愈(封顶 6h)
+    const nextAttempt = post.analysisAttempts + 1;
+    const backoffMs = Math.min(6 * 3_600_000, nextAttempt * nextAttempt * 10 * 60_000);
+    await prisma.post
+      .update({ where: { id: postId }, data: { analysisStatus: "failed", analysisAttempts: { increment: 1 }, nextRetryAt: new Date(Date.now() + backoffMs) } })
+      .catch(() => {});
     return { ok: false, tickers: 0 };
   }
 }
 
-// 当日已分析帖数(内存计数,重启归零的软成本闸)。ANALYZE_DAILY_CAP=0 表示不限。
-let _budgetDay = "";
-let _budgetCount = 0;
-
 /** 批量处理 analysis_status=pending 的帖子（小并发池，吞吐↑；并发度 ANALYZE_CONCURRENCY，默认 3）。 */
 export async function analyzePending(limit = 20): Promise<{ processed: number; ok: number }> {
-  // 当日分析上限:防 backfill / 批量 reanalyze 烧爆 LLM 额度
+  // 当日分析上限:防 backfill / 批量 reanalyze 烧爆 LLM 额度。改 DB 计数(当日 PostAnalysis 数),
+  // 重启不归零(原内存计数闸在频繁重启下形同虚设,运维 H8)。
   const cap = Number(process.env.ANALYZE_DAILY_CAP ?? 0);
-  const today = new Date().toISOString().slice(0, 10);
-  if (today !== _budgetDay) {
-    _budgetDay = today;
-    _budgetCount = 0;
+  let take = limit;
+  if (cap > 0) {
+    const since = new Date();
+    since.setUTCHours(0, 0, 0, 0);
+    const todayCount = await prisma.postAnalysis.count({ where: { createdAt: { gte: since } } });
+    if (todayCount >= cap) {
+      console.warn(`[agent] 已达当日分析上限 ${cap},暂停分析(ANALYZE_DAILY_CAP)`);
+      return { processed: 0, ok: 0 };
+    }
+    take = Math.min(limit, cap - todayCount);
   }
-  if (cap > 0 && _budgetCount >= cap) {
-    console.warn(`[agent] 已达当日分析上限 ${cap},暂停分析(ANALYZE_DAILY_CAP)`);
-    return { processed: 0, ok: 0 };
-  }
-  const take = cap > 0 ? Math.min(limit, cap - _budgetCount) : limit;
 
-  // pending + failed(未达重试上限):瞬时失败(超时/网络抖动)可退避重试,达上限才终态,既不死循环也不留永久空洞
+  // pending + failed(未达上限且过了退避窗口):瞬时失败可退避重试,达上限才终态,既不死循环也不留永久空洞
   const maxAttempts = Number(process.env.ANALYZE_MAX_ATTEMPTS ?? 3);
   const pending = await prisma.post.findMany({
     where: {
-      OR: [{ analysisStatus: "pending" }, { analysisStatus: "failed", analysisAttempts: { lt: maxAttempts } }],
+      OR: [
+        { analysisStatus: "pending" },
+        { analysisStatus: "failed", analysisAttempts: { lt: maxAttempts }, OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: new Date() } }] },
+      ],
     },
     orderBy: { postedAt: "desc" },
     take,
   });
-  _budgetCount += pending.length;
   const conc = Math.max(1, Math.min(8, Number(process.env.ANALYZE_CONCURRENCY ?? 3)));
   let ok = 0;
   let idx = 0;

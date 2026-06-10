@@ -103,8 +103,10 @@ async function tick() {
       // Delivery 随推送量单调增长、无清理会拖慢推送治理 groupBy —— 删 30 天前的(去重/冷却只看近期)
       const delDays = Number(process.env.DELIVERY_RETENTION_DAYS ?? 30);
       const delOld = await prisma.delivery.deleteMany({ where: { sentAt: { lt: new Date(Date.now() - delDays * 86_400_000) } } });
+      // MagicLink 原本只增不减 → 清过期或已用的(避免表无限增长)
+      const delMl = await prisma.magicLink.deleteMany({ where: { OR: [{ expiresAt: { lt: new Date() } }, { usedAt: { not: null } }] } });
       lastGc = Date.now();
-      if (del.count || delOld.count) console.log(`[worker] GC：过期缓存 ${del.count} 条 / 旧投递 ${delOld.count} 条`);
+      if (del.count || delOld.count || delMl.count) console.log(`[worker] GC：缓存 ${del.count} / 投递 ${delOld.count} / 验证码 ${delMl.count}`);
     } catch (e) {
       console.error("[worker] GC 异常:", e instanceof Error ? e.message : e);
     }
@@ -170,6 +172,10 @@ async function main() {
     process.exit(0);
   }
   console.log(`[worker] 启动：poll=${POLL_MS}ms batch=${ANALYZE_BATCH} digest=${RUN_DIGEST ? `每日 UTC${DIGEST_HOUR}:00 后` : "off(独立 cron)"}`);
+  // 配置自检:把"忘配即静默降级"的关键开关打出来(mock 用大写醒目),便于发现漏配
+  console.log(
+    `[worker] 配置:llm=${process.env.LLM_API_KEY ? "real" : "MOCK"} email=${process.env.CF_EMAIL_ACCOUNT_ID ? "cf" : process.env.SMTP_HOST ? "smtp" : "MOCK"} vapid=${process.env.VAPID_PRIVATE_KEY ? "on" : "off"} finnhub=${process.env.FINNHUB_API_KEY ? "on" : "off"} redis=${process.env.REDIS_URL ? "on" : "MEM"}`,
+  );
   await loop();
   console.log("[worker] 已退出");
   process.exit(0);

@@ -54,6 +54,12 @@ function unsign(signed: string): string | null {
   return value;
 }
 
+// 验签 + 解析会话 token,返回 {userId, tokenVersion} 或 null(供内部与测试复用)。
+export function parseSessionToken(signed: string): { userId: string; tv: number } | null {
+  const val = unsign(signed);
+  return val ? parsePayload(val) : null;
+}
+
 // 仅可在 route handler / server action 中调用（会写 cookie）
 export async function setSession(userId: string, tokenVersion: number): Promise<void> {
   const c = await cookies();
