@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getPostDetail, PostDetail } from "@/components/PostDetail";
 import { getLocale } from "@/lib/i18n-server";
 import { prisma } from "@/lib/db";
-import { articleJsonLd, SITE_URL } from "@/lib/seo";
+import { articleJsonLd, SITE_URL, pageMetadata } from "@/lib/seo";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -23,14 +23,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const summary = (en ? post.analysis?.summaryEn : post.analysis?.summary) || content;
   const title = clip(`${author}: ${content}`, 64);
   const description = clip(summary, 160);
-  return {
-    title,
-    description,
-    alternates: { canonical: `/p/${id}` },
-    // 静态 og.png 兜底:next/og 动态 OG 在 Zeabur nodejs/standalone runtime 下 502(wasm 不兼容),已回退
-    openGraph: { type: "article", title, description, url: `/p/${id}`, images: ["/og.png"] },
-    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
-  };
+  // 静态 og.png 兜底:next/og 动态 OG 在 Zeabur standalone runtime 下 502(wasm 不兼容),已回退。
+  return pageMetadata({ path: `/p/${id}`, title, description, ogType: "article" });
 }
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {

@@ -8,8 +8,9 @@ import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
 import { relativeTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
-import { breadcrumbJsonLd, SITE_URL } from "@/lib/seo";
+import { breadcrumbJsonLd, SITE_URL, pageMetadata } from "@/lib/seo";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -44,14 +45,7 @@ export async function generateMetadata({ params }: { params: Promise<{ symbol: s
       ? `What financial influencers say about $${sym}: ${n} tracked, ${lean}. Bull-vs-bear cases, stance flips and AI analysis on X2T.`
       : `财经博主怎么看 $${sym}:${n} 位在追踪,${lean}。多空辩论、立场转向、AI 双语分析,尽在 X2T。`
   ).slice(0, 160);
-  const url = `/t/${encodeURIComponent(sym)}`;
-  return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: { type: "website", title, description, url, images: ["/og.png"] },
-    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
-  };
+  return pageMetadata({ path: `/t/${encodeURIComponent(sym)}`, title, description, ogType: "website", noindex: n === 0 });
 }
 
 export default async function StockPage({ params }: { params: Promise<{ symbol: string }> }) {
@@ -59,6 +53,8 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
   const locale = await getLocale();
   const t = getDict(locale);
   const c = await consensusCached(symbol);
+  // 任意不存在/无人点评的票不渲染可索引薄页(软404 索引污染) → 返回真实 404(seo-3)
+  if (c.stances.length === 0) notFound();
   const debate = await debateCached(symbol, locale === "en" ? "en" : "zh");
 
   const cx = 170;
@@ -78,17 +74,20 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            breadcrumbJsonLd([
-              { name: "X2T", url: SITE_URL },
-              { name: `$${c.symbol}`, url: `${SITE_URL}/t/${encodeURIComponent(c.symbol)}` },
-            ]),
-          ),
-        }}
-      />
+      {/* 包进真实元素(display:contents 布局中性):Fragment 根部裸 <script> 会被 React App Router 提升/去重丢弃(seo-2) */}
+      <div style={{ display: "contents" }}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(
+              breadcrumbJsonLd([
+                { name: "X2T", url: SITE_URL },
+                { name: `$${c.symbol}`, url: `${SITE_URL}/t/${encodeURIComponent(c.symbol)}` },
+              ]),
+            ),
+          }}
+        />
+      </div>
       <h1 className="page-title">
         ${c.symbol}
         {c.name && (

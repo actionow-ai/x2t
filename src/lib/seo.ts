@@ -58,6 +58,29 @@ export function siteMetadata(locale: Locale): Metadata {
   };
 }
 
+const RSS_TYPES = { "application/rss+xml": [{ url: "/rss/all", title: SITE_NAME }] };
+
+// 通用子页 metadata 收口:自指 canonical + og:url 自指 + 保留 RSS autodiscovery types。
+// 统一堵住两类回归:① 漏 canonical(波C 漏了 /leaderboard /graph /about);
+// ② 页面级 alternates 整体覆盖 layout 的 types → 丢 RSS link(/i /t /p)。各页一律走这里。
+export function pageMetadata(opts: { path: string; title?: string; description?: string; ogType?: "website" | "article" | "profile"; noindex?: boolean }): Metadata {
+  const m: Metadata = { alternates: { canonical: opts.path, types: RSS_TYPES } };
+  if (opts.title) m.title = opts.title;
+  if (opts.description) m.description = opts.description;
+  m.openGraph = {
+    type: opts.ogType ?? "website",
+    url: opts.path,
+    ...(opts.title ? { title: opts.title } : {}),
+    ...(opts.description ? { description: opts.description } : {}),
+    images: ["/og.png"],
+  };
+  if (opts.title || opts.description) {
+    m.twitter = { card: "summary_large_image", ...(opts.title ? { title: opts.title } : {}), ...(opts.description ? { description: opts.description } : {}), images: ["/og.png"] };
+  }
+  if (opts.noindex) m.robots = { index: false, follow: false };
+  return m;
+}
+
 // 结构化数据:WebSite + Organization。
 export function websiteJsonLd(locale: Locale) {
   const c = copy(locale);

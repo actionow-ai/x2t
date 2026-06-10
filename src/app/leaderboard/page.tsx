@@ -1,11 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { getLeaderboard } from "@/lib/stance";
 import { isNewsAccount } from "@/lib/account";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
+import { pageMetadata } from "@/lib/seo";
 
+// 读 cookie locale(双语)→ 必须 force-dynamic;重回测数据已由 getLeaderboardCached 缓存 1h。
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = getDict(await getLocale());
+  return pageMetadata({ path: "/leaderboard", title: t.board.title, description: t.board.sub });
+}
 
 // 排行榜对每个博主跑一遍回测,偏重 → 缓存 1h。
 const getLeaderboardCached = unstable_cache(() => getLeaderboard(), ["leaderboard"], { revalidate: 3600 });

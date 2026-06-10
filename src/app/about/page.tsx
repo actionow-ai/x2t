@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n-server";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "About / 关于" };
+export const metadata: Metadata = pageMetadata({ path: "/about", title: "About / 关于" });
 
 export default async function AboutPage() {
   const en = (await getLocale()) === "en";

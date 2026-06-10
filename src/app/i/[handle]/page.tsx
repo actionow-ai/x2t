@@ -14,7 +14,7 @@ import { getInfluencerLedger, getInfluencerBacktest } from "@/lib/stance";
 import { formatDateTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
-import { profilePageJsonLd, breadcrumbJsonLd, SITE_URL } from "@/lib/seo";
+import { profilePageJsonLd, breadcrumbJsonLd, SITE_URL, pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -35,14 +35,7 @@ export async function generateMetadata({ params }: { params: Promise<{ handle: s
   const description = (en ? `${name}'s stance ledger, win-rate vs S&P 500 and recent flips on X2T. ${inf.bio ?? ""}` : `${name} 在 X2T 的立场账本、跑赢大盘率与近期转向。${inf.bio ?? ""}`)
     .trim()
     .slice(0, 160);
-  const url = `/i/${encodeURIComponent(inf.handle)}`;
-  return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: { type: "profile", title, description, url, images: ["/og.png"] },
-    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
-  };
+  return pageMetadata({ path: `/i/${encodeURIComponent(inf.handle)}`, title, description, ogType: "profile" });
 }
 
 export default async function InfluencerPage({
