@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { settleCalls, wilson95, recencyWeightedBeatRate, brierScore, type RawCall, type PricePoint } from "./stance";
+import { settleCalls, wilson95, recencyWeightedBeatRate, brierScore, buildStanceTimeline, type RawCall, type PricePoint } from "./stance";
 
 const DAY = 86_400_000;
 const series = (closes: number[]): PricePoint[] => closes.map((close, i) => ({ t: i * DAY, close }));
@@ -118,5 +118,26 @@ describe("brierScore(校准分)", () => {
   });
   it("无置信度的样本不计入,全无 → null", () => {
     expect(brierScore([{ beat: true }, { confidence: null, beat: false }])).toBeNull();
+  });
+});
+
+describe("buildStanceTimeline(立场×价格时序)", () => {
+  it("累计净立场对齐到价格日(<= 该日的多空帖计入,看多+1 看空-1)", () => {
+    const prices = [
+      { t: 10, close: 100 },
+      { t: 20, close: 110 },
+      { t: 30, close: 120 },
+    ];
+    const posts = [
+      { t: 5, s: 1 },
+      { t: 15, s: 1 },
+      { t: 25, s: -1 },
+    ];
+    const r = buildStanceTimeline(prices, posts);
+    expect(r.map((p) => p.net)).toEqual([1, 2, 1]);
+    expect(r[0].price).toBe(100);
+  });
+  it("少于 2 个价格点 → 空", () => {
+    expect(buildStanceTimeline([{ t: 1, close: 1 }], [{ t: 0, s: 1 }])).toHaveLength(0);
   });
 });

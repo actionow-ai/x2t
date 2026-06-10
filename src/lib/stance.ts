@@ -553,6 +553,37 @@ export async function getLeaderboard(minSamples = WINRATE_SHOW): Promise<LeaderR
   return rows.map((r) => ({ handle: r.handle, displayName: r.displayName, beatRate: r.beatRate, samples: r.samples, avgExcess: r.avgExcess, significant: r.significant, ciLow: r.ciLow, recencyRate: r.recencyRate }));
 }
 
+// 标的"博主集体净立场 vs 实际价格"时序(竞品借鉴 stocksight):看群体共识是否领先/滞后价格。
+// 净立场 = 截至该价格日、全历史 (看多−看空) 帖的累计和(纯函数可单测);价格 = 当日收盘。
+export type StanceTimelinePoint = { t: number; net: number; price: number };
+export function buildStanceTimeline(prices: { t: number; close: number }[], posts: { t: number; s: number }[]): StanceTimelinePoint[] {
+  if (prices.length < 2) return [];
+  const sorted = [...posts].sort((a, b) => a.t - b.t);
+  const out: StanceTimelinePoint[] = [];
+  let pi = 0;
+  let net = 0;
+  for (const p of prices) {
+    while (pi < sorted.length && sorted[pi].t <= p.t) {
+      net += sorted[pi].s;
+      pi++;
+    }
+    out.push({ t: p.t, net, price: p.close });
+  }
+  return out;
+}
+export async function getStockStanceTimeline(symbol: string, months = 12): Promise<StanceTimelinePoint[]> {
+  const sym = symbol.toUpperCase();
+  const since = new Date();
+  since.setMonth(since.getMonth() - months);
+  const [prices, tickers] = await Promise.all([
+    prisma.priceDaily.findMany({ where: { symbol: sym, date: { gte: since } }, orderBy: { date: "asc" }, select: { date: true, close: true } }),
+    prisma.postTicker.findMany({ where: { symbol: sym, stance: { in: ["bullish", "bearish"] } }, select: { stance: true, post: { select: { postedAt: true } } } }),
+  ]);
+  const pricePts = prices.map((p) => ({ t: new Date(p.date).getTime(), close: p.close }));
+  const posts = tickers.map((x) => ({ t: new Date(x.post.postedAt).getTime(), s: x.stance === "bullish" ? 1 : -1 }));
+  return buildStanceTimeline(pricePts, posts);
+}
+
 // 某票的"多空论据"——借鉴 TradingAgents 的 Bull vs Bear 辩论,但零 LLM 成本:
 // 直接取各博主对该票最新一条多/空帖的 AI rationale,分多头/空头两栏。把"谁多谁空"升级成"多空在争什么"。
 export type DebatePoint = { handle: string; displayName: string | null; rationale: string; postId: string };

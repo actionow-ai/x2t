@@ -1,7 +1,8 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
-import { getStockConsensus, getStockDebate } from "@/lib/stance";
+import { getStockConsensus, getStockDebate, getStockStanceTimeline } from "@/lib/stance";
+import { StancePriceChart } from "@/components/StancePriceChart";
 import { isNewsAccount } from "@/lib/account";
 import { ShareButton } from "@/components/ShareButton";
 import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
@@ -23,6 +24,7 @@ const COLOR: Record<string, string> = {
 // 跨请求缓存(120s)+ 同请求 React cache 去重:generateMetadata 与页面只算一次,热门票也不每访问都全扫。
 const consensusCached = cache((symbol: string) => unstable_cache(() => getStockConsensus(symbol), ["stock-consensus", symbol], { revalidate: 120 })());
 const debateCached = cache((symbol: string, locale: "zh" | "en") => unstable_cache(() => getStockDebate(symbol, locale), ["stock-debate", symbol, locale], { revalidate: 120 })());
+const timelineCached = cache((symbol: string) => unstable_cache(() => getStockStanceTimeline(symbol), ["stance-timeline", symbol], { revalidate: 300 })());
 
 export async function generateMetadata({ params }: { params: Promise<{ symbol: string }> }): Promise<Metadata> {
   const { symbol } = await params;
@@ -56,6 +58,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
   // 任意不存在/无人点评的票不渲染可索引薄页(软404 索引污染) → 返回真实 404(seo-3)
   if (c.stances.length === 0) notFound();
   const debate = await debateCached(symbol, locale === "en" ? "en" : "zh");
+  const timeline = await timelineCached(symbol);
 
   const cx = 170;
   const cy = 150;
@@ -116,6 +119,19 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
             tweetText: `$${c.symbol}: ${verdict ?? `▲${c.bullish} ▼${c.bearish}`} — ${t.consensus.verdictPrefix} ${n} ${t.consensus.peopleWord}。`,
           }}
         />
+      )}
+
+      {timeline.length >= 2 && (
+        <section style={{ margin: "0.8rem 0" }}>
+          <div style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.3rem" }} title={t.consensus.stancePriceHint}>
+            {t.consensus.stancePriceTitle}
+          </div>
+          <StancePriceChart points={timeline} locale={locale === "en" ? "en" : "zh"} />
+          <div className="equity-cap" style={{ marginTop: "0.2rem" }}>
+            <span style={{ color: "var(--blue)", fontWeight: 700 }}>{t.consensus.legendNetStance}</span>
+            <span style={{ color: "var(--text-tertiary)" }}>{t.consensus.legendPrice}</span>
+          </div>
+        </section>
       )}
 
       {n === 0 ? (
