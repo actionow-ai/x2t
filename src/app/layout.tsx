@@ -31,6 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd(locale)) }} />
         <GoogleAnalytics />
         <LangProvider locale={locale}>
+          <a href="#main" className="skip-link">{locale === "zh" ? "跳到主内容" : "Skip to main content"}</a>
           <TickerTape />
           <header className="site-header">
             <div className="inner">
@@ -43,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <LangSwitch />
             </div>
           </header>
-          <main>
+          <main id="main">
             <div className="container">
               <PageFx>{children}</PageFx>
             </div>

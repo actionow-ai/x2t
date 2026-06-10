@@ -16,7 +16,7 @@ export function LangSwitch() {
   }
 
   return (
-    <div className="lang-switch" role="group" aria-label="Language">
+    <div className="lang-switch" role="group" aria-label="语言 / Language">
       <button className={`lang-btn${locale === "zh" ? " on" : ""}`} onClick={() => set("zh")} aria-pressed={locale === "zh"}>中</button>
       <button className={`lang-btn${locale === "en" ? " on" : ""}`} onClick={() => set("en")} aria-pressed={locale === "en"}>EN</button>
     </div>

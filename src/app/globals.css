@@ -63,7 +63,7 @@ main { padding: 1.75rem 0 5rem; }
 /* sticky 侧栏:内容(如长账本)超过一屏时内部可滚,不再把底部钉在视口外滚不到 */
 .col-sticky { position: sticky; top: 70px; max-height: calc(100vh - 84px); overflow-y: auto; overflow-x: visible; padding-right: 4px; scrollbar-width: thin; }
 /* 单栏页主体占满容器宽度(与多栏页一致;容器本身已 1180px 居中) */
-.narrow { width: 100%; }
+.narrow { width: 100%; max-width: 760px; margin-inline: auto; }
 @media (max-width: 960px) {
   .cols-rail, .cols-side, .cols-split { grid-template-columns: 1fr; }
   .col-sticky { position: static; max-height: none; overflow: visible; padding-right: 0; }
@@ -168,21 +168,6 @@ main { padding: 1.75rem 0 5rem; }
 
 /* ===================== FEED + POST BLOCK ===================== */
 .feed { display: flex; flex-direction: column; gap: 1.2rem; }
-
-/* ===================== WORKSPACE (master-detail 双栏) ===================== */
-.ws-detail-bar { display: flex; gap: 0.5rem; margin-bottom: 0.85rem; }
-.post-card[data-selected] { border-color: var(--blue); box-shadow: 5px 5px 0 var(--blue); }
-.post-card[data-selected]::before { background: var(--blue); }
-@media (min-width: 900px) {
-  .workspace.split { display: grid; grid-template-columns: minmax(340px, 420px) 1fr; gap: 1.5rem; align-items: start; }
-  .workspace.split .ws-list { min-width: 0; }
-  .workspace.split .ws-list .ai-box { display: none; } /* 列表压缩：详情在右栏看 */
-  .workspace.split .ws-list .post-card { padding: 0.9rem 1rem; cursor: pointer; }
-  .workspace.split .ws-detail { position: sticky; top: 86px; }
-}
-@media (max-width: 899px) {
-  .ws-detail { display: none; } /* 移动端不双栏：点击走整页 /p/[id] */
-}
 
 /* ===================== 移动端密度（更小字号/边距，提高信息密度） ===================== */
 @media (max-width: 640px) {
@@ -395,8 +380,8 @@ details[open] .ledger-summary::before { transform: rotate(90deg); }
 .reactions { display: flex; align-items: center; gap: 0.5rem; }
 .react-btn { font-family: var(--mono); font-size: 0.74rem; font-weight: 700; border: 2px solid var(--ink); background: var(--bg-secondary); padding: 0.24rem 0.62rem; cursor: pointer; transition: transform 0.1s; }
 .react-btn:hover { transform: translateY(-1px); }
-.react-btn.on.up { background: var(--success); color: #fff; border-color: var(--success-ink); }
-.react-btn.on.dn { background: var(--error); color: #fff; border-color: var(--error-ink); }
+.react-btn.on.up { background: var(--success-ink); color: #fff; border-color: var(--success-ink); }
+.react-btn.on.dn { background: var(--error-ink); color: #fff; border-color: var(--error-ink); }
 /* 分享按钮在反应区内:与赞/踩保持一致样式(去掉 .btn.ghost 的差异) */
 .reactions .share-btn {
   font-family: var(--mono); font-size: 0.74rem; font-weight: 700; letter-spacing: 0;
@@ -565,4 +550,14 @@ svg text { font-family: var(--mono); font-weight: 700; }
   .ticker-track { animation: none; }
   .feed > * { animation: none; }
   html { scroll-behavior: auto; }
+}
+
+/* skip-link:键盘/SR 用户跳过 header 直达主内容(WCAG 2.4.1)。聚焦前移出视口,聚焦时显形。 */
+.skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--ink); color: #fff; padding: 0.5rem 0.9rem; font-weight: 700; border: 2px solid var(--lime); }
+.skip-link:focus { left: 0.5rem; top: 0.5rem; }
+
+/* 移动端把赞/踩/分享与 modal 关闭按钮纳入 ≥44px 触控目标(放末尾以覆盖紧凑态 min-height:0)。 */
+@media (max-width: 640px) {
+  .react-btn, .reactions .share-btn, .drawer-x, .share-modal-x { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .masthead-disc { display: none; } /* 窄屏 header 放不下短免责(disclaimer-bar 仍提供完整免责),隐藏防溢出 */
 }

@@ -5,12 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useT } from "./LangProvider";
+import { useModalA11y } from "./useModalA11y";
 
 export function NavTabs({ userEmail, isAdmin = false }: { userEmail: string | null; isAdmin?: boolean }) {
   const pathname = usePathname();
   const t = useT();
   const [open, setOpen] = useState(false);
   const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const drawerRef = useModalA11y<HTMLDivElement>(open, () => setOpen(false));
 
   const tabs = [
     { href: "/", label: t.nav.signals },
@@ -45,9 +47,9 @@ export function NavTabs({ userEmail, isAdmin = false }: { userEmail: string | nu
       {open &&
         createPortal(
           <div className="drawer-backdrop" onClick={() => setOpen(false)} role="dialog" aria-modal="true">
-            <div className="drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer" ref={drawerRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} aria-labelledby="drawer-title">
               <div className="drawer-head">
-                <span className="drawer-title">X2T</span>
+                <span className="drawer-title" id="drawer-title">X2T</span>
                 <button className="drawer-x" onClick={() => setOpen(false)} aria-label={t.common.close}>✕</button>
               </div>
               {tabs.map((tab) => (

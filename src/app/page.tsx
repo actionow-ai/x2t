@@ -150,7 +150,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
             <div className="rail-card">
               <div className="rail-head">{t.board.title}</div>
               {boardTop.map((r, i) => (
-                <Link key={r.handle} href={`/i/${r.handle}`} className="rail-rank" title={`${r.samples} ${t.influencer.samples}`}>
+                <Link key={r.handle} href={`/i/${r.handle}`} className="rail-rank" aria-label={`${i + 1}. ${r.displayName ?? r.handle}, ${Math.round(r.beatRate * 100)}% (${r.samples} ${t.influencer.samples})${r.significant ? ` · ${t.board.sigHint}` : ""}`}>
                   <span className="lb-rank">{i + 1}</span>
                   <span className="rail-rank-name">
                     {r.displayName ?? r.handle}

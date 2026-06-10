@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "./LangProvider";
+import { useModalA11y } from "./useModalA11y";
 
 // 分享图卡:客户端 canvas 渲染(绕开 Zeabur next/og 502)。文(tweet)+ 图(卡片)+ 链接,一键发 X。
 export type ShareSpec = {
@@ -99,6 +100,7 @@ export function ShareButton({ spec }: { spec: ShareSpec }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const modalRef = useModalA11y<HTMLDivElement>(open, () => setOpen(false));
 
   async function toggle() {
     if (open) {
@@ -151,12 +153,12 @@ export function ShareButton({ spec }: { spec: ShareSpec }) {
         // portal 到 body:避免被卡片的 hover transform 当成定位祖先而抖动/闪烁
         createPortal(
           <div className="share-modal-backdrop" onClick={() => setOpen(false)} role="dialog" aria-modal="true">
-            <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="share-modal" ref={modalRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} aria-labelledby="share-modal-title">
               <div className="share-modal-head">
-                <strong>{t.share.button}</strong>
+                <strong id="share-modal-title">{t.share.button}</strong>
                 <button className="share-modal-x" onClick={() => setOpen(false)} aria-label={t.common.close}>✕</button>
               </div>
-              <canvas ref={canvasRef} className="share-canvas" />
+              <canvas ref={canvasRef} className="share-canvas" role="img" aria-label={t.share.button} />
               <div className="share-actions">
                 <button className="btn primary" onClick={shareX}>{t.share.toX}</button>
                 {imgUrl && <a className="btn ghost" href={imgUrl} download="x2t-card.png">{t.share.download}</a>}

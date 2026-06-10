@@ -169,7 +169,7 @@ export default async function InfluencerPage({
           )}
           {equity && (
             <div className="equity-wrap">
-              <EquitySparkline points={equity.points} />
+              <EquitySparkline points={equity.points} locale={locale} />
               <div className="equity-cap">
                 <span style={{ color: "var(--blue)", fontWeight: 700 }}>
                   {t.board.followCurve}: {equity.totalFollow > 0 ? "+" : ""}{(equity.totalFollow * 100).toFixed(1)}%

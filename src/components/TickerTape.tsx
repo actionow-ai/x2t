@@ -50,9 +50,10 @@ const getTickerItems = unstable_cache(
 // 顶部行情带：重复填满整宽 + 无缝循环。
 export async function TickerTape() {
   const items = await getTickerItems();
+  const locale = await getLocale();
 
   if (items.length === 0) {
-    const t = getDict(await getLocale());
+    const t = getDict(locale);
     return (
       <div className="ticker">
         <div className="ticker-empty">{t.common.loading}</div>
@@ -85,7 +86,7 @@ export async function TickerTape() {
             <span className="ticker-item" key={i}>
               <span className={dir}>{arrow}</span>
               <span className="sym">${it.symbol}</span>
-              {it.price !== undefined && <span>{it.price}</span>}
+              {it.price !== undefined && <span>{it.price.toLocaleString(locale === "zh" ? "zh-CN" : "en-US", { maximumFractionDigits: 2 })}</span>}
               {chg && <span className={dir}>{chg}</span>}
             </span>
           );

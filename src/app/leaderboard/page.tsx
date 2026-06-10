@@ -33,7 +33,12 @@ export default async function LeaderboardPage() {
               <span className="lb-num">{t.board.samples}</span>
             </div>
             {rows.map((r, i) => (
-              <Link key={r.handle} href={`/i/${r.handle}`} className="lb-row">
+              <Link
+                key={r.handle}
+                href={`/i/${r.handle}`}
+                className="lb-row"
+                aria-label={`${i + 1}. ${r.displayName ?? r.handle}, ${t.board.beatRate} ${Math.round(r.beatRate * 100)}%, ${r.samples} ${t.board.samples}${r.significant ? ` · ${t.board.sigHint}` : ""}`}
+              >
                 <span className="lb-rank">{i + 1}</span>
                 <span className="lb-name">
                   {r.displayName ?? r.handle}

@@ -6,7 +6,7 @@ import { useT } from "./LangProvider";
 
 const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
-type State = "idle" | "on" | "unsupported" | "denied" | "working";
+type State = "idle" | "on" | "unsupported" | "denied" | "working" | "noconfig";
 
 export function PushToggle() {
   const t = useT();
@@ -25,7 +25,7 @@ export function PushToggle() {
 
   async function enable() {
     if (!VAPID) {
-      alert(t.push.notConfigured);
+      setState("noconfig"); // 原生 alert() 不可访问 + 打断,改用内联 hint
       return;
     }
     setState("working");
@@ -50,6 +50,7 @@ export function PushToggle() {
   }
 
   if (state === "unsupported") return <span className="hint">{t.push.unsupported}</span>;
+  if (state === "noconfig") return <span className="hint">{t.push.notConfigured}</span>;
   if (state === "denied") return <span className="hint">{t.push.denied}</span>;
   if (state === "on") {
     return (

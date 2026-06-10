@@ -31,11 +31,11 @@ export default async function AlertsPage() {
 
       <form className="form alert-form" action={createAlert}>
         <div className="alert-row">
-          <input name="symbol" placeholder={t.alerts.symbol} style={{ width: "10rem" }} />
+          <input name="symbol" placeholder={t.alerts.symbol} aria-label={t.alerts.symbol} style={{ width: "10rem" }} />
           <label className="alert-num">{t.alerts.minBull} <input name="minBull" type="number" min="0" max="50" defaultValue="0" /></label>
           <label className="alert-num">{t.alerts.minBear} <input name="minBear" type="number" min="0" max="50" defaultValue="0" /></label>
           <label className="alert-check"><input name="onFlip" type="checkbox" /> {t.alerts.onFlip}</label>
-          <select name="combine" defaultValue="or">
+          <select name="combine" defaultValue="or" aria-label={`${t.alerts.or} / ${t.alerts.and}`}>
             <option value="or">{t.alerts.or}</option>
             <option value="and">{t.alerts.and}</option>
           </select>

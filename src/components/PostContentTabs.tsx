@@ -24,13 +24,14 @@ export function PostContentTabs({
   return (
     <div>
       <div className="seg seg-sm" style={{ marginBottom: "0.5rem" }}>
-        <button type="button" className={`segbtn${tab === "zh" ? " on" : ""}`} onClick={() => setTab("zh")}>中文</button>
-        <button type="button" className={`segbtn${tab === "en" ? " on" : ""}`} onClick={() => setTab("en")}>English</button>
-        <button type="button" className={`segbtn${tab === "orig" ? " on" : ""}`} onClick={() => setTab("orig")}>
+        <button type="button" aria-pressed={tab === "zh"} className={`segbtn${tab === "zh" ? " on" : ""}`} onClick={() => setTab("zh")}>中文</button>
+        <button type="button" aria-pressed={tab === "en"} className={`segbtn${tab === "en" ? " on" : ""}`} onClick={() => setTab("en")}>English</button>
+        <button type="button" aria-pressed={tab === "orig"} className={`segbtn${tab === "orig" ? " on" : ""}`} onClick={() => setTab("orig")}>
           {originalLabel}{origLang ? ` · ${origLang.toUpperCase()}` : ""}
         </button>
       </div>
-      <div className="pc-text">
+      {/* lang 属性让 SR 用正确发音读非页面语言的原文/译文 */}
+      <div className="pc-text" lang={tab === "orig" ? origLang ?? undefined : tab === "en" ? "en" : "zh"}>
         <CashtagText text={text} />
       </div>
     </div>

@@ -23,7 +23,10 @@ type Edge = {
 type GNode = { id: string; kind: "inf" | "sec"; label: string; avatarUrl?: string | null; count: number; x?: number; y?: number };
 type GLink = { source: string | GNode; target: string | GNode; stance: string; flipped: boolean; ts: number };
 
-const STANCE_COLOR: Record<string, string> = { bullish: "var(--success)", bearish: "var(--error)", neutral: "var(--lime)" };
+// neutral 用深灰(原 lime 在白底 graph-frame 上对比仅 ~1.3:1,WCAG 1.4.11 要 3:1)。
+const STANCE_COLOR: Record<string, string> = { bullish: "var(--success)", bearish: "var(--error)", neutral: "var(--text-tertiary)" };
+// 线型也按立场区分(不只靠红绿):色盲用户也能分多/空/中性(团队规范:语义不能只靠颜色)。
+const STANCE_DASH: Record<string, string | undefined> = { bullish: undefined, bearish: "7 4", neutral: "1 6" };
 
 function recency(ts: number): { opacity: number; width: number } {
   const age = Date.now() - ts;
@@ -229,7 +232,8 @@ export function GraphCanvas({ influencers, edges }: { influencers: Inf[]; edges:
               const a = pos(e.influencerId), b = pos(e.symbol);
               const on = linkOn({ source: e.influencerId, target: e.symbol, stance: e.stance, flipped: e.flipped, ts: e.ts });
               const r = recency(e.ts);
-              return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={STANCE_COLOR[e.stance]} strokeWidth={on ? r.width : 1.5} opacity={on ? r.opacity : 0.06} strokeDasharray={e.flipped ? "8 5" : undefined} strokeLinecap="round" />;
+              // 线型按立场(色盲可分);flipped 由中点 ⇄ 标记区分,不再占用 dash
+              return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={STANCE_COLOR[e.stance]} strokeWidth={on ? r.width : 1.5} opacity={on ? r.opacity : 0.06} strokeDasharray={STANCE_DASH[e.stance]} strokeLinecap="round" />;
             })}
 
             {fEdges.map((e, i) => {
