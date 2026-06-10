@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { savePushSubscription } from "@/lib/push";
-import { getCurrentUserId } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -39,8 +39,9 @@ export async function POST(request: Request) {
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  // 绑定登录用户(修 P0:订阅 userId 恒空 → 告警按 userId 查订阅永远 0 条)。匿名仍可订阅(userId=null)。
-  const userId = await getCurrentUserId();
+  // 绑定登录用户(修 P0:订阅 userId 恒空 → 告警按 userId 查订阅永远 0 条)。
+  // requireUserId 校验 tokenVersion(已登出/撤销 → null,与其它写路径统一,sec-4);匿名仍可订阅(userId=null)。
+  const userId = await requireUserId();
   const sub = await savePushSubscription({ ...parsed.data, userId });
   return Response.json({ ok: true, id: sub.id });
 }

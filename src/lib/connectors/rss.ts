@@ -18,11 +18,16 @@ function resolveFeedUrl(source: InfluencerSource): { url: string; viaHub: boolea
   const explicit = cfg.feedUrl as string | undefined;
   if (explicit) return { url: explicit, viaHub: false };
   const path = cfg.feedPath as string | undefined;
-  // feedPath 必须是相对 RSSHUB_BASE_URL 的路径:拒绝绝对 URL / 协议相对(否则 new URL 会用它覆盖 base,
-  // 可指向 169.254.169.254 等内网元数据 —— SSRF 纵深防御)。
   if (!path || !path.startsWith("/") || path.startsWith("//")) return undefined;
   const base = process.env.RSSHUB_BASE_URL || "http://localhost:51200";
-  return { url: new URL(path, base).toString(), viaHub: true };
+  try {
+    const u = new URL(path, base);
+    // 解析后 origin 必须仍等于 base 的 origin:防 tab/反斜杠/编码把 host/端口/协议覆盖到内网元数据(sec-3)。
+    if (u.origin !== new URL(base).origin) return undefined;
+    return { url: u.toString(), viaHub: true };
+  } catch {
+    return undefined;
+  }
 }
 
 export const rssConnector: Connector = {

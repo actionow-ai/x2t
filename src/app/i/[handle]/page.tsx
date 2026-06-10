@@ -159,6 +159,9 @@ export default async function InfluencerPage({
                   {t.influencer.winRateBuilding} {winRate.samples}/10
                 </span>
               )}
+              {!winRate && (
+                <span className="bias-tag" style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}>{t.influencer.winRateNone}</span>
+              )}
             </div>
           )}
           {equity && (

@@ -195,6 +195,8 @@ export function PostDetail({ post, dataBySymbol, myVote, locale = "zh" }: Detail
 
           <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "0.5rem" }}>
             {t.post.disclaimer}
+            <br />
+            {t.post.aiLimitation}
           </div>
         </div>
       ) : (

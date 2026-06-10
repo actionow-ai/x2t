@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { tokenVersion: true } });
 
-  const res = NextResponse.redirect(`${baseUrl(request)}/?welcome=1`, 303);
+  const res = NextResponse.redirect(`${baseUrl(request)}/`, 303);
   res.cookies.set(SESSION_COOKIE, sessionCookieValue(userId, user?.tokenVersion ?? 0), SESSION_COOKIE_OPTIONS);
   return res;
 }

@@ -43,7 +43,7 @@ export default function LoginPage() {
         setBusy(false);
         return;
       }
-      window.location.href = "/?welcome=1";
+      window.location.href = "/";
     } catch {
       setError(t.login.error);
       setBusy(false);

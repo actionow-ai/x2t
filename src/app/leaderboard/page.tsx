@@ -62,6 +62,7 @@ export default async function LeaderboardPage() {
               </Link>
             ))}
           </div>
+          {!rows.some((r) => r.significant) && <p className="method-note" style={{ color: "var(--warning)" }}>{t.board.noneSignificant}</p>}
           <p className="method-note">{t.board.methodNote}</p>
         </>
       )}
