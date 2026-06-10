@@ -13,6 +13,7 @@ export async function Footer() {
           <Link href="/about">{t.about}</Link>
           <Link href="/terms">{t.terms}</Link>
           <Link href="/privacy">{t.privacy}</Link>
+          <a href="/rss/all">RSS</a>
           <a href="mailto:actionow.ai@gmail.com?subject=X2T%20report">{t.report}</a>
         </nav>
         <p className="foot-note">{t.notAdvice}</p>

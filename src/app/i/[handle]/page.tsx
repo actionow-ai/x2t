@@ -6,6 +6,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { AvatarInner } from "@/components/Avatar";
 import { StanceBadge } from "@/components/StanceBadge";
 import { EquitySparkline } from "@/components/EquitySparkline";
+import { ShareButton } from "@/components/ShareButton";
 import { getCurrentUserId } from "@/lib/auth";
 import { isNewsAccount } from "@/lib/account";
 import { getMyVotes } from "@/lib/reactions";
@@ -13,6 +14,8 @@ import { getInfluencerLedger, getInfluencerWinRate, getInfluencerEquityCurve } f
 import { formatDateTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
+import { profilePageJsonLd, breadcrumbJsonLd, SITE_URL } from "@/lib/seo";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +23,32 @@ export const dynamic = "force-dynamic";
 // 胜率/权益曲线回算偏重,缓存 1 小时,移出首屏同步路径(工程审计 P0)。
 const getWinRateCached = unstable_cache((id: string) => getInfluencerWinRate(id), ["influencer-winrate"], { revalidate: 3600 });
 const getEquityCached = unstable_cache((id: string) => getInfluencerEquityCurve(id), ["influencer-equity"], { revalidate: 3600 });
+
+export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }): Promise<Metadata> {
+  const { handle } = await params;
+  const en = (await getLocale()) === "en";
+  const inf = await prisma.influencer.findFirst({ where: { handle }, select: { id: true, handle: true, displayName: true, bio: true } });
+  if (!inf) return {};
+  const name = inf.displayName ?? inf.handle;
+  const wr = await getWinRateCached(inf.id);
+  const perf = wr?.rate
+    ? en
+      ? `, beat S&P ${Math.round(wr.rate.beatRate * 100)}% over ${wr.samples} calls`
+      : `,跑赢大盘 ${Math.round(wr.rate.beatRate * 100)}%(${wr.samples} 次判断)`
+    : "";
+  const title = en ? `${name} (@${inf.handle}) — track record${perf}` : `${name}(@${inf.handle})战绩${perf}`;
+  const description = (en ? `${name}'s stance ledger, win-rate vs S&P 500 and recent flips on X2T. ${inf.bio ?? ""}` : `${name} 在 X2T 的立场账本、跑赢大盘率与近期转向。${inf.bio ?? ""}`)
+    .trim()
+    .slice(0, 160);
+  const url = `/i/${encodeURIComponent(inf.handle)}`;
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { type: "profile", title, description, url, images: ["/og.png"] },
+    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
+  };
+}
 
 export default async function InfluencerPage({
   params,
@@ -83,6 +112,24 @@ export default async function InfluencerPage({
 
   return (
     <div className="cols-side">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([
+            profilePageJsonLd({
+              url: `${SITE_URL}/i/${encodeURIComponent(influencer.handle)}`,
+              handle: influencer.handle,
+              displayName: influencer.displayName,
+              description: (influencer.bio ?? `${name} · X2T`).slice(0, 200),
+              locale,
+            }),
+            breadcrumbJsonLd([
+              { name: "X2T", url: SITE_URL },
+              { name, url: `${SITE_URL}/i/${encodeURIComponent(influencer.handle)}` },
+            ]),
+          ]),
+        }}
+      />
       <aside className="col-sticky inf-side">
       <div className="inf-header">
         <div className="inf-av"><AvatarInner src={influencer.avatarUrl} name={name} /></div>
@@ -148,6 +195,25 @@ export default async function InfluencerPage({
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem", flexWrap: "wrap" }}>
             <FollowButton influencerId={influencer.id} isLoggedIn={!!userId} initiallyFollowed={followed} />
             <a className="btn ghost" href={`/i/${influencer.handle}/rss`}>{t.influencer.rss}</a>
+            {winRate?.rate && (
+              <ShareButton
+                spec={{
+                  brandLine: `${name} · X2T`,
+                  headline:
+                    locale === "en"
+                      ? `Beat S&P ${Math.round(winRate.rate.beatRate * 100)}% over ${winRate.samples} calls`
+                      : `跑赢大盘 ${Math.round(winRate.rate.beatRate * 100)}%(${winRate.samples} 次判断)`,
+                  sub: equity ? `vs SPY ${equity.totalSpy > 0 ? "+" : ""}${(equity.totalSpy * 100).toFixed(0)}%` : undefined,
+                  accent: winRate.rate.ci[0] > 0.5 ? "bull" : "neutral",
+                  tweetText:
+                    locale === "en"
+                      ? `${name} on X2T: beat the S&P ${Math.round(winRate.rate.beatRate * 100)}% of the time over ${winRate.samples} calls.`
+                      : `${name} 在 X2T 的战绩:${winRate.samples} 次判断里 ${Math.round(winRate.rate.beatRate * 100)}% 跑赢大盘。`,
+                  url: `/i/${influencer.handle}`,
+                  via: influencer.platform === "twitter" ? influencer.handle : undefined,
+                }}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -12,6 +12,7 @@ export type ShareSpec = {
   accent?: "bull" | "bear" | "neutral";
   tweetText: string; // 预填推文
   url?: string; // 分享链接(相对路径;省略=当前页 URL)。feed 卡片需指向 /p/[id]
+  via?: string; // X handle(twitter 平台博主)→ intent via= 让分享 @提及博主本人,促其转发(最便宜的冷启动分发)
 };
 
 const PAPER = "#f4f1e8";
@@ -116,9 +117,13 @@ export function ShareButton({ spec }: { spec: ShareSpec }) {
   }
 
   function shareX() {
-    const link = spec.url ? new URL(spec.url, window.location.origin).href : window.location.href;
-    const u = `https://twitter.com/intent/tweet?text=${encodeURIComponent(spec.tweetText)}&url=${encodeURIComponent(link)}`;
-    window.open(u, "_blank", "noopener,noreferrer");
+    // 加 UTM 追踪分享回流(GA 里区分自然流量与分享带来的访问)
+    const base = spec.url ? new URL(spec.url, window.location.origin) : new URL(window.location.href);
+    base.searchParams.set("utm_source", "twitter");
+    base.searchParams.set("utm_medium", "share");
+    const params = new URLSearchParams({ text: spec.tweetText, url: base.href });
+    if (spec.via) params.set("via", spec.via.replace(/^@/, ""));
+    window.open(`https://twitter.com/intent/tweet?${params.toString()}`, "_blank", "noopener,noreferrer");
   }
 
   async function copyImg() {

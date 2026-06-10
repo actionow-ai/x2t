@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getPostDetail, PostDetail } from "@/components/PostDetail";
 import { getLocale } from "@/lib/i18n-server";
 import { prisma } from "@/lib/db";
+import { articleJsonLd, SITE_URL } from "@/lib/seo";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -36,5 +37,23 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const detail = await getPostDetail(id);
   if (!detail) notFound();
-  return <PostDetail post={detail.post} dataBySymbol={detail.dataBySymbol} myVote={detail.myVote} locale={await getLocale()} />;
+  const locale = await getLocale();
+  const p = detail.post;
+  const en = locale === "en";
+  const author = p.influencer.displayName ?? p.influencer.handle;
+  const content = ((en ? p.contentEn : p.contentZh) || p.contentText).replace(/\s+/g, " ").trim();
+  const summary = ((en ? p.analysis?.summaryEn : p.analysis?.summary) || content).slice(0, 200);
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            articleJsonLd({ url: `${SITE_URL}/p/${id}`, headline: `${author}: ${content}`, description: summary, datePublished: new Date(p.postedAt).toISOString(), author, locale }),
+          ),
+        }}
+      />
+      <PostDetail post={detail.post} dataBySymbol={detail.dataBySymbol} myVote={detail.myVote} locale={locale} />
+    </>
+  );
 }

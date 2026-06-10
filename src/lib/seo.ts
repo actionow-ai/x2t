@@ -34,7 +34,10 @@ export function siteMetadata(locale: Locale): Metadata {
     description: c.description,
     keywords: [...c.keywords],
     applicationName: SITE_NAME,
-    alternates: { canonical: "/" },
+    // 注意:不在根布局设 canonical——否则会被全站子页继承,把 sitemap 里上千个博主/个股页
+    // 都声明成首页副本、从索引合并掉。各页(首页 / /p / /i / /t)在自己的 generateMetadata 里设自身 canonical。
+    // 仅声明 RSS autodiscovery(首页 head 里输出 <link rel=alternate type=application/rss+xml>)。
+    alternates: { types: { "application/rss+xml": [{ url: "/rss/all", title: "X2T" }] } },
     robots: {
       index: true,
       follow: true,
@@ -72,5 +75,42 @@ export function websiteJsonLd(locale: Locale) {
       url: SITE_URL,
       logo: { "@type": "ImageObject", url: `${SITE_URL}/icon-512.png`, width: 512, height: 512 },
     },
+  };
+}
+
+// 帖子页结构化数据:社媒帖 + AI 摘要(Google 富结果资格)。
+export function articleJsonLd(opts: { url: string; headline: string; description: string; datePublished: string; author: string; locale: Locale }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SocialMediaPosting",
+    "@id": opts.url,
+    url: opts.url,
+    headline: opts.headline.slice(0, 110),
+    description: opts.description,
+    datePublished: opts.datePublished,
+    inLanguage: opts.locale === "zh" ? "zh-CN" : "en",
+    author: { "@type": "Person", name: opts.author },
+    publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
+    isAccessibleForFree: true,
+  };
+}
+
+// 博主页结构化数据:ProfilePage + Person(Google 2024 起支持 ProfilePage 富结果)。
+export function profilePageJsonLd(opts: { url: string; handle: string; displayName: string | null; description: string; locale: Locale }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    url: opts.url,
+    inLanguage: opts.locale === "zh" ? "zh-CN" : "en",
+    mainEntity: { "@type": "Person", name: opts.displayName ?? opts.handle, alternateName: `@${opts.handle}`, description: opts.description },
+  };
+}
+
+// 面包屑结构化数据。
+export function breadcrumbJsonLd(items: { name: string; url: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, item: it.url })),
   };
 }

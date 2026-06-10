@@ -24,7 +24,7 @@ export async function getPostDetail(id: string) {
       analysisStatus: true,
       likeCount: true,
       dislikeCount: true,
-      influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
+      influencer: { select: { handle: true, displayName: true, avatarUrl: true, platform: true } },
       analysis: { select: { summary: true, summaryEn: true, keyPoints: true, keyPointsEn: true, overallStance: true, confidence: true, model: true } },
       tickers: { select: { symbol: true, stance: true, rationale: true, rationaleEn: true } },
     },
@@ -106,7 +106,10 @@ export function PostDetail({ post, dataBySymbol, myVote, locale = "zh" }: Detail
           headline: summary ? summary.slice(0, 56) : post.tickers[0] ? `$${post.tickers[0].symbol}` : name,
           sub: post.analysis ? `${t.stance.overallPrefix}${stanceText(post.analysis.overallStance, locale)}` : undefined,
           accent: post.analysis?.overallStance === "bullish" ? "bull" : post.analysis?.overallStance === "bearish" ? "bear" : "neutral",
-          tweetText: `${name}${post.tickers[0] ? ` 对 $${post.tickers[0].symbol}` : ""}${post.analysis ? `: ${stanceText(post.analysis.overallStance, locale)}` : ""}${summary ? ` — ${summary.slice(0, 80)}` : ""}`,
+          tweetText: en
+            ? `${name}${post.tickers[0] ? ` on $${post.tickers[0].symbol}` : ""}${post.analysis ? `: ${stanceText(post.analysis.overallStance, locale)}` : ""}${summary ? ` — ${summary.slice(0, 80)}` : ""}`
+            : `${name}${post.tickers[0] ? ` 对 $${post.tickers[0].symbol}` : ""}${post.analysis ? `:${stanceText(post.analysis.overallStance, locale)}` : ""}${summary ? ` — ${summary.slice(0, 80)}` : ""}`,
+          via: inf.platform === "twitter" ? inf.handle : undefined,
         }}
       />
       </div>

@@ -1,3 +1,5 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import { getStockConsensus, getStockDebate } from "@/lib/stance";
 import { isNewsAccount } from "@/lib/account";
 import { ShareButton } from "@/components/ShareButton";
@@ -5,6 +7,7 @@ import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
 import { relativeTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
+import { breadcrumbJsonLd, SITE_URL } from "@/lib/seo";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -15,11 +18,45 @@ const COLOR: Record<string, string> = {
   neutral: "var(--text-tertiary)",
 };
 
+// 同一请求内 generateMetadata 与页面共享一次共识查询(避免重复全表窗口扫描)。
+const consensusCached = cache((symbol: string) => getStockConsensus(symbol));
+
+export async function generateMetadata({ params }: { params: Promise<{ symbol: string }> }): Promise<Metadata> {
+  const { symbol } = await params;
+  const en = (await getLocale()) === "en";
+  const c = await consensusCached(symbol);
+  const n = c.stances.length;
+  const sym = c.symbol;
+  const lean =
+    c.bullish > c.bearish ? (en ? "leaning bullish" : "整体偏多") : c.bearish > c.bullish ? (en ? "leaning bearish" : "整体偏空") : en ? "split" : "多空分歧";
+  const title =
+    n > 0
+      ? en
+        ? `$${sym}${c.name ? ` (${c.name})` : ""}: ${n} influencers, ${c.bullish} bull / ${c.bearish} bear`
+        : `$${sym}${c.name ? ` · ${c.name}` : ""}:${n} 位博主共识 ▲${c.bullish} ▼${c.bearish}`
+      : en
+        ? `$${sym}: influencer consensus`
+        : `$${sym}:财经博主共识`;
+  const description = (
+    en
+      ? `What financial influencers say about $${sym}: ${n} tracked, ${lean}. Bull-vs-bear cases, stance flips and AI analysis on X2T.`
+      : `财经博主怎么看 $${sym}:${n} 位在追踪,${lean}。多空辩论、立场转向、AI 双语分析,尽在 X2T。`
+  ).slice(0, 160);
+  const url = `/t/${encodeURIComponent(sym)}`;
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { type: "website", title, description, url, images: ["/og.png"] },
+    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
+  };
+}
+
 export default async function StockPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await params;
   const locale = await getLocale();
   const t = getDict(locale);
-  const c = await getStockConsensus(symbol);
+  const c = await consensusCached(symbol);
   const debate = await getStockDebate(symbol, locale === "en" ? "en" : "zh");
 
   const cx = 170;
@@ -39,6 +76,17 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: "X2T", url: SITE_URL },
+              { name: `$${c.symbol}`, url: `${SITE_URL}/t/${encodeURIComponent(c.symbol)}` },
+            ]),
+          ),
+        }}
+      />
       <h1 className="page-title">
         ${c.symbol}
         {c.name && (
@@ -151,7 +199,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
                   <Link href={`/i/${s.handle}`}>
                     <strong style={{ fontSize: "0.85rem" }}>{s.displayName ?? s.handle}</strong>
                   </Link>
-                  {isNewsAccount(s.handle) && <span className="news-tag" title={t.consensus.methodNote}>{t.influencer.newsAccount}</span>}
+                  {isNewsAccount(s.handle) && <span className="news-tag" title={t.influencer.newsAccountHint}>{t.influencer.newsAccount}</span>}
                   <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)" }}>{relativeTime(s.postedAt, locale)}</div>
                 </div>
                 <StanceBadge stance={s.stance} locale={locale} />

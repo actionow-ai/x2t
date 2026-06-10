@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { unstable_cache } from "next/cache";
@@ -25,6 +26,11 @@ const getBoardTop = unstable_cache(
   ["home-board-top"],
   { revalidate: 3600 },
 );
+
+export async function generateMetadata(): Promise<Metadata> {
+  // 首页显式自指 canonical(根布局不再设 canonical,避免被子页继承);title/描述继承站点默认。
+  return { alternates: { canonical: "/" } };
+}
 
 export default async function FeedPage({ searchParams }: { searchParams: Promise<{ view?: string; sig?: string }> }) {
   const { view, sig } = await searchParams;
@@ -147,13 +153,14 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
             <div className="rail-card">
               <div className="rail-head">{t.board.title}</div>
               {boardTop.map((r, i) => (
-                <Link key={r.handle} href={`/i/${r.handle}`} className="rail-rank">
+                <Link key={r.handle} href={`/i/${r.handle}`} className="rail-rank" title={`${r.samples} ${t.influencer.samples}`}>
                   <span className="lb-rank">{i + 1}</span>
                   <span className="rail-rank-name">
                     {r.displayName ?? r.handle}
-                    {r.significant && <span className="lb-sig">★</span>}
+                    {r.significant && <span className="lb-sig" title={t.board.sigHint}>★</span>}
                   </span>
-                  <span className={r.beatRate >= 0.5 ? "up" : "dn"}>{Math.round(r.beatRate * 100)}%</span>
+                  {/* 带样本数,避免 n=10 的 80% 与 n=200 的 80% 在首页不可区分(诚实性) */}
+                  <span className={r.beatRate >= 0.5 ? "up" : "dn"}>{Math.round(r.beatRate * 100)}% · {r.samples}</span>
                 </Link>
               ))}
               <Link href="/leaderboard" className="rail-more">{t.board.title} →</Link>

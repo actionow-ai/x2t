@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic"; // 运行时生成,读取运行时 APP_U
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/admin", "/api/"] }],
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/admin", "/api/", "/login", "/alerts", "/submit", "/following"] }],
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,
   };
