@@ -108,7 +108,9 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
     // 转向检测 → 物化 Flip 表 +「立场转向」推送 + 可组合告警评估（失败不影响分析）
     try {
       const flips = await detectFlips(post.id);
-      // 物化到 Flip 表:首页/RSS/图谱改为索引读,免每请求对全量 PostTicker 做窗口扫描(性能 P0-1)
+      // 物化到 Flip 表(首页/RSS/图谱索引读)。先对账删除:重分析后某 symbol 不再转向时删掉残留旧行,
+      // 否则首页/RSS 会展示一条实际已不存在的"幽灵转向"(perf-1)。notIn:[] → 删该帖全部 flip(无转向时)。
+      await prisma.flip.deleteMany({ where: { postId: post.id, symbol: { notIn: flips.map((f) => f.symbol) } } });
       for (const f of flips) {
         await prisma.flip.upsert({
           where: { postId_symbol: { postId: post.id, symbol: f.symbol } },

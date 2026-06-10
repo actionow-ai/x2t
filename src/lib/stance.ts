@@ -205,7 +205,8 @@ export async function detectFlips(
         symbol: t.symbol,
         post: { influencerId: post.influencerId, id: { not: post.id }, postedAt: { lt: post.postedAt } },
       },
-      orderBy: { post: { postedAt: "desc" } },
+      // 次级 tie-break postId:同 postedAt 并列时确定性取最新,与 backfillFlips 的 lag 排序一致(perf-3)
+      orderBy: [{ post: { postedAt: "desc" } }, { postId: "desc" }],
     });
     if (prev && prev.stance !== t.stance) {
       flips.push({ symbol: t.symbol, prevStance: prev.stance, newStance: t.stance });
@@ -262,19 +263,19 @@ export async function getRecentFlips(limit = 8): Promise<RecentFlip[]> {
   }));
 }
 
-// 一次性把历史 PostTicker 的立场转向物化进 Flip 表(部署后/Flip 空时回填,让存量 flip 立即可读)。
-// lag 按时间正序取前一条立场,与当前不同即转向;ON CONFLICT 幂等。
+// 把历史 PostTicker 的立场转向物化进 Flip 表(部署后/Flip 空时回填;DO UPDATE 使其也可作一致的强制重物化)。
+// lag 按 (postedAt, postId) 正序取前一条立场(postId 次级 tie-break,与 detectFlips 排序一致,perf-3),与当前不同即转向。
 export async function backfillFlips(): Promise<number> {
   return prisma.$executeRaw`
     INSERT INTO "Flip" (id, "influencerId", symbol, "postId", "prevStance", "newStance", "postedAt", "createdAt")
     SELECT gen_random_uuid()::text, t."influencerId", t.symbol, t."postId", t."prevStance", t.stance, t."postedAt", now()
     FROM (
       SELECT p."influencerId", pt.symbol, pt.stance, pt."postId", p."postedAt",
-             lag(pt.stance) OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt") AS "prevStance"
+             lag(pt.stance) OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt", pt."postId") AS "prevStance"
       FROM "PostTicker" pt JOIN "Post" p ON p.id = pt."postId"
     ) t
     WHERE t."prevStance" IS NOT NULL AND t."prevStance" <> t.stance
-    ON CONFLICT ("postId", symbol) DO NOTHING
+    ON CONFLICT ("postId", symbol) DO UPDATE SET "prevStance" = EXCLUDED."prevStance", "newStance" = EXCLUDED."newStance", "postedAt" = EXCLUDED."postedAt"
   `;
 }
 
