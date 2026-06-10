@@ -29,13 +29,9 @@ export async function generateMetadata({ params }: { params: Promise<{ handle: s
   const inf = await prisma.influencer.findFirst({ where: { handle }, select: { id: true, handle: true, displayName: true, bio: true } });
   if (!inf) return {};
   const name = inf.displayName ?? inf.handle;
-  const wr = (await getBacktest(inf.id)).winRate;
-  const perf = wr?.rate
-    ? en
-      ? `, beat S&P ${Math.round(wr.rate.beatRate * 100)}% over ${wr.samples} calls`
-      : `,跑赢大盘 ${Math.round(wr.rate.beatRate * 100)}%(${wr.samples} 次判断)`
-    : "";
-  const title = en ? `${name} (@${inf.handle}) — track record${perf}` : `${name}(@${inf.handle})战绩${perf}`;
+  // 不在 generateMetadata 里调 getBacktest(unstable_cache+resolveCalls):它在 metadata 上下文会抛错,
+  // 导致整个 generateMetadata 回退默认 → canonical 丢失(SEO P0)。战绩数字在页面正文展示;此处保证 canonical 一定输出。
+  const title = en ? `${name} (@${inf.handle}) — stance & track record` : `${name}(@${inf.handle})· 立场与战绩`;
   const description = (en ? `${name}'s stance ledger, win-rate vs S&P 500 and recent flips on X2T. ${inf.bio ?? ""}` : `${name} 在 X2T 的立场账本、跑赢大盘率与近期转向。${inf.bio ?? ""}`)
     .trim()
     .slice(0, 160);

@@ -28,8 +28,8 @@ const getBoardTop = unstable_cache(
 );
 
 export async function generateMetadata(): Promise<Metadata> {
-  // 首页显式自指 canonical(根布局不再设 canonical,避免被子页继承);title/描述继承站点默认。
-  return { alternates: { canonical: "/" } };
+  // 首页显式自指 canonical;并补回 RSS autodiscovery(子页设 alternates 会覆盖 layout 继承的 types)。
+  return { alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/rss/all", title: "X2T" }] } } };
 }
 
 export default async function FeedPage({ searchParams }: { searchParams: Promise<{ view?: string; sig?: string }> }) {
