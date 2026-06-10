@@ -59,6 +59,10 @@ export async function GET(request: Request) {
   });
 
   return new Response(xml, {
-    headers: { "Content-Type": "application/rss+xml; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/rss+xml; charset=utf-8",
+      // RSS 阅读器高频轮询:补与 /rss/flips 一致的缓存头,CDN/浏览器吃量,别持续打单容器(perf-2)
+      "Cache-Control": "public, max-age=120, s-maxage=300, stale-while-revalidate=600",
+    },
   });
 }

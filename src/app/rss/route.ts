@@ -40,6 +40,9 @@ export async function GET(request: Request) {
   });
 
   return new Response(xml, {
-    headers: { "Content-Type": "application/rss+xml; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/rss+xml; charset=utf-8",
+      "Cache-Control": "public, max-age=120, s-maxage=300, stale-while-revalidate=600",
+    },
   });
 }

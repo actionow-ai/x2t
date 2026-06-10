@@ -27,6 +27,37 @@ const getBoardTop = unstable_cache(
   { revalidate: 3600 },
 );
 
+// 首页 feed 查询缓存(30s):内容语言无关(双语都落库),按 (关注 ids 排序 + onlySignal) keyed,
+// 削减 worker tick 期间每请求重打 DB 的并发成本(perf-1 数据级缓解;页面级 ISR 因 cookie 双语不可用)。
+// postedAt 序列化前转 number、读后转回 Date —— unstable_cache 会把 Date 变字符串,relativeTime 用 .getTime() 会崩。
+const FEED_SELECT = {
+  id: true,
+  contentText: true,
+  contentZh: true,
+  contentEn: true,
+  url: true,
+  postedAt: true,
+  influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
+  analysis: { select: { summary: true, summaryEn: true, overallStance: true } },
+  tickers: { select: { symbol: true, stance: true } },
+  likeCount: true,
+  dislikeCount: true,
+} as const;
+const getFeedPosts = unstable_cache(
+  async (key: string) => {
+    const { followIds, onlySignal } = JSON.parse(key) as { followIds: string[] | null; onlySignal: boolean };
+    const where = {
+      influencer: { platform: { not: "manual" as const } },
+      ...(followIds ? { influencerId: { in: followIds.length ? followIds : ["__none__"] } } : {}),
+      ...(onlySignal ? { analysis: { overallStance: { in: ["bullish", "bearish"] as ("bullish" | "bearish")[] } } } : {}),
+    };
+    const rows = await prisma.post.findMany({ where, orderBy: { postedAt: "desc" }, take: 50, select: FEED_SELECT });
+    return rows.map((p) => ({ ...p, postedAt: p.postedAt.getTime() }));
+  },
+  ["home-feed"],
+  { revalidate: 30 },
+);
+
 export async function generateMetadata(): Promise<Metadata> {
   // 首页显式自指 canonical;并补回 RSS autodiscovery(子页设 alternates 会覆盖 layout 继承的 types)。
   return { alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/rss/all", title: "X2T" }] } } };
@@ -52,30 +83,9 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
   const v = following ? "following" : "all";
   const sigSuffix = onlySignal ? "" : "&sig=0";
 
-  const where = {
-    // 用户手工提交(manual)默认不进公共信号流——未经验证的冒名内容只在其 /p、/i 页可见(合规)
-    influencer: { platform: { not: "manual" as const } },
-    ...(following ? { influencerId: { in: followedIds.length ? followedIds : ["__none__"] } } : {}),
-    ...(onlySignal ? { analysis: { overallStance: { in: ["bullish", "bearish"] as ("bullish" | "bearish")[] } } } : {}),
-  };
-  const posts = await prisma.post.findMany({
-    where,
-    orderBy: { postedAt: "desc" },
-    take: 50,
-    select: {
-      id: true,
-      contentText: true,
-      contentZh: true,
-      contentEn: true,
-      url: true,
-      postedAt: true,
-      influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
-      analysis: { select: { summary: true, summaryEn: true, overallStance: true } },
-      tickers: { select: { symbol: true, stance: true } },
-      likeCount: true,
-      dislikeCount: true,
-    },
-  });
+  // manual 帖不进公共流(合规);feed 数据走 30s 缓存(getFeedPosts),postedAt 读回转 Date。
+  const feedKey = JSON.stringify({ followIds: following ? [...followedIds].sort() : null, onlySignal });
+  const posts = (await getFeedPosts(feedKey)).map((p) => ({ ...p, postedAt: new Date(p.postedAt) }));
   // posts 已取;myVotes / 转向看板 / Top3 互不依赖 → 并行(消 RSC 串行瀑布,性能 P1-5)
   const [myVotes, rawFlips, boardTop] = await Promise.all([getMyVotes(posts.map((p) => p.id)), getRecentFlips(40), getBoardTop()]);
   const flips = (() => {
