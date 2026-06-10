@@ -2,6 +2,9 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
+import { LoadMore } from "@/components/LoadMore";
+import { loadMoreInfluencerPosts } from "@/app/feed-actions";
+import { FEED_PAGE } from "@/lib/feed";
 import { FollowButton } from "@/components/FollowButton";
 import { AvatarInner } from "@/components/Avatar";
 import { StanceBadge } from "@/components/StanceBadge";
@@ -59,7 +62,7 @@ export default async function InfluencerPage({
     include: {
       posts: {
         orderBy: { postedAt: "desc" },
-        take: 50,
+        take: FEED_PAGE,
         select: {
           id: true,
           contentText: true,
@@ -78,6 +81,7 @@ export default async function InfluencerPage({
   });
   if (!influencer) notFound();
   const myVotes = await getMyVotes(influencer.posts.map((p) => p.id));
+  const postsCursor = influencer.posts.length === FEED_PAGE ? influencer.posts[influencer.posts.length - 1].postedAt.getTime() : null;
 
   const name = influencer.displayName ?? influencer.handle;
 
@@ -265,6 +269,12 @@ export default async function InfluencerPage({
           {influencer.posts.map((p) => (
             <PostCard key={p.id} post={{ ...p, myVote: myVotes[p.id] ?? 0 }} locale={locale} />
           ))}
+          <LoadMore
+            load={loadMoreInfluencerPosts.bind(null, influencer.id)}
+            initialCursor={postsCursor}
+            label={t.home.loadMore}
+            loadingLabel={t.home.loading}
+          />
         </div>
       )}
       </div>

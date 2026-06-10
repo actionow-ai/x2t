@@ -168,6 +168,18 @@ main { padding: 1.75rem 0 5rem; }
 
 /* ===================== FEED + POST BLOCK ===================== */
 .feed { display: flex; flex-direction: column; gap: 1.2rem; }
+.load-more-wrap { display: flex; justify-content: center; padding: 0.4rem 0 0.2rem; }
+.search-box { display: flex; }
+.search-input { font-family: var(--mono); font-size: 0.8rem; padding: 0.32rem 0.6rem; border: 2px solid var(--ink); background: var(--bg-secondary); color: var(--text-primary); width: 12rem; max-width: 100%; box-shadow: 2px 2px 0 var(--ink); }
+.search-input::placeholder { color: var(--text-tertiary); }
+.search-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.search-jumps { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0 0.9rem; }
+.search-stance { margin-bottom: 1rem; }
+/* /search 页顶部框占满一行更好用 */
+main .search-box { margin-bottom: 0.9rem; }
+main .search-input { width: 22rem; }
+/* header 内搜索框移动端收起(改走 nav「搜索」tab → /search 页) */
+@media (max-width: 820px) { .site-header .search-box { display: none; } }
 
 /* ===================== 移动端密度（更小字号/边距，提高信息密度） ===================== */
 @media (max-width: 640px) {

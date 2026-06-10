@@ -6,6 +6,7 @@ import { FollowSync } from "@/components/FollowSync";
 import { TickerTape } from "@/components/TickerTape";
 import { PageFx } from "@/components/PageFx";
 import { NavTabs } from "@/components/NavTabs";
+import { SearchBox } from "@/components/SearchBox";
 import { LangProvider } from "@/components/LangProvider";
 import { LangSwitch } from "@/components/LangSwitch";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
@@ -41,6 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <span className="masthead-disc">{t.header.disclaimerShort}</span>
               </div>
               <NavTabs userEmail={user?.email ?? null} isAdmin={admin} />
+              <SearchBox />
               <LangSwitch />
             </div>
           </header>

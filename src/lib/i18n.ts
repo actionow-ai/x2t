@@ -13,6 +13,7 @@ export function normalizeLocale(v: string | undefined | null): Locale {
 const zh = {
   nav: {
     signals: "信号流",
+    search: "搜索",
     graph: "图谱",
     board: "战绩榜",
     alerts: "预警",
@@ -58,11 +59,20 @@ const zh = {
     neutral: "中性",
     overallPrefix: "整体",
   },
+  search: {
+    title: "搜索",
+    hint: "搜标的($NVDA)、博主(@handle)或帖子关键词",
+    placeholder: "搜 $标的 / @博主 / 关键词",
+    noResults: "没有匹配的帖子,换个关键词试试",
+    stanceAll: "全部",
+  },
   home: {
     title: "财经博主在看多还是看空",
     sub: "我们替你盯着一批财经博主，用 AI 把每条帖子读成对个股的看多/看空判断——谁的立场一变，第一时间告诉你。",
     enablePush: "开启推送",
     allRss: "全站 RSS",
+    loadMore: "加载更多",
+    loading: "加载中…",
     empty: "还没有帖子。去关注博主或等待抓取，或",
     submitOne: "手动提交一条",
     viewAll: "全站",
@@ -319,6 +329,7 @@ export type Dict = typeof zh;
 const en: Dict = {
   nav: {
     signals: "Signals",
+    search: "Search",
     graph: "Graph",
     board: "Leaderboard",
     alerts: "Alerts",
@@ -364,11 +375,20 @@ const en: Dict = {
     neutral: "Neutral",
     overallPrefix: "Overall",
   },
+  search: {
+    title: "Search",
+    hint: "Search a ticker ($NVDA), influencer (@handle), or post keyword",
+    placeholder: "Search $ticker / @handle / keyword",
+    noResults: "No matching posts — try another keyword",
+    stanceAll: "All",
+  },
   home: {
     title: "Are the influencers bullish or bearish?",
     sub: "We watch a roster of finance influencers and use AI to read each post into a bullish/bearish call on specific tickers — and tell you the moment someone's stance flips.",
     enablePush: "Enable push",
     allRss: "All RSS",
+    loadMore: "Load more",
+    loading: "Loading…",
     empty: "No posts yet. Follow some influencers or wait for the next fetch, or",
     submitOne: "submit one manually",
     viewAll: "All",

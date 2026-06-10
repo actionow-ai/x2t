@@ -16,6 +16,7 @@ export function NavTabs({ userEmail, isAdmin = false }: { userEmail: string | nu
 
   const tabs = [
     { href: "/", label: t.nav.signals },
+    { href: "/search", label: t.nav.search },
     { href: "/graph", label: t.nav.graph },
     { href: "/leaderboard", label: t.nav.board },
     { href: "/alerts", label: t.nav.alerts },

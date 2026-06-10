@@ -4,6 +4,9 @@ import { cookies } from "next/headers";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PostCard } from "@/components/PostCard";
+import { LoadMore } from "@/components/LoadMore";
+import { loadMoreFeed } from "@/app/feed-actions";
+import { FEED_SELECT, FEED_PAGE, feedWhere } from "@/lib/feed";
 import { PushToggle } from "@/components/PushToggle";
 import { stanceMeta } from "@/components/StanceBadge";
 import { getCurrentUserId } from "@/lib/auth";
@@ -30,28 +33,10 @@ const getBoardTop = unstable_cache(
 // 首页 feed 查询缓存(30s):内容语言无关(双语都落库),按 (关注 ids 排序 + onlySignal) keyed,
 // 削减 worker tick 期间每请求重打 DB 的并发成本(perf-1 数据级缓解;页面级 ISR 因 cookie 双语不可用)。
 // postedAt 序列化前转 number、读后转回 Date —— unstable_cache 会把 Date 变字符串,relativeTime 用 .getTime() 会崩。
-const FEED_SELECT = {
-  id: true,
-  contentText: true,
-  contentZh: true,
-  contentEn: true,
-  url: true,
-  postedAt: true,
-  influencer: { select: { handle: true, displayName: true, avatarUrl: true } },
-  analysis: { select: { summary: true, summaryEn: true, overallStance: true } },
-  tickers: { select: { symbol: true, stance: true } },
-  likeCount: true,
-  dislikeCount: true,
-} as const;
 const getFeedPosts = unstable_cache(
   async (key: string) => {
     const { followIds, onlySignal } = JSON.parse(key) as { followIds: string[] | null; onlySignal: boolean };
-    const where = {
-      influencer: { platform: { not: "manual" as const } },
-      ...(followIds ? { influencerId: { in: followIds.length ? followIds : ["__none__"] } } : {}),
-      ...(onlySignal ? { analysis: { overallStance: { in: ["bullish", "bearish"] as ("bullish" | "bearish")[] } } } : {}),
-    };
-    const rows = await prisma.post.findMany({ where, orderBy: { postedAt: "desc" }, take: 50, select: FEED_SELECT });
+    const rows = await prisma.post.findMany({ where: feedWhere(followIds, onlySignal), orderBy: { postedAt: "desc" }, take: FEED_PAGE, select: FEED_SELECT });
     return rows.map((p) => ({ ...p, postedAt: p.postedAt.getTime() }));
   },
   ["home-feed"],
@@ -86,6 +71,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
   // manual 帖不进公共流(合规);feed 数据走 30s 缓存(getFeedPosts),postedAt 读回转 Date。
   const feedKey = JSON.stringify({ followIds: following ? [...followedIds].sort() : null, onlySignal });
   const posts = (await getFeedPosts(feedKey)).map((p) => ({ ...p, postedAt: new Date(p.postedAt) }));
+  const feedCursor = posts.length === FEED_PAGE ? posts[posts.length - 1].postedAt.getTime() : null;
   // posts 已取;myVotes / 转向看板 / Top3 互不依赖 → 并行(消 RSC 串行瀑布,性能 P1-5)
   const [myVotes, rawFlips, boardTop] = await Promise.all([getMyVotes(posts.map((p) => p.id)), getRecentFlips(40), getBoardTop()]);
   const flips = (() => {
@@ -140,6 +126,12 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
               {posts.map((p) => (
                 <PostCard key={p.id} post={{ ...p, myVote: myVotes[p.id] ?? 0 }} locale={locale} />
               ))}
+              <LoadMore
+                load={loadMoreFeed.bind(null, { view: v, sig: onlySignal ? "1" : "0" })}
+                initialCursor={feedCursor}
+                label={t.home.loadMore}
+                loadingLabel={t.home.loading}
+              />
             </div>
           )}
         </div>
