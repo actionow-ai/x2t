@@ -175,6 +175,7 @@ model User {
   tokenVersion Int      @default(0) // 会话版本:登出/泄露时 +1 使旧 cookie 失效
   digestOptIn  Boolean  @default(false) // 邮件每日摘要订阅(显式 opt-in,默认关)
   locale       String? // 推送/邮件本地化语言 zh|en(登录时记录,服务端外发文案据此选语言)
+  lastDigestAt DateTime? // 上次成功发出 digest 的时间:per-user 幂等,中途崩溃重跑不重复轰炸(digest-1)
 
   follows           Follow[]
   pushSubscriptions PushSubscription[]

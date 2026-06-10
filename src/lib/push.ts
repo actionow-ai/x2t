@@ -91,8 +91,9 @@ async function deliverToFollowers(
   if (!subs.length) return { targeted: 0, sent: 0 };
   const ids = subs.map((s) => s.id);
 
+  // 只把【真正送达(status:sent)】算作已投递:原缺 status 过滤,failed 行也被当"已投递"永久阻塞重试(push-1)
   const delivered = new Set(
-    (await prisma.delivery.findMany({ where: { postId, channel, pushSubscriptionId: { in: ids } }, select: { pushSubscriptionId: true } })).map((d) => d.pushSubscriptionId),
+    (await prisma.delivery.findMany({ where: { postId, channel, status: "sent", pushSubscriptionId: { in: ids } }, select: { pushSubscriptionId: true } })).map((d) => d.pushSubscriptionId),
   );
 
   // 日上限:批量查今日该渠道已发条数(每订阅),达上限的跳过。
@@ -123,14 +124,25 @@ async function deliverToFollowers(
     const payload = buildPayload(pickLocale(sub.user?.locale));
     try {
       await webpush.sendNotification({ endpoint: sub.endpoint, keys }, payload);
-      await prisma.delivery.create({ data: { postId, pushSubscriptionId: sub.id, channel, status: "sent" } });
+      // upsert 而非 create:重试一条之前 failed 的投递时,同 (post,订阅,渠道) 唯一键已存在,create 会 P2002
+      await prisma.delivery.upsert({
+        where: { postId_pushSubscriptionId_channel: { postId, pushSubscriptionId: sub.id, channel } },
+        create: { postId, pushSubscriptionId: sub.id, channel, status: "sent" },
+        update: { status: "sent", sentAt: new Date() },
+      });
       sent++;
     } catch (err: unknown) {
       const statusCode = (err as { statusCode?: number }).statusCode;
       if (statusCode === 404 || statusCode === 410) {
         await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
       } else {
-        await prisma.delivery.create({ data: { postId, pushSubscriptionId: sub.id, channel, status: "failed" } }).catch(() => {});
+        await prisma.delivery
+          .upsert({
+            where: { postId_pushSubscriptionId_channel: { postId, pushSubscriptionId: sub.id, channel } },
+            create: { postId, pushSubscriptionId: sub.id, channel, status: "failed" },
+            update: { status: "failed", sentAt: new Date() },
+          })
+          .catch(() => {});
       }
     }
   }

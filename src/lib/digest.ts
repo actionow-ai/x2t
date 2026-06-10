@@ -34,7 +34,13 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ESC[c] ?? c);
 // 头部突出"立场转向"事件 —— 每日回访核心钩子。文+链接(可点回站)+ 一键退订;按 user.locale 中英。
 export async function runDigest(): Promise<{ users: number; sent: number; attempted: number; failed: number }> {
   const since = new Date(Date.now() - 24 * 3600 * 1000);
-  const users = await prisma.user.findMany({ where: { digestOptIn: true }, include: { follows: true } });
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  // per-user 幂等:只取今天还没成功发过 digest 的 opt-in 用户(中途崩溃重跑不重复轰炸,digest-1)
+  const users = await prisma.user.findMany({
+    where: { digestOptIn: true, OR: [{ lastDigestAt: null }, { lastDigestAt: { lt: todayStart } }] },
+    include: { follows: true },
+  });
   let sent = 0;
   let attempted = 0;
   let failed = 0;
@@ -49,6 +55,8 @@ export async function runDigest(): Promise<{ users: number; sent: number; attemp
   for (const u of users) {
     const ids = u.follows.map((f) => f.influencerId);
     if (ids.length === 0) continue;
+    // 逐用户独立 try(含 posts 查询/detectFlips):单点 DB 抖动/发送抛错不拖垮整批、不触发整批重发(digest-1/H2)。
+    try {
     const posts = await prisma.post.findMany({
       where: { influencerId: { in: ids }, postedAt: { gte: since } },
       include: { influencer: true, analysis: true },
@@ -113,12 +121,14 @@ ${flipHtml}${postsHtml}
 <p style="color:#888;font-size:12px;margin-top:20px">— X2T · ${en ? "Not financial advice" : "非投资建议"}<br>
 <a href="${unsubUrl}" style="color:#888">${en ? "Unsubscribe from daily digest" : "退订每日摘要"}</a></p></div>`;
 
-    // 逐用户独立 try:单个失败不再中断整批、不再触发整批重发(修运维 H2)。
-    attempted++;
-    try {
+      attempted++;
       const r = await sendEmail(u.email, subject, text, { html, listUnsubscribe: unsubUrl });
-      if (r.sent) sent++;
-      else failed++; // 未配邮件(mock 兜底)算未送达——不再把 sent 计数虚报(修"发了 N 封实际 0 封")
+      if (r.sent) {
+        sent++;
+        await prisma.user.update({ where: { id: u.id }, data: { lastDigestAt: new Date() } }).catch(() => {}); // 落 per-user 幂等标记
+      } else {
+        failed++; // 未配邮件(mock 兜底)算未送达,不虚报
+      }
     } catch {
       failed++;
     }
