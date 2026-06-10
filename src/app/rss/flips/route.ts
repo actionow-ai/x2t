@@ -34,5 +34,11 @@ export async function GET(request: Request) {
     items,
   });
 
-  return new Response(xml, { headers: { "Content-Type": "application/rss+xml; charset=utf-8" } });
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/rss+xml; charset=utf-8",
+      // RSS 阅读器高频轮询:CDN/浏览器缓存,减少回源(内容已是物化 Flip 表的索引读)
+      "Cache-Control": "public, max-age=120, s-maxage=300, stale-while-revalidate=600",
+    },
+  });
 }

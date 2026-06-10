@@ -74,10 +74,8 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
       dislikeCount: true,
     },
   });
-  const myVotes = await getMyVotes(posts.map((p) => p.id));
-
-  // 转向看板:折叠同帖批量翻转 + 每博主≤2 + 优先方向反转,提升信噪比与多样性。
-  const rawFlips = await getRecentFlips(40);
+  // posts 已取;myVotes / 转向看板 / Top3 互不依赖 → 并行(消 RSC 串行瀑布,性能 P1-5)
+  const [myVotes, rawFlips, boardTop] = await Promise.all([getMyVotes(posts.map((p) => p.id)), getRecentFlips(40), getBoardTop()]);
   const flips = (() => {
     const directionalFirst = [...rawFlips].sort(
       (a, b) =>
@@ -97,7 +95,6 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     }
     return out;
   })();
-  const boardTop = await getBoardTop();
 
   return (
     <>

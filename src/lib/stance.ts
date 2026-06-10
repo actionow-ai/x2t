@@ -31,8 +31,9 @@ export type StockConsensus = {
  */
 export async function getStockConsensus(symbol: string, windowDays?: number): Promise<StockConsensus> {
   const sym = symbol.toUpperCase();
-  // 每博主取该票最近两条立场(rn=1 最新、rn=2 上一条供转向),窗口函数一次查全 ——
-  // 不再像旧版那样全局 take 截断,避免热门票下低频博主的"最新一条/上一条"被截掉导致共识与转向算错。
+  // 硬扫描窗口(默认 2 年):限制窗口函数扫描的历史行数,避免热门票全历史扫描;
+  // 2 年没再提及的立场也不该计入"当前共识"。windowDays 是更窄的展示过滤(JS 层)。
+  const scanSince = new Date(Date.now() - Number(process.env.CONSENSUS_SCAN_DAYS ?? 730) * 86_400_000);
   type Row = { stance: Stance; influencerId: string; postedAt: Date; postId: string; handle: string; displayName: string | null; rn: number };
   const rows = await prisma.$queryRaw<Row[]>`
     SELECT t.stance, t."influencerId", t."postedAt", t."postId", t.handle, t."displayName", t.rn::int AS rn
@@ -42,7 +43,7 @@ export async function getStockConsensus(symbol: string, windowDays?: number): Pr
       FROM "PostTicker" pt
       JOIN "Post" p ON p.id = pt."postId"
       JOIN "Influencer" inf ON inf.id = p."influencerId"
-      WHERE pt.symbol = ${sym}
+      WHERE pt.symbol = ${sym} AND p."postedAt" >= ${scanSince}
     ) t
     WHERE t.rn <= 2
     ORDER BY t."influencerId", t.rn
@@ -149,6 +150,7 @@ export async function getGraphData(): Promise<GraphData> {
     ) t
     WHERE t.rn = 1
     ORDER BY t."postedAt" DESC
+    LIMIT ${Number(process.env.GRAPH_MAX_EDGES ?? 600)}
   `;
 
   const edges: GraphData["edges"] = [];
@@ -242,23 +244,38 @@ export async function getInfluencerLedger(influencerId: string, limit = 80): Pro
 // 跨博主"近期立场转向":每个(博主×标的)取最新一条,且较上一条发生转向,按时间倒序。
 // 这是护城河信号——首页头条/异动看板用。
 export type RecentFlip = { handle: string; displayName: string | null; symbol: string; stance: Stance; prevStance: Stance; postId: string; postedAt: Date };
+// 直接读物化 Flip 表(分析时落库),索引读 + LIMIT,免对全量 PostTicker 做窗口扫描(性能 P0-1)。
 export async function getRecentFlips(limit = 8): Promise<RecentFlip[]> {
-  type Row = { handle: string; displayName: string | null; symbol: string; stance: Stance; prevStance: Stance | null; postId: string; postedAt: Date };
-  const rows = await prisma.$queryRaw<Row[]>`
-    SELECT t.handle, t."displayName", t.symbol, t.stance, t."prevStance", t."postId", t."postedAt"
+  const rows = await prisma.flip.findMany({
+    orderBy: { postedAt: "desc" },
+    take: limit,
+    select: { symbol: true, prevStance: true, newStance: true, postId: true, postedAt: true, influencer: { select: { handle: true, displayName: true } } },
+  });
+  return rows.map((r) => ({
+    handle: r.influencer.handle,
+    displayName: r.influencer.displayName,
+    symbol: r.symbol,
+    stance: r.newStance,
+    prevStance: r.prevStance,
+    postId: r.postId,
+    postedAt: new Date(r.postedAt),
+  }));
+}
+
+// 一次性把历史 PostTicker 的立场转向物化进 Flip 表(部署后/Flip 空时回填,让存量 flip 立即可读)。
+// lag 按时间正序取前一条立场,与当前不同即转向;ON CONFLICT 幂等。
+export async function backfillFlips(): Promise<number> {
+  return prisma.$executeRaw`
+    INSERT INTO "Flip" (id, "influencerId", symbol, "postId", "prevStance", "newStance", "postedAt", "createdAt")
+    SELECT gen_random_uuid()::text, t."influencerId", t.symbol, t."postId", t."prevStance", t.stance, t."postedAt", now()
     FROM (
-      SELECT inf.handle, inf."displayName", pt.symbol, pt.stance, pt."postId", p."postedAt",
-             row_number() OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt" DESC) AS rn,
-             lead(pt.stance) OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt" DESC) AS "prevStance"
-      FROM "PostTicker" pt
-      JOIN "Post" p ON p.id = pt."postId"
-      JOIN "Influencer" inf ON inf.id = p."influencerId"
+      SELECT p."influencerId", pt.symbol, pt.stance, pt."postId", p."postedAt",
+             lag(pt.stance) OVER (PARTITION BY p."influencerId", pt.symbol ORDER BY p."postedAt") AS "prevStance"
+      FROM "PostTicker" pt JOIN "Post" p ON p.id = pt."postId"
     ) t
-    WHERE t.rn = 1 AND t."prevStance" IS NOT NULL AND t."prevStance" <> t.stance
-    ORDER BY t."postedAt" DESC
-    LIMIT ${limit}
+    WHERE t."prevStance" IS NOT NULL AND t."prevStance" <> t.stance
+    ON CONFLICT ("postId", symbol) DO NOTHING
   `;
-  return rows.map((r) => ({ ...r, prevStance: r.prevStance as Stance, postedAt: new Date(r.postedAt) }));
 }
 
 // 基准标的(始终回填),供胜率做"同期大盘"对比。
@@ -391,23 +408,20 @@ export type WinRate = {
   // 样本 >= SHOW 才有比率;否则 rate=null(展示为"积累中 N/SHOW")
   rate: { beatRate: number; ci: [number, number]; avgExcess: number; lowSample: boolean } | null;
 };
-export async function getInfluencerWinRate(influencerId: string): Promise<WinRate | null> {
-  const r = await resolveCalls(influencerId);
+function winRateFromResolved(r: ResolvedCall[]): WinRate | null {
   if (r.length === 0) return null;
   if (r.length < WINRATE_SHOW) return { samples: r.length, rate: null };
   const beats = r.filter((x) => x.beat).length;
   const avgExcess = r.reduce((s, x) => s + x.excess, 0) / r.length;
-  return {
-    samples: r.length,
-    rate: { beatRate: beats / r.length, ci: wilson95(beats, r.length), avgExcess, lowSample: r.length < WINRATE_CONFIDENT },
-  };
+  return { samples: r.length, rate: { beatRate: beats / r.length, ci: wilson95(beats, r.length), avgExcess, lowSample: r.length < WINRATE_CONFIDENT } };
+}
+export async function getInfluencerWinRate(influencerId: string): Promise<WinRate | null> {
+  return winRateFromResolved(await resolveCalls(influencerId));
 }
 
 // "如果跟单 vs SPY"权益曲线(借鉴 Vibe-Trading / AI-Trader):逐条已结算 call 累加跟随方向收益 vs 同期 SPY。
-// 把"跑赢大盘 X%"从一个数字变成一条可看的轨迹。返回累计收益点(加法,单位=收益占比)。
 export type EquityCurve = { points: { follow: number; spy: number }[]; samples: number; totalFollow: number; totalSpy: number };
-export async function getInfluencerEquityCurve(influencerId: string): Promise<EquityCurve | null> {
-  const r = await resolveCalls(influencerId);
+function equityFromResolved(r: ResolvedCall[]): EquityCurve | null {
   if (r.length < WINRATE_SHOW) return null;
   let f = 0;
   let s = 0;
@@ -417,6 +431,15 @@ export async function getInfluencerEquityCurve(influencerId: string): Promise<Eq
     return { follow: f, spy: s };
   });
   return { points, samples: r.length, totalFollow: f, totalSpy: s };
+}
+export async function getInfluencerEquityCurve(influencerId: string): Promise<EquityCurve | null> {
+  return equityFromResolved(await resolveCalls(influencerId));
+}
+
+// 博主页一次结算同时出胜率 + 权益曲线(避免二者各跑一遍 resolveCalls,性能 P0-2/架构 P1-4)。
+export async function getInfluencerBacktest(influencerId: string): Promise<{ winRate: WinRate | null; equity: EquityCurve | null }> {
+  const r = await resolveCalls(influencerId);
+  return { winRate: winRateFromResolved(r), equity: equityFromResolved(r) };
 }
 
 // 博主战绩排行榜(借鉴 AI-Trader):按"跑赢大盘"率排序,并用 BH-FDR 校正多重比较——

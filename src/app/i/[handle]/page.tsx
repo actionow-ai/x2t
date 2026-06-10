@@ -10,7 +10,7 @@ import { ShareButton } from "@/components/ShareButton";
 import { getCurrentUserId } from "@/lib/auth";
 import { isNewsAccount } from "@/lib/account";
 import { getMyVotes } from "@/lib/reactions";
-import { getInfluencerLedger, getInfluencerWinRate, getInfluencerEquityCurve } from "@/lib/stance";
+import { getInfluencerLedger, getInfluencerBacktest } from "@/lib/stance";
 import { formatDateTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
@@ -20,9 +20,8 @@ import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-// 胜率/权益曲线回算偏重,缓存 1 小时,移出首屏同步路径(工程审计 P0)。
-const getWinRateCached = unstable_cache((id: string) => getInfluencerWinRate(id), ["influencer-winrate"], { revalidate: 3600 });
-const getEquityCached = unstable_cache((id: string) => getInfluencerEquityCurve(id), ["influencer-equity"], { revalidate: 3600 });
+// 胜率 + 权益曲线一次结算(回测偏重,缓存 1 小时),移出首屏同步路径(工程审计 P0)。
+const getBacktest = unstable_cache((id: string) => getInfluencerBacktest(id), ["influencer-backtest"], { revalidate: 3600 });
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }): Promise<Metadata> {
   const { handle } = await params;
@@ -30,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ handle: s
   const inf = await prisma.influencer.findFirst({ where: { handle }, select: { id: true, handle: true, displayName: true, bio: true } });
   if (!inf) return {};
   const name = inf.displayName ?? inf.handle;
-  const wr = await getWinRateCached(inf.id);
+  const wr = (await getBacktest(inf.id)).winRate;
   const perf = wr?.rate
     ? en
       ? `, beat S&P ${Math.round(wr.rate.beatRate * 100)}% over ${wr.samples} calls`
@@ -86,24 +85,22 @@ export default async function InfluencerPage({
 
   const name = influencer.displayName ?? influencer.handle;
 
-  // 客观战绩(平台统计,非博主自述):覆盖标的数 + 立场分布。替代不可验证的吹捧 bio。
-  const tickerRows = await prisma.postTicker.findMany({
-    where: { post: { influencerId: influencer.id } },
-    select: { symbol: true, stance: true },
-  });
-  const symbolSet = new Set(tickerRows.map((r) => r.symbol));
-  const bull = tickerRows.filter((r) => r.stance === "bullish").length;
-  const bear = tickerRows.filter((r) => r.stance === "bearish").length;
-  const neut = tickerRows.filter((r) => r.stance === "neutral").length;
+  // 客观战绩(平台统计,非博主自述):覆盖标的数 + 立场分布。用 groupBy 聚合而非拉全部 ticker 行(性能 P1-5)。
+  const stanceCounts = await prisma.postTicker.groupBy({ by: ["stance"], where: { post: { influencerId: influencer.id } }, _count: { _all: true } });
+  const bull = stanceCounts.find((s) => s.stance === "bullish")?._count._all ?? 0;
+  const bear = stanceCounts.find((s) => s.stance === "bearish")?._count._all ?? 0;
+  const neut = stanceCounts.find((s) => s.stance === "neutral")?._count._all ?? 0;
+  const total = bull + bear + neut;
+  const symbolCount = (await prisma.postTicker.findMany({ where: { post: { influencerId: influencer.id } }, select: { symbol: true }, distinct: ["symbol"] })).length;
   // T1.6 多空倾向解读:看多占(多+空)的比例
   const directional = bull + bear;
   const bias = directional < 3 ? null : bull / directional >= 0.66 ? t.influencer.biasBull : bull / directional <= 0.34 ? t.influencer.biasBear : t.influencer.biasBalanced;
   // T2.1 立场账本:对各标的的当前立场 + 转向
   const ledger = await getInfluencerLedger(influencer.id);
-  // T2.5 历史胜率(跑赢大盘率,平台回算;样本<30 或无基准时为 null;缓存 1h)
-  const winRate = await getWinRateCached(influencer.id);
-  // 波Q "如果跟单 vs 大盘"权益曲线(借 Vibe/AI-Trader)
-  const equity = await getEquityCached(influencer.id);
+  // T2.5 历史胜率 + 权益曲线:一次 resolveCalls 同时出两者(缓存 1h)
+  const bt = await getBacktest(influencer.id);
+  const winRate = bt.winRate;
+  const equity = bt.equity;
 
   const userId = await getCurrentUserId();
   const followed = userId
@@ -148,10 +145,10 @@ export default async function InfluencerPage({
             {influencer.lastFetchedAt ? ` · ${t.influencer.lastFetch} ${formatDateTime(influencer.lastFetchedAt, locale)}` : ""}
           </div>
           {/* T1.1+T1.6:客观战绩打头 + 多空倾向解读;博主自述 bio 折叠到次要位置,不当平台背书 */}
-          {tickerRows.length > 0 && (
+          {total > 0 && (
             <div className="track-row" title={t.influencer.trackHint}>
-              <span><b>{symbolSet.size}</b> {t.influencer.covered}</span>
-              <span><b>{tickerRows.length}</b> {t.influencer.calls}</span>
+              <span><b>{symbolCount}</b> {t.influencer.covered}</span>
+              <span><b>{total}</b> {t.influencer.calls}</span>
               <span className="up">▲{bull}</span>
               <span className="dn">▼{bear}</span>
               <span style={{ color: "var(--text-tertiary)" }}>●{neut}</span>

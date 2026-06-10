@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { prisma } from "./db";
 
@@ -79,7 +80,8 @@ export async function getCurrentUserId(): Promise<string | null> {
 }
 
 // 完整:查 DB 并校验 tokenVersion(撤销点)。敏感读用这个。
-export async function getCurrentUser() {
+// React cache 去重:同一请求内多处调用(layout + isAdmin + requireUserId)只查一次 DB(性能 P1-5)。
+export const getCurrentUser = cache(async () => {
   const c = await cookies();
   const raw = c.get(COOKIE)?.value;
   if (!raw) return null;
@@ -90,7 +92,7 @@ export async function getCurrentUser() {
   const user = await prisma.user.findUnique({ where: { id: p.userId } });
   if (!user || user.tokenVersion !== p.tv) return null; // 用户不存在或会话已撤销
   return user;
-}
+});
 
 // 写路径用:校验 tokenVersion(撤销点)后返回 userId。比廉价版 getCurrentUserId 多一次 DB 查,
 // 但杜绝"已登出/已撤销的旧 cookie 仍能发帖、改告警、改关注、改订阅"(安全 MEDIUM-2)。

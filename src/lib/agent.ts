@@ -101,9 +101,17 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
       await tx.post.update({ where: { id: post.id }, data: { lang, contentZh, contentEn, analysisStatus: "done" } });
     });
 
-    // 转向检测 → 「立场转向」推送 + 可组合告警评估（失败不影响分析）
+    // 转向检测 → 物化 Flip 表 +「立场转向」推送 + 可组合告警评估（失败不影响分析）
     try {
       const flips = await detectFlips(post.id);
+      // 物化到 Flip 表:首页/RSS/图谱改为索引读,免每请求对全量 PostTicker 做窗口扫描(性能 P0-1)
+      for (const f of flips) {
+        await prisma.flip.upsert({
+          where: { postId_symbol: { postId: post.id, symbol: f.symbol } },
+          create: { postId: post.id, influencerId: post.influencerId, symbol: f.symbol, prevStance: f.prevStance, newStance: f.newStance, postedAt: post.postedAt },
+          update: { prevStance: f.prevStance, newStance: f.newStance },
+        });
+      }
       if (flips.length) await notifyFlip(post.id, flips);
       const symbols = (await prisma.postTicker.findMany({ where: { postId: post.id }, select: { symbol: true } })).map((t) => t.symbol);
       if (symbols.length) await evaluateAlerts(symbols, new Set(flips.map((f) => f.symbol)));

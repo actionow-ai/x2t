@@ -3,7 +3,7 @@ import { ingestAll } from "../src/lib/ingest";
 import { analyzePending } from "../src/lib/agent";
 import { runDigest } from "../src/lib/digest";
 import { backfillPrices } from "../src/lib/prices";
-import { BENCHMARK_SYMBOL } from "../src/lib/stance";
+import { BENCHMARK_SYMBOL, backfillFlips } from "../src/lib/stance";
 import { prisma } from "../src/lib/db";
 import { HEARTBEAT_FILE } from "../src/lib/health";
 import { startJob, finishJob, ranSuccessfullyToday } from "../src/lib/jobrun";
@@ -96,12 +96,15 @@ async function tick() {
     }
   }
 
-  // 过期外部数据缓存 GC(节流,默认每小时一次)
+  // 过期外部数据缓存 + 旧 Delivery 记录 GC(节流,默认每小时一次)
   if (Date.now() - lastGc >= GC_MS) {
     try {
       const del = await prisma.externalDataCache.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+      // Delivery 随推送量单调增长、无清理会拖慢推送治理 groupBy —— 删 30 天前的(去重/冷却只看近期)
+      const delDays = Number(process.env.DELIVERY_RETENTION_DAYS ?? 30);
+      const delOld = await prisma.delivery.deleteMany({ where: { sentAt: { lt: new Date(Date.now() - delDays * 86_400_000) } } });
       lastGc = Date.now();
-      if (del.count) console.log(`[worker] GC：清理过期缓存 ${del.count} 条`);
+      if (del.count || delOld.count) console.log(`[worker] GC：过期缓存 ${del.count} 条 / 旧投递 ${delOld.count} 条`);
     } catch (e) {
       console.error("[worker] GC 异常:", e instanceof Error ? e.message : e);
     }
@@ -143,7 +146,25 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
 process.on("unhandledRejection", (r) => console.error("[worker] unhandledRejection:", r instanceof Error ? r.message : r));
 process.on("uncaughtException", (e) => console.error("[worker] uncaughtException:", e instanceof Error ? e.message : e));
 
+// 启动时确保物化:GIN 索引(jsonb followFilter 不能在 schema 声明)+ Flip 表回填(空则从历史 PostTicker 物化)。
+async function ensureMaterialized() {
+  try {
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "PushSubscription_followFilter_gin" ON "PushSubscription" USING GIN ("followFilter")`);
+  } catch (e) {
+    console.error("[worker] GIN 索引创建失败:", e instanceof Error ? e.message : e);
+  }
+  try {
+    if ((await prisma.flip.count()) === 0) {
+      const n = await backfillFlips();
+      console.log(`[worker] Flip 物化回填:${n} 条`);
+    }
+  } catch (e) {
+    console.error("[worker] Flip 回填失败:", e instanceof Error ? e.message : e);
+  }
+}
+
 async function main() {
+  await ensureMaterialized();
   if (once) {
     await tick();
     process.exit(0);

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import { getStockConsensus, getStockDebate } from "@/lib/stance";
 import { isNewsAccount } from "@/lib/account";
@@ -18,8 +19,9 @@ const COLOR: Record<string, string> = {
   neutral: "var(--text-tertiary)",
 };
 
-// 同一请求内 generateMetadata 与页面共享一次共识查询(避免重复全表窗口扫描)。
-const consensusCached = cache((symbol: string) => getStockConsensus(symbol));
+// 跨请求缓存(120s)+ 同请求 React cache 去重:generateMetadata 与页面只算一次,热门票也不每访问都全扫。
+const consensusCached = cache((symbol: string) => unstable_cache(() => getStockConsensus(symbol), ["stock-consensus", symbol], { revalidate: 120 })());
+const debateCached = cache((symbol: string, locale: "zh" | "en") => unstable_cache(() => getStockDebate(symbol, locale), ["stock-debate", symbol, locale], { revalidate: 120 })());
 
 export async function generateMetadata({ params }: { params: Promise<{ symbol: string }> }): Promise<Metadata> {
   const { symbol } = await params;
@@ -57,7 +59,7 @@ export default async function StockPage({ params }: { params: Promise<{ symbol: 
   const locale = await getLocale();
   const t = getDict(locale);
   const c = await consensusCached(symbol);
-  const debate = await getStockDebate(symbol, locale === "en" ? "en" : "zh");
+  const debate = await debateCached(symbol, locale === "en" ? "en" : "zh");
 
   const cx = 170;
   const cy = 150;

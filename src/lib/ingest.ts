@@ -57,8 +57,9 @@ export async function ingestInfluencer(influencerId: string): Promise<{ fetched:
 
     const createdIds: string[] = [];
     for (const p of posts) {
+      if (existingIds.has(p.platformPostId)) continue; // 已存在:跳过 upsert(消每帖一次无效写)
       const stored = await storePost(inf.id, p);
-      if (!existingIds.has(p.platformPostId)) createdIds.push(stored.id);
+      createdIds.push(stored.id);
     }
 
     await prisma.influencer.update({
@@ -89,19 +90,23 @@ export async function ingestInfluencer(influencerId: string): Promise<{ fetched:
 
 /** 抓取所有 active 博主。单个失败不影响其他（错误隔离）。 */
 export async function ingestAll(): Promise<{ influencers: number; created: number }> {
-  const active = await prisma.influencer.findMany({ where: { active: true } });
+  // 排除已申请移除(optedOut)的博主;小并发池抓取(原串行,100 源最坏超过轮询周期,性能 P1-6)
+  const active = await prisma.influencer.findMany({ where: { active: true, optedOut: false }, select: { id: true, handle: true } });
+  const conc = Math.max(1, Math.min(8, Number(process.env.INGEST_CONCURRENCY ?? 5)));
   let created = 0;
-
-  for (const inf of active) {
-    try {
-      const r = await ingestInfluencer(inf.id);
-      created += r.created;
-      console.log(`[ingest] ${inf.handle}: 取回 ${r.fetched}，新增 ${r.created}`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[ingest] ${inf.handle} 失败: ${message}`);
+  let idx = 0;
+  async function worker() {
+    while (idx < active.length) {
+      const inf = active[idx++];
+      try {
+        const r = await ingestInfluencer(inf.id);
+        created += r.created;
+        console.log(`[ingest] ${inf.handle}: 取回 ${r.fetched}，新增 ${r.created}`);
+      } catch (err) {
+        console.error(`[ingest] ${inf.handle} 失败: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
-
+  await Promise.all(Array.from({ length: Math.min(conc, active.length) }, () => worker()));
   return { influencers: active.length, created };
 }
