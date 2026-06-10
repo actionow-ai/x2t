@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import { ingestAll } from "../src/lib/ingest";
 import { analyzePending } from "../src/lib/agent";
 import { runDigest } from "../src/lib/digest";
+import { refreshAllBeliefs } from "../src/lib/belief";
 import { backfillPrices } from "../src/lib/prices";
 import { BENCHMARK_SYMBOL, backfillFlips } from "../src/lib/stance";
 import { prisma } from "../src/lib/db";
@@ -123,6 +124,19 @@ async function tick() {
     } catch (e) {
       await finishJob(jobId, false, undefined, e instanceof Error ? e.message : String(e));
       console.error("[worker] digest 异常:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // 信念回灌:日度刷新博主"历史校准信念"(竞品借鉴:结算→反思→回灌),供 AI 分析 prompt 注入 + 博主页展示。
+  if (new Date().getUTCHours() >= DIGEST_HOUR && !(await ranSuccessfullyToday("beliefs"))) {
+    const jobId = await startJob("beliefs");
+    try {
+      const b = await refreshAllBeliefs();
+      await finishJob(jobId, true, b);
+      console.log(`[worker] beliefs:刷新 ${b.updated} 博主 / 有信念 ${b.withBelief}`);
+    } catch (e) {
+      await finishJob(jobId, false, undefined, e instanceof Error ? e.message : String(e));
+      console.error("[worker] beliefs 异常:", e instanceof Error ? e.message : e);
     }
   }
 }

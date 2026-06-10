@@ -4,6 +4,7 @@ import { getExternalDataCached } from "./marketdata";
 import { analysisSchema } from "./agent-schema";
 import { translateTo, type TranslateOutput } from "./translate";
 import { detectFlips } from "./stance";
+import { beliefClauseFromStored } from "./belief";
 import { notifyFlip } from "./push";
 import { evaluateAlerts } from "./alerts";
 
@@ -28,6 +29,8 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
 
     // 3. LLM 结构化分析（按帖子【原始语种】输出，并标注 lang）
     const llm = getLlmProvider();
+    // 注入该博主历史校准"信念"(竞品借鉴:结算→反思→回灌),帮 AI 校准 confidence(欠费充值后生效)
+    const beliefClause = beliefClauseFromStored(post.influencer.belief);
     const system =
       "你是金融信号分析助手。用【帖子的原始语种】分析并输出，对公开帖子与公开市场数据做客观摘要，不给买卖建议。" +
       "标的抽取：除 candidateTickers 外，识别正文中以公司名/产品名/裸代码/中文名提及的标的，统一映射为规范交易代码" +
@@ -44,7 +47,8 @@ export async function analyzePost(postId: string): Promise<{ ok: boolean; ticker
       "反讽/调侃不要按字面取立场；信息不足/仅转发他人/纯提问 → overallStance=neutral 且 confidence 偏低。" +
       "summary/keyPoints 去掉口语填充与语气词(如「哦看」「大家都知道」「家人们」之类),只保留有信息量的判断与依据。" +
       "只输出一个 JSON 对象。字段：lang(帖子语种代码，如 en/zh/ja)、overallStance(bullish|bearish|neutral)、confidence(0..1 数字)、" +
-      "summary(原始语种摘要)、keyPoints(原始语种要点数组)、tickers(数组，每项 {symbol, stance(bullish|bearish|neutral), rationale(原始语种理由)})。";
+      "summary(原始语种摘要)、keyPoints(原始语种要点数组)、tickers(数组，每项 {symbol, stance(bullish|bearish|neutral), rationale(原始语种理由)})。" +
+      (beliefClause ? `参考——该博主历史校准(仅供校准 confidence,勿过度依赖,仍以本帖证据为准):${beliefClause}。` : "");
     const user = JSON.stringify({
       post: post.contentText,
       author: post.influencer.displayName ?? post.influencer.handle,

@@ -177,6 +177,16 @@ export default async function InfluencerPage({
               )}
             </div>
           )}
+          {influencer.belief && (
+            <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "0.3rem" }} title={t.influencer.calibHint}>
+              {t.influencer.beliefLabel}:{" "}
+              {influencer.belief
+                .split(",")
+                .map((c) => t.influencer.beliefLabels[c as keyof typeof t.influencer.beliefLabels])
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
           {equity && (
             <div className="equity-wrap">
               <EquitySparkline points={equity.points} locale={locale} />

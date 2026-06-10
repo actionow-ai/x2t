@@ -48,6 +48,8 @@ model Influencer {
   // 抓取健康状态（连续失败时标记）
   lastFetchedAt DateTime?
   fetchError    String?
+  belief        String?   // 规则化"历史校准信念"(逗号分隔 code):注入 AI 分析 prompt + 博主页展示(竞品借鉴:结算→反思回灌)
+  beliefAt      DateTime? // 信念上次刷新时间(worker 日度刷新)
   createdAt    DateTime @default(now())
 
   posts   Post[]
