@@ -1,8 +1,8 @@
-import { createOpenAiCompatible } from "./llm/openai-compatible";
+import { buildTranslateProvider, parseEndpoints } from "./llm/config";
 
 // flash 翻译层：把帖子内容 + 分析翻成【单个目标语种】。
 // 原语种槽由 agent 原文直接填充,故只需翻"缺失"的那一两种语言,省一半翻译 token。
-// 用更便宜的 flash 模型（TRANSLATE_MODEL，默认 deepseek-v4-flash）与分析 agent 解耦。
+// 走与分析同一条多 provider 兜底链,但各端点取自己的 TRANSLATE_MODEL（缺省回退到该端点的 LLM_MODEL）。
 
 export type TranslateInput = {
   content: string;
@@ -19,17 +19,11 @@ export type TranslateOutput = {
 };
 
 function flashProvider() {
-  const apiKey = process.env.LLM_API_KEY;
-  if (!apiKey) return null; // 无 key → 不翻译（调用方回退原文）
-  return createOpenAiCompatible({
-    apiKey,
-    baseURL: process.env.LLM_BASE_URL || undefined,
-    model: process.env.TRANSLATE_MODEL || "deepseek-v4-flash",
-  });
+  return buildTranslateProvider(); // 无端点 → null（调用方回退原文）
 }
 
 export function translateConfigured(): boolean {
-  return !!process.env.LLM_API_KEY;
+  return parseEndpoints().length > 0;
 }
 
 const LANG_NAME: Record<"zh" | "en", string> = { zh: "简体中文", en: "英文" };
