@@ -9,7 +9,7 @@ import { StanceBadge, stanceMeta } from "@/components/StanceBadge";
 import { relativeTime } from "@/lib/time";
 import { getLocale } from "@/lib/i18n-server";
 import { getDict } from "@/lib/i18n";
-import { breadcrumbJsonLd, SITE_URL, pageMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, SITE_URL, pageMetadata, ogImageUrl } from "@/lib/seo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -47,7 +47,16 @@ export async function generateMetadata({ params }: { params: Promise<{ symbol: s
       ? `What financial influencers say about $${sym}: ${n} tracked, ${lean}. Bull-vs-bear cases, stance flips and AI analysis on X2T.`
       : `财经博主怎么看 $${sym}:${n} 位在追踪,${lean}。多空辩论、立场转向、AI 双语分析,尽在 X2T。`
   ).slice(0, 160);
-  return pageMetadata({ path: `/t/${encodeURIComponent(sym)}`, title, description, ogType: "website", noindex: n === 0 });
+  const ogImage =
+    n > 0
+      ? ogImageUrl({
+          brand: `$${sym} on X2T`,
+          headline: `${n} influencer${n === 1 ? "" : "s"} tracking $${sym}`,
+          sub: `${c.bullish} bull · ${c.bearish} bear`,
+          accent: c.bullish > c.bearish ? "bull" : c.bearish > c.bullish ? "bear" : "neutral",
+        })
+      : undefined;
+  return pageMetadata({ path: `/t/${encodeURIComponent(sym)}`, title, description, ogType: "website", noindex: n === 0, ogImage });
 }
 
 export default async function StockPage({ params }: { params: Promise<{ symbol: string }> }) {

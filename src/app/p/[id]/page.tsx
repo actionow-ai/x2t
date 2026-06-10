@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getPostDetail, PostDetail } from "@/components/PostDetail";
 import { getLocale } from "@/lib/i18n-server";
 import { prisma } from "@/lib/db";
-import { articleJsonLd, SITE_URL, pageMetadata } from "@/lib/seo";
+import { articleJsonLd, SITE_URL, pageMetadata, ogImageUrl } from "@/lib/seo";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +23,20 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const summary = (en ? post.analysis?.summaryEn : post.analysis?.summary) || content;
   const title = clip(`${author}: ${content}`, 64);
   const description = clip(summary, 160);
-  // 静态 og.png 兜底:next/og 动态 OG 在 Zeabur standalone runtime 下 502(wasm 不兼容),已回退。
-  return pageMetadata({ path: `/p/${id}`, title, description, ogType: "article" });
+  // 动态 OG 卡(/api/og 用 @napi-rs/canvas 原生渲染,根治旧 next/og 502);失败时路由自回退静态 og.png。
+  const st = post.analysis?.overallStance;
+  return pageMetadata({
+    path: `/p/${id}`,
+    title,
+    description,
+    ogType: "article",
+    ogImage: ogImageUrl({
+      brand: `@${post.influencer.handle} on X2T`,
+      headline: "AI-analyzed market signal",
+      sub: st ?? undefined,
+      accent: st === "bullish" ? "bull" : st === "bearish" ? "bear" : "neutral",
+    }),
+  });
 }
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {

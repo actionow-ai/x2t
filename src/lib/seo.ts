@@ -63,7 +63,8 @@ const RSS_TYPES = { "application/rss+xml": [{ url: "/rss/all", title: SITE_NAME 
 // 通用子页 metadata 收口:自指 canonical + og:url 自指 + 保留 RSS autodiscovery types。
 // 统一堵住两类回归:① 漏 canonical(波C 漏了 /leaderboard /graph /about);
 // ② 页面级 alternates 整体覆盖 layout 的 types → 丢 RSS link(/i /t /p)。各页一律走这里。
-export function pageMetadata(opts: { path: string; title?: string; description?: string; ogType?: "website" | "article" | "profile"; noindex?: boolean }): Metadata {
+export function pageMetadata(opts: { path: string; title?: string; description?: string; ogType?: "website" | "article" | "profile"; noindex?: boolean; ogImage?: string }): Metadata {
+  const img = opts.ogImage ?? "/og.png";
   const m: Metadata = { alternates: { canonical: opts.path, types: RSS_TYPES } };
   if (opts.title) m.title = opts.title;
   if (opts.description) m.description = opts.description;
@@ -72,13 +73,23 @@ export function pageMetadata(opts: { path: string; title?: string; description?:
     url: opts.path,
     ...(opts.title ? { title: opts.title } : {}),
     ...(opts.description ? { description: opts.description } : {}),
-    images: ["/og.png"],
+    images: [img],
   };
   if (opts.title || opts.description) {
-    m.twitter = { card: "summary_large_image", ...(opts.title ? { title: opts.title } : {}), ...(opts.description ? { description: opts.description } : {}), images: ["/og.png"] };
+    m.twitter = { card: "summary_large_image", ...(opts.title ? { title: opts.title } : {}), ...(opts.description ? { description: opts.description } : {}), images: [img] };
   }
   if (opts.noindex) m.robots = { index: false, follow: false };
   return m;
+}
+
+// 构建动态 OG 图 URL(/api/og 用 @napi-rs/canvas 原生渲染,根治 next/og 502)。文案走拉丁/数字,勿传 CJK(字体仅 latin 子集)。
+export function ogImageUrl(spec: { brand: string; headline: string; sub?: string; accent?: "bull" | "bear" | "neutral" }): string {
+  const p = new URLSearchParams();
+  p.set("brand", spec.brand);
+  p.set("h", spec.headline);
+  if (spec.sub) p.set("sub", spec.sub);
+  if (spec.accent && spec.accent !== "neutral") p.set("a", spec.accent);
+  return `/api/og?${p.toString()}`;
 }
 
 // 结构化数据:WebSite + Organization。

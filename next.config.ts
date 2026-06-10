@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   // 否则类型检查阶段易 OOM 导致构建失败。
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  // @napi-rs/canvas 是原生模块(/api/og 动态分享图用):标为 server 外部包,运行时从 node_modules 直接 require,
+  // 不被打包(否则原生 .node 二进制无法 bundle,构建/运行报错)。
+  serverExternalPackages: ["@napi-rs/canvas"],
   // 基线安全响应头 + CSP。
   // 注:站内有 GA/JSON-LD 内联脚本,故 script-src 暂含 'unsafe-inline'(严格 nonce 需 middleware 改造,后续再上);
   // 但 frame-ancestors/object-src/base-uri/form-action 等硬约束已能挡点击劫持/对象注入/base 篡改。
