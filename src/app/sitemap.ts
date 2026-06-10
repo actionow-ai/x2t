@@ -15,7 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const [posts, influencers, securities] = await Promise.all([
-      prisma.post.findMany({ where: { analysisStatus: "done" }, select: { id: true, postedAt: true }, orderBy: { postedAt: "desc" }, take: 2000 }),
+      prisma.post.findMany({ where: { analysisStatus: "done", influencer: { platform: { not: "manual" } } }, select: { id: true, postedAt: true }, orderBy: { postedAt: "desc" }, take: 2000 }),
       prisma.influencer.findMany({ where: { active: true, optedOut: false }, select: { handle: true } }),
       prisma.postTicker.findMany({ select: { symbol: true }, distinct: ["symbol"], take: 1000 }),
     ]);

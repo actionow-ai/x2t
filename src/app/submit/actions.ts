@@ -3,7 +3,6 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/db";
 import { storePost } from "@/lib/ingest";
-import { notifyNewPost } from "@/lib/push";
 import { requireUserId } from "@/lib/auth";
 import { rateLimit } from "@/lib/ratelimit";
 import { redirect } from "next/navigation";
@@ -30,18 +29,13 @@ export async function submitPost(formData: FormData) {
 
   // 幂等去重:基于 url 或内容哈希(而非时间戳),防重复提交产生重复帖
   const dedup = url ? `url:${url}` : `h:${crypto.createHash("sha1").update(contentText).digest("hex").slice(0, 24)}`;
-  const stored = await storePost(influencer.id, {
+  await storePost(influencer.id, {
     platformPostId: `manual-${dedup}`,
     url: url ?? undefined,
     contentText,
     postedAt: new Date(),
   });
 
-  try {
-    await notifyNewPost(stored.id);
-  } catch {
-    /* 推送失败不阻塞提交 */
-  }
-
+  // 用户手工提交(platform=manual)不触发全员推送——防以他人名义群发未验证内容(合规)
   redirect("/");
 }

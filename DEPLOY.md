@@ -35,7 +35,7 @@ X2T 的所有 mock 都遵循同一规则：**对应环境变量留空 → 自动
 ### 自建 RSSHub 抓 X（本项目选定方案）
 
 1. 起服务：`docker compose up -d rsshub`（宿主 `51200` → 容器 `1200`）。
-2. X 需要登录 cookie 的 `auth_token`：浏览器登录 x.com → 开发者工具 → Application/Cookies → 复制 `auth_token` 值，填到 `.env` 的 `TWITTER_AUTH_TOKEN`（逗号分隔可多账号），compose 会注入 RSSHub 容器。
+2. X 抓取需 RSSHub 配置访问凭据 `TWITTER_AUTH_TOKEN`（compose 注入 RSSHub 容器）：请参照 [RSSHub 官方文档](https://docs.rsshub.app) 自行配置。**注意**：用账号凭据做自动化抓取可能违反第三方平台服务条款，请自行评估合规与账号风险，或优先选用 Substack / 新闻等授权语义更清晰的 RSS 源。
 3. 应用侧把博主 `sourceConfig` 写成 `{ connector: "rss", feedPath: "/twitter/user/<handle>" }`（seed.ts 已示范）。
 4. 验证：`curl http://localhost:51200/twitter/user/<handle>` 能返回 XML 即通。
 

@@ -60,6 +60,7 @@ export default async function InfluencerPage({
 
   const influencer = await prisma.influencer.findFirst({
     where: { handle },
+    orderBy: { platform: "asc" }, // 同 handle 多平台时优先真实抓取源(manual 排最后,防冒名串页)
     include: {
       posts: {
         orderBy: { postedAt: "desc" },
@@ -143,6 +144,10 @@ export default async function InfluencerPage({
           <div className="inf-meta">
             {influencer.posts.length} {t.influencer.postsWord}
             {influencer.lastFetchedAt ? ` · ${t.influencer.lastFetch} ${formatDateTime(influencer.lastFetchedAt, locale)}` : ""}
+            {" · "}
+            <a href={`mailto:actionow.ai@gmail.com?subject=${encodeURIComponent(`X2T 更正/移除: @${influencer.handle}`)}`} style={{ color: "var(--text-tertiary)", textDecoration: "underline" }}>
+              {t.influencer.claimRemove}
+            </a>
           </div>
           {/* T1.1+T1.6:客观战绩打头 + 多空倾向解读;博主自述 bio 折叠到次要位置,不当平台背书 */}
           {total > 0 && (

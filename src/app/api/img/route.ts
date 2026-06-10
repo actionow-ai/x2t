@@ -83,7 +83,7 @@ export async function GET(req: Request) {
       headers: {
         "Content-Type": ct,
         "Content-Length": String(buf.byteLength),
-        "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400",
+        "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
       },
     });
   } catch {

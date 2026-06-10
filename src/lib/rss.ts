@@ -37,14 +37,20 @@ type RssItem = {
 export function postToItem(post: PostForRss, siteUrl: string, divergence = false): RssItem {
   const name = post.influencer.displayName ?? post.influencer.handle;
   const firstLine = post.contentText.split("\n")[0].slice(0, 80);
+  const permalink = post.url ?? `${siteUrl}/p/${post.id}`;
+  const snippet = post.contentText.replace(/\s+/g, " ").trim().slice(0, 200);
+  // 不对外 syndicate 全文(版权):AI 摘要 + 截断引文 + 回链原文,而非整段转载他人帖子
   const description = [
-    post.contentText,
-    post.analysis ? `\n\nAI 分析：${post.analysis.summary}` : "",
+    post.analysis ? `AI 分析：${post.analysis.summary}` : "",
+    `${post.analysis ? "\n\n" : ""}摘录：${snippet}${post.contentText.length > 200 ? "…" : ""}`,
+    `\n原文：${permalink}`,
     "\n\n— 非投资建议",
-  ].join("");
+  ]
+    .filter(Boolean)
+    .join("");
   return {
     title: `${name}: ${firstLine}`,
-    link: post.url ?? `${siteUrl}/p/${post.id}`,
+    link: permalink,
     guid: post.id,
     pubDate: post.postedAt,
     description,

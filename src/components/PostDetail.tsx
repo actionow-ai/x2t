@@ -79,7 +79,7 @@ export function PostDetail({ post, dataBySymbol, myVote, locale = "zh" }: Detail
           <Link href={`/i/${inf.handle}`}>
             <div className="pc-name">{name}</div>
           </Link>
-          <div className="pc-handle">@{inf.handle} · {formatDateTime(post.postedAt, locale)}</div>
+          <div className="pc-handle">@{inf.handle} · {formatDateTime(post.postedAt, locale)}{inf.platform === "manual" && <span className="news-tag" style={{ marginLeft: "0.4rem" }}>{t.post.unverified}</span>}</div>
         </div>
       </div>
 

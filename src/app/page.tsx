@@ -53,6 +53,8 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
   const sigSuffix = onlySignal ? "" : "&sig=0";
 
   const where = {
+    // 用户手工提交(manual)默认不进公共信号流——未经验证的冒名内容只在其 /p、/i 页可见(合规)
+    influencer: { platform: { not: "manual" as const } },
     ...(following ? { influencerId: { in: followedIds.length ? followedIds : ["__none__"] } } : {}),
     ...(onlySignal ? { analysis: { overallStance: { in: ["bullish", "bearish"] as ("bullish" | "bearish")[] } } } : {}),
   };
