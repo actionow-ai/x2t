@@ -76,11 +76,15 @@ async function tick() {
   // 每日价格回填(Stooq 历史日线 → PriceDaily,供博主历史胜率回算;节流默认每天)
   if (Date.now() - lastPrice >= PRICE_MS) {
     try {
-      const syms = (await prisma.postTicker.findMany({ select: { symbol: true }, distinct: ["symbol"], take: 800 })).map((r) => r.symbol);
+      // distinct symbol 按符号序确定性取(DISTINCT ON,无随机截断);上限可调,现实标的数远小于此 → 全覆盖,
+      // 修 take:800 无序截断导致"超 800 的标的永久无价、胜率静默缺失"(统计 P2-10 / 运维 H6)。
+      const syms = (
+        await prisma.postTicker.findMany({ select: { symbol: true }, distinct: ["symbol"], orderBy: { symbol: "asc" }, take: Number(process.env.PRICE_BACKFILL_MAX ?? 3000) })
+      ).map((r) => r.symbol);
       const r = await backfillPrices([BENCHMARK_SYMBOL, ...syms]); // SPY 基准始终回填
 
       lastPrice = Date.now();
-      console.log(`[worker] 价格回填：${r.symbols} 标的 / ${r.rows} 行`);
+      console.log(`[worker] 价格回填：${r.symbols} 标的 / ${r.rows} 行${r.failed.length ? ` / 失败 ${r.failed.length}` : ""}`);
     } catch (e) {
       console.error("[worker] 价格回填异常:", e instanceof Error ? e.message : e);
     }

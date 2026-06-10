@@ -270,7 +270,7 @@ const WINRATE_CONFIDENT = Number(process.env.WINRATE_CONFIDENT_SAMPLES ?? 30);
 
 // 二项比例的 Wilson 95% 置信区间(比 Wald 在小样本更稳)。
 export function wilson95(hits: number, n: number): [number, number] {
-  if (n === 0) return [0, 0];
+  if (n === 0) return [0, 1]; // 无样本 = 无信息,返回全区间(而非 [0,0] 误示"确定 0%")
   const z = 1.96;
   const p = hits / n;
   const denom = 1 + (z * z) / n;
@@ -288,49 +288,102 @@ export function wilson95(hits: number, n: number): [number, number] {
  */
 
 // 单条已结算 call(供胜率/权益曲线/排行榜共用,避免重复 SQL)。
-type ResolvedCall = { postedAt: number; aligned: number; spy: number; excess: number; beat: boolean };
+export type ResolvedCall = { postedAt: number; aligned: number; spy: number; excess: number; beat: boolean };
+export type RawCall = { symbol: string; stance: "bullish" | "bearish"; postedAtMs: number };
+export type PricePoint = { t: number; close: number };
 
-// 解析某博主所有【已到第 N 交易日且有 SPY 价】的多/空 call,按时间升序返回。无价/无基准则空。
+/**
+ * 纯函数:把多/空 call 配对历史价格结算成"超额收益"样本(可单测,不碰 DB)。修复统计审计三个 P0/P1:
+ * - P0-2 look-ahead:入场取【严格晚于发帖时间戳】的第一根日线收盘(价格日期为当日 00:00 UTC,
+ *   盘后帖发帖时刻晚于此 → 自动跳到次一交易日入场,绝不偷看发帖时已知的当日收盘)。
+ * - P0-3 伪重复样本:同标的同方向、入场间隔 < horizon 的后续 call 视为同一持仓的重复,合并不重复计样本。
+ * - 诚实性#6 flip 截断:出现反向 call 时,前一持仓出场提前到反向 call 入场日,不再按满 horizon 结算。
+ * - P1-5 空头基准:看空对照"做空 SPY"(市场中性),零技能看空者期望超额≈0,不再被结构性压低。
+ */
+export function settleCalls(calls: RawCall[], bySym: Map<string, PricePoint[]>, spy: PricePoint[], horizon: number): ResolvedCall[] {
+  if (!spy.length) return [];
+  const closeAtOrAfter = (arr: PricePoint[], target: number) => arr.find((x) => x.t >= target)?.close;
+
+  // 1) 定位每个 call 的入场 index(严格晚于发帖时间戳)
+  type Located = { symbol: string; stance: "bullish" | "bearish"; ei: number; arr: PricePoint[] };
+  const bySymCalls = new Map<string, Located[]>();
+  for (const c of calls) {
+    const arr = bySym.get(c.symbol);
+    if (!arr || !arr.length) continue;
+    const ei = arr.findIndex((x) => x.t > c.postedAtMs);
+    if (ei < 0) continue;
+    if (!bySymCalls.has(c.symbol)) bySymCalls.set(c.symbol, []);
+    bySymCalls.get(c.symbol)!.push({ symbol: c.symbol, stance: c.stance, ei, arr });
+  }
+
+  const out: ResolvedCall[] = [];
+  for (const list of bySymCalls.values()) {
+    list.sort((a, b) => a.ei - b.ei);
+    // 2) 去伪重复:同向且入场间隔 < horizon 的重复 call 跳过
+    const kept: Located[] = [];
+    let last: Located | null = null;
+    for (const c of list) {
+      if (last && c.stance === last.stance && c.ei - last.ei < horizon) continue;
+      kept.push(c);
+      last = c;
+    }
+    // 3) 结算:出场 = min(ei+horizon, 下一个保留 call 的入场)→ 反向 call 触发提前平仓(flip 截断)
+    for (let i = 0; i < kept.length; i++) {
+      const c = kept[i];
+      const next = kept[i + 1];
+      const exitIdx = Math.min(c.ei + horizon, next ? next.ei : c.ei + horizon);
+      if (exitIdx <= c.ei || exitIdx >= c.arr.length) continue; // 出场无效或未到期
+      const entry = c.arr[c.ei];
+      const exit = c.arr[exitIdx];
+      const spyEntry = closeAtOrAfter(spy, entry.t);
+      const spyExit = closeAtOrAfter(spy, exit.t);
+      if (spyEntry === undefined || spyExit === undefined) continue;
+      const raw = (exit.close - entry.close) / entry.close;
+      const aligned = c.stance === "bullish" ? raw : -raw;
+      const spyRet = (spyExit - spyEntry) / spyEntry;
+      const benchRet = c.stance === "bullish" ? spyRet : -spyRet; // 空头对照做空 SPY(市场中性)
+      const excess = aligned - benchRet;
+      out.push({ postedAt: entry.t, aligned, spy: spyRet, excess, beat: excess > 0 });
+    }
+  }
+  out.sort((a, b) => a.postedAt - b.postedAt);
+  return out;
+}
+
+// SPY 基准序列进程内 memo(60s):排行榜逐博主回测时跨博主共享,避免每个博主都全量拉一遍 SPY。
+let spyMemo: { at: number; data: PricePoint[] } | null = null;
+async function getSpySeries(sinceMs: number): Promise<PricePoint[]> {
+  const memoMs = Number(process.env.SPY_MEMO_MS ?? 60_000);
+  if (!spyMemo || Date.now() - spyMemo.at >= memoMs) {
+    const rows = await prisma.priceDaily.findMany({ where: { symbol: BENCHMARK_SYMBOL }, orderBy: { date: "asc" }, select: { date: true, close: true } });
+    spyMemo = { at: Date.now(), data: rows.map((p) => ({ t: new Date(p.date).getTime(), close: p.close })) };
+  }
+  return spyMemo.data.filter((x) => x.t >= sinceMs);
+}
+
+// 解析某博主所有【已结算】的多/空 call(取数 + 调纯函数 settleCalls)。无价/无基准则空。
 async function resolveCalls(influencerId: string, horizonTradingDays = 5): Promise<ResolvedCall[]> {
   const calls = await prisma.postTicker.findMany({
     where: { post: { influencerId }, stance: { in: ["bullish", "bearish"] } },
     select: { symbol: true, stance: true, post: { select: { postedAt: true } } },
   });
   if (calls.length === 0) return [];
-  const symbols = [...new Set([...calls.map((c) => c.symbol), BENCHMARK_SYMBOL])];
+  const rawCalls: RawCall[] = calls.map((c) => ({ symbol: c.symbol, stance: c.stance as "bullish" | "bearish", postedAtMs: new Date(c.post.postedAt).getTime() }));
+  const since = new Date(Math.min(...rawCalls.map((c) => c.postedAtMs)));
+  since.setUTCHours(0, 0, 0, 0);
+  const symbols = [...new Set(rawCalls.map((c) => c.symbol))];
   const prices = await prisma.priceDaily.findMany({
-    where: { symbol: { in: symbols } },
+    where: { symbol: { in: symbols }, date: { gte: since } },
     orderBy: { date: "asc" },
     select: { symbol: true, date: true, close: true },
   });
-  const bySym = new Map<string, { t: number; close: number }[]>();
+  const bySym = new Map<string, PricePoint[]>();
   for (const p of prices) {
     if (!bySym.has(p.symbol)) bySym.set(p.symbol, []);
     bySym.get(p.symbol)!.push({ t: new Date(p.date).getTime(), close: p.close });
   }
-  const spy = bySym.get(BENCHMARK_SYMBOL);
-  if (!spy || !spy.length) return [];
-  const closeAtOrAfter = (arr: { t: number; close: number }[], target: number) => arr.find((x) => x.t >= target)?.close;
-
-  const out: ResolvedCall[] = [];
-  for (const c of calls) {
-    const arr = bySym.get(c.symbol);
-    if (!arr) continue;
-    const callT = new Date(c.post.postedAt).setUTCHours(0, 0, 0, 0);
-    const ei = arr.findIndex((x) => x.t >= callT);
-    if (ei < 0 || ei + horizonTradingDays >= arr.length) continue;
-    const entry = arr[ei];
-    const exit = arr[ei + horizonTradingDays];
-    const spyEntry = closeAtOrAfter(spy, entry.t);
-    const spyExit = closeAtOrAfter(spy, exit.t);
-    if (spyEntry === undefined || spyExit === undefined) continue;
-    const raw = (exit.close - entry.close) / entry.close;
-    const aligned = c.stance === "bullish" ? raw : -raw;
-    const spyRet = (spyExit - spyEntry) / spyEntry;
-    out.push({ postedAt: callT, aligned, spy: spyRet, excess: aligned - spyRet, beat: aligned - spyRet > 0 });
-  }
-  out.sort((a, b) => a.postedAt - b.postedAt);
-  return out;
+  const spy = await getSpySeries(since.getTime());
+  return settleCalls(rawCalls, bySym, spy, horizonTradingDays);
 }
 
 export type WinRate = {
@@ -368,10 +421,11 @@ export async function getInfluencerEquityCurve(influencerId: string): Promise<Eq
 
 // 博主战绩排行榜(借鉴 AI-Trader):按"跑赢大盘"率排序,并用 BH-FDR 校正多重比较——
 // 同时比 N 个博主时,不校正会让榜首必混进"幸运儿"假阳性;significant=在 FDR 下显著强于抛硬币。
-export type LeaderRow = { handle: string; displayName: string | null; beatRate: number; samples: number; avgExcess: number; significant: boolean };
+// ciLow = Wilson 95% 下界(经样本量收缩的保守胜率),作排序键 + 可展示"至少跑赢"。
+export type LeaderRow = { handle: string; displayName: string | null; beatRate: number; samples: number; avgExcess: number; significant: boolean; ciLow: number };
 export async function getLeaderboard(minSamples = WINRATE_SHOW): Promise<LeaderRow[]> {
   const infs = await prisma.influencer.findMany({ select: { id: true, handle: true, displayName: true } });
-  const rows: (Omit<LeaderRow, "significant"> & { pvalue: number })[] = [];
+  const rows: (LeaderRow & { pvalue: number })[] = [];
   for (const inf of infs) {
     const r = await resolveCalls(inf.id);
     if (r.length < minSamples) continue;
@@ -382,13 +436,17 @@ export async function getLeaderboard(minSamples = WINRATE_SHOW): Promise<LeaderR
       beatRate: beats / r.length,
       samples: r.length,
       avgExcess: r.reduce((acc, x) => acc + x.excess, 0) / r.length,
+      ciLow: wilson95(beats, r.length)[0],
+      significant: false,
       pvalue: binomTestGreater(beats, r.length),
     });
   }
   const sig = benjaminiHochberg(rows.map((r) => r.pvalue));
-  return rows
-    .map((r, i) => ({ handle: r.handle, displayName: r.displayName, beatRate: r.beatRate, samples: r.samples, avgExcess: r.avgExcess, significant: sig[i] }))
-    .sort((a, b) => b.beatRate - a.beatRate || b.samples - a.samples);
+  rows.forEach((r, i) => (r.significant = sig[i]));
+  // 排序键改为 Wilson 下界而非裸 beatRate——否则 n=10 蒙对 8 次(80%)会排在 n=120 的 65% 之上,
+  // 小样本噪声盖过真 alpha(统计审计 P2-8)。
+  rows.sort((a, b) => b.ciLow - a.ciLow || b.samples - a.samples);
+  return rows.map((r) => ({ handle: r.handle, displayName: r.displayName, beatRate: r.beatRate, samples: r.samples, avgExcess: r.avgExcess, significant: r.significant, ciLow: r.ciLow }));
 }
 
 // 某票的"多空论据"——借鉴 TradingAgents 的 Bull vs Bear 辩论,但零 LLM 成本:
@@ -400,14 +458,14 @@ export async function getStockDebate(symbol: string, locale: "zh" | "en"): Promi
   const rows = await prisma.$queryRaw<Row[]>`
     SELECT t.stance, t.handle, t."displayName", t."postId", t.rationale, t."rationaleEn"
     FROM (
-      SELECT pt.stance, inf.handle, inf."displayName", pt."postId", pt.rationale, pt."rationaleEn",
+      SELECT pt.stance, inf.handle, inf."displayName", pt."postId", pt.rationale, pt."rationaleEn", p."postedAt",
              row_number() OVER (PARTITION BY p."influencerId" ORDER BY p."postedAt" DESC) AS rn
       FROM "PostTicker" pt
       JOIN "Post" p ON p.id = pt."postId"
       JOIN "Influencer" inf ON inf.id = p."influencerId"
       WHERE pt.symbol = ${sym} AND pt.stance IN ('bullish','bearish')
     ) t WHERE t.rn = 1
-    ORDER BY t."postId" DESC
+    ORDER BY t."postedAt" DESC
   `;
   const pick = (r: Row): DebatePoint => ({
     handle: r.handle,

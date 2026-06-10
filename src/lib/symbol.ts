@@ -19,6 +19,19 @@ export const NOT_TICKERS = new Set([
   "ATH", "ATL", "WTI", "OPEC", "CES", "AGM", "FAQ", "Q1", "Q2", "Q3", "Q4", "H1", "H2", "FY", "TBD", "DD", "YOLO", "FOMO", "HODL",
 ]);
 
+// 主流加密货币 cashtag → 行情源代码(加 -USD 后缀)。
+// 防止 $SOL(Solana)被当成 NYSE 的 SOL(Emeren 光伏)、$GOLD 被当成 Barrick Gold 等静默错配:
+// 裸符号查 Yahoo 会命中同名美股,用错误工具的价格污染胜率回算(统计审计 P1-7)。
+export const CRYPTO_SYMBOLS = new Set([
+  "BTC", "ETH", "SOL", "DOGE", "ADA", "XRP", "BNB", "AVAX", "DOT", "MATIC", "LINK", "LTC", "BCH", "SHIB",
+  "TRX", "UNI", "ATOM", "XLM", "ETC", "FIL", "APT", "ARB", "NEAR", "INJ", "SUI", "PEPE", "WIF", "TIA", "SEI",
+]);
+
+// 把入库 symbol 映射成行情源可识别的代码(目前只处理加密 → -USD;其余原样)。存库仍用原 symbol。
+export function toQuoteSymbol(s: string): string {
+  return CRYPTO_SYMBOLS.has(s) ? `${s}-USD` : s;
+}
+
 // 像合法代码才落库:1-6 字母(可带 .X/-X 后缀)或 4-6 位数字(A/港股);过滤黑名单词与年份号。
 export function isValidSymbol(s: string): boolean {
   if (NOT_TICKERS.has(s)) return false;

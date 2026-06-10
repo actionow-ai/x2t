@@ -10,8 +10,8 @@ describe("wilson95 置信区间", () => {
     expect(hi).toBeLessThan(0.72);
   });
 
-  it("n=0 → [0,0]", () => {
-    expect(wilson95(0, 0)).toEqual([0, 0]);
+  it("n=0 → [0,1](无样本=无信息,全区间)", () => {
+    expect(wilson95(0, 0)).toEqual([0, 1]);
   });
 
   it("全命中时上界封顶 1、不越界", () => {
