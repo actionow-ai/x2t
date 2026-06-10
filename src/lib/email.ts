@@ -17,18 +17,23 @@ export function emailConfigured(): boolean {
   return cfConfigured() || smtpConfigured();
 }
 
+export type EmailOpts = { html?: string; listUnsubscribe?: string };
+
 // 发邮件；三选一：Cloudflare Email Service(REST) > SMTP(nodemailer) > 控制台兜底(返回 sent=false)。
-export async function sendEmail(to: string, subject: string, text: string): Promise<{ sent: boolean }> {
+// opts.html 提供富文本版本(digest 可点击回站);opts.listUnsubscribe 注入 List-Unsubscribe 头
+// (Gmail/Yahoo 2024 发件人要求 + CAN-SPAM 一键退订合规)。
+export async function sendEmail(to: string, subject: string, text: string, opts?: EmailOpts): Promise<{ sent: boolean }> {
+  const headers = opts?.listUnsubscribe
+    ? { "List-Unsubscribe": `<${opts.listUnsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+    : undefined;
+
   // 1) Cloudflare Email Service（REST API）
   if (cfConfigured()) {
     const acct = process.env.CF_EMAIL_ACCOUNT_ID!;
     const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${acct}/email/sending/send`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.CF_EMAIL_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ from: fromAddress(), to, subject, text }),
+      headers: { Authorization: `Bearer ${process.env.CF_EMAIL_API_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: fromAddress(), to, subject, text, ...(opts?.html ? { html: opts.html } : {}), ...(headers ? { headers } : {}) }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
@@ -45,7 +50,7 @@ export async function sendEmail(to: string, subject: string, text: string): Prom
       secure: process.env.SMTP_SECURE === "true",
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
     });
-    await transport.sendMail({ from: fromAddress(), to, subject, text });
+    await transport.sendMail({ from: fromAddress(), to, subject, text, html: opts?.html, headers });
     return { sent: true };
   }
 

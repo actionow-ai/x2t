@@ -6,6 +6,7 @@ import { backfillPrices } from "../src/lib/prices";
 import { BENCHMARK_SYMBOL } from "../src/lib/stance";
 import { prisma } from "../src/lib/db";
 import { HEARTBEAT_FILE } from "../src/lib/health";
+import { startJob, finishJob, ranSuccessfullyToday } from "../src/lib/jobrun";
 import { nasdaqEnabled, buildNasdaqEarningsMap } from "../src/lib/marketdata/nasdaq";
 
 // 加载 .env（独立进程；DB / LLM / 行情 / VAPID key 都从这里来）
@@ -18,6 +19,7 @@ try {
 // 生产常驻 Worker —— 一个进程跑完整后台管道：
 //   每轮 POLL_INTERVAL_MS：抓取所有 active 源 → 立刻消费 pending 帖（分析）。
 //   可选每日摘要（WORKER_RUN_DIGEST=true 时由本进程跑；否则用独立 `pnpm digest` cron）。
+//   所有任务结果写 JobRun 表(团队约定"写 DB 观测"),digest 调度据 JobRun 持久化,重启不丢。
 //
 //   pnpm worker          常驻循环（容器/PM2 入口）
 //   pnpm worker --once   跑一轮退出（适合外部 cron 调度）
@@ -25,10 +27,9 @@ const once = process.argv.includes("--once");
 const POLL_MS = Number(process.env.POLL_INTERVAL_MS ?? 180_000);
 const ANALYZE_BATCH = Number(process.env.ANALYZE_BATCH ?? 20);
 const RUN_DIGEST = process.env.WORKER_RUN_DIGEST === "true";
-const DIGEST_MS = Number(process.env.DIGEST_INTERVAL_MS ?? 86_400_000);
+const DIGEST_HOUR = Number(process.env.DIGEST_HOUR_UTC ?? 13); // 每天 UTC 此小时后首个 tick 发摘要(默认美东早晨)
 
 let stopping = false;
-let lastDigest = Date.now(); // 启动后满 DIGEST_MS 才首发，避免每次重启都发
 let lastGc = 0; // 启动即先 GC 一次过期缓存
 const GC_MS = Number(process.env.CACHE_GC_INTERVAL_MS ?? 3_600_000);
 let lastPrice = 0; // 启动即先回填一次价格
@@ -38,20 +39,24 @@ const NASDAQ_MS = 24 * 3_600_000;
 
 async function tick() {
   const start = Date.now();
+  const jobId = await startJob("tick");
+  let stats: Record<string, number> = {};
   try {
     const ing = await ingestAll();
     // 抓完立刻清空 pending（可能多批），上限 10 批防失控
-    let processed = 0, ok = 0;
+    let processed = 0,
+      ok = 0;
     for (let round = 0; round < 10; round++) {
       const r = await analyzePending(ANALYZE_BATCH);
       processed += r.processed;
       ok += r.ok;
       if (r.processed < ANALYZE_BATCH) break;
     }
-    console.log(
-      `[worker] tick：源 ${ing.influencers}/新增 ${ing.created}，分析 ${processed}/成功 ${ok}，${Date.now() - start}ms`,
-    );
+    stats = { influencers: ing.influencers, created: ing.created, analyzed: processed, analyzedOk: ok };
+    console.log(`[worker] tick：源 ${ing.influencers}/新增 ${ing.created}，分析 ${processed}/成功 ${ok}，${Date.now() - start}ms`);
+    await finishJob(jobId, true, stats);
   } catch (e) {
+    await finishJob(jobId, false, stats, e instanceof Error ? e.message : String(e));
     console.error("[worker] tick 异常:", e instanceof Error ? e.message : e);
   }
 
@@ -73,19 +78,20 @@ async function tick() {
     /* ignore */
   }
 
-  // 每日价格回填(Stooq 历史日线 → PriceDaily,供博主历史胜率回算;节流默认每天)
+  // 每日价格回填(复权日线 → PriceDaily,供博主历史胜率回算;节流默认每天)
   if (Date.now() - lastPrice >= PRICE_MS) {
+    const jobId = await startJob("backfill");
     try {
-      // distinct symbol 按符号序确定性取(DISTINCT ON,无随机截断);上限可调,现实标的数远小于此 → 全覆盖,
-      // 修 take:800 无序截断导致"超 800 的标的永久无价、胜率静默缺失"(统计 P2-10 / 运维 H6)。
+      // distinct symbol 按符号序确定性取(DISTINCT ON,无随机截断);上限可调,现实标的数远小于此 → 全覆盖。
       const syms = (
         await prisma.postTicker.findMany({ select: { symbol: true }, distinct: ["symbol"], orderBy: { symbol: "asc" }, take: Number(process.env.PRICE_BACKFILL_MAX ?? 3000) })
       ).map((r) => r.symbol);
       const r = await backfillPrices([BENCHMARK_SYMBOL, ...syms]); // SPY 基准始终回填
-
       lastPrice = Date.now();
       console.log(`[worker] 价格回填：${r.symbols} 标的 / ${r.rows} 行${r.failed.length ? ` / 失败 ${r.failed.length}` : ""}`);
+      await finishJob(jobId, true, { symbols: r.symbols, rows: r.rows, failed: r.failed.length, failedSymbols: r.failed.slice(0, 50) });
     } catch (e) {
+      await finishJob(jobId, false, undefined, e instanceof Error ? e.message : String(e));
       console.error("[worker] 价格回填异常:", e instanceof Error ? e.message : e);
     }
   }
@@ -101,12 +107,16 @@ async function tick() {
     }
   }
 
-  if (RUN_DIGEST && Date.now() - lastDigest >= DIGEST_MS) {
+  // 每日摘要:持久化调度——UTC DIGEST_HOUR 后、且【今日尚未成功跑过】才发。
+  // 替代内存计时器,修"lastDigest=Date.now() 启动归零 → 容器频繁重启则 digest 永不触发"。
+  if (RUN_DIGEST && new Date().getUTCHours() >= DIGEST_HOUR && !(await ranSuccessfullyToday("digest"))) {
+    const jobId = await startJob("digest");
     try {
       const d = await runDigest();
-      lastDigest = Date.now();
-      console.log(`[worker] digest：${d.users} 用户/发送 ${d.sent} 封`);
+      await finishJob(jobId, true, d);
+      console.log(`[worker] digest：${d.users} 用户 / 尝试 ${d.attempted} / 送达 ${d.sent} / 失败 ${d.failed}`);
     } catch (e) {
+      await finishJob(jobId, false, undefined, e instanceof Error ? e.message : String(e));
       console.error("[worker] digest 异常:", e instanceof Error ? e.message : e);
     }
   }
@@ -128,7 +138,8 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
-// 自愈：合并容器里 worker 是后台进程,崩了不会被重启。故吞掉游离异常,只记录不退出,让 loop 继续 tick。
+// 游离异常只记录不退出,让 loop 继续 tick(偶发 reject 不该整批崩)。
+// 注:真正卡死/反复失败由 JobRun + /api/health 的"距上次成功多久"暴露,不再依赖看日志。
 process.on("unhandledRejection", (r) => console.error("[worker] unhandledRejection:", r instanceof Error ? r.message : r));
 process.on("uncaughtException", (e) => console.error("[worker] uncaughtException:", e instanceof Error ? e.message : e));
 
@@ -137,7 +148,7 @@ async function main() {
     await tick();
     process.exit(0);
   }
-  console.log(`[worker] 启动：poll=${POLL_MS}ms batch=${ANALYZE_BATCH} digest=${RUN_DIGEST ? DIGEST_MS + "ms" : "off(独立 cron)"}`);
+  console.log(`[worker] 启动：poll=${POLL_MS}ms batch=${ANALYZE_BATCH} digest=${RUN_DIGEST ? `每日 UTC${DIGEST_HOUR}:00 后` : "off(独立 cron)"}`);
   await loop();
   console.log("[worker] 已退出");
   process.exit(0);

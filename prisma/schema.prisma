@@ -44,6 +44,7 @@ model Influencer {
   bio          String?
   sourceConfig Json // { connector: "rss", feedUrl, ... }
   active       Boolean  @default(true)
+  optedOut     Boolean  @default(false) // 博主申请移除后置 true:不再抓取、不在榜单/图谱展示
   // 抓取健康状态（连续失败时标记）
   lastFetchedAt DateTime?
   fetchError    String?
@@ -51,6 +52,7 @@ model Influencer {
 
   posts   Post[]
   follows Follow[]
+  flips   Flip[]
 
   @@unique([platform, handle])
 }
@@ -70,6 +72,7 @@ model Post {
   rawJson        Json?
   analysisStatus AnalysisStatus @default(pending)
   analysisAttempts Int          @default(0) // 失败重试计数:达上限(ANALYZE_MAX_ATTEMPTS)后不再自动重试
+  nextRetryAt    DateTime?      // 分析失败后下次可重试时间(指数退避;NULL=可立即重试)
   likeCount      Int            @default(0) // 赞计数(去规范化,供卡片直接读)
   dislikeCount   Int            @default(0) // 踩计数
 
@@ -78,6 +81,7 @@ model Post {
   tickers    PostTicker[]
   deliveries Delivery[]
   reactions  PostReaction[]
+  flips      Flip[]
 
   @@unique([influencerId, platformPostId]) // 幂等去重
   @@index([postedAt]) // 全站最新流
@@ -95,7 +99,6 @@ model PostReaction {
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@id([postId, voterKey])
-  @@index([postId])
 }
 
 model PostAnalysis {
@@ -161,7 +164,6 @@ model PriceDaily {
   close  Float
 
   @@id([symbol, date])
-  @@index([symbol, date])
 }
 
 // ---------- 用户 · 订阅 · 推送 ----------
@@ -172,6 +174,7 @@ model User {
   createdAt    DateTime @default(now())
   tokenVersion Int      @default(0) // 会话版本:登出/泄露时 +1 使旧 cookie 失效
   digestOptIn  Boolean  @default(false) // 邮件每日摘要订阅(显式 opt-in,默认关)
+  locale       String? // 推送/邮件本地化语言 zh|en(登录时记录,服务端外发文案据此选语言)
 
   follows           Follow[]
   pushSubscriptions PushSubscription[]
@@ -232,6 +235,8 @@ model Delivery {
   pushSubscription PushSubscription? @relation(fields: [pushSubscriptionId], references: [id], onDelete: Cascade)
 
   @@unique([postId, pushSubscriptionId, channel]) // 防重复推送
+  @@index([pushSubscriptionId, sentAt]) // 推送治理 groupBy(冷却/日上限)避免全表扫
+  @@index([sentAt]) // Delivery 清理任务按时间
 }
 
 model MagicLink {
@@ -243,4 +248,39 @@ model MagicLink {
   createdAt DateTime  @default(now())
 
   @@index([email, code])
+}
+
+// 立场转向物化表(分析时由 detectFlips 落库):首页头条/RSS/图谱直接索引读,
+// 免每请求对全量 PostTicker 做窗口扫描(性能审计 P0-1)。一帖一标的至多一条。
+model Flip {
+  id           String   @id @default(cuid())
+  influencerId String
+  symbol       String
+  postId       String
+  prevStance   Stance
+  newStance    Stance
+  postedAt     DateTime
+  createdAt    DateTime @default(now())
+
+  influencer Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+  post       Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, symbol]) // 幂等:重分析同帖不重复落库
+  @@index([postedAt])
+  @@index([symbol, postedAt])
+  @@index([influencerId, postedAt])
+}
+
+// 后台任务运行记录(团队约定"写 DB 观测"而非看日志):每轮 tick/digest/backfill 写一行,
+// 让 digest 调度持久化(防"重启即失忆/谎报发送")、/api/health 与 admin 回答"距上次成功多久"。
+model JobRun {
+  id         String    @id @default(cuid())
+  job        String // tick | digest | backfill | nasdaq
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean   @default(false)
+  stats      Json? // { created, analyzed, sent, failed, ... }
+  error      String?
+
+  @@index([job, startedAt])
 }
