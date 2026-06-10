@@ -50,10 +50,11 @@ export async function generateMetadata({ params }: { params: Promise<{ symbol: s
   const ogImage =
     n > 0
       ? ogImageUrl({
-          brand: `$${sym} on X2T`,
-          headline: `${n} influencer${n === 1 ? "" : "s"} tracking $${sym}`,
+          brand: `${n} influencer${n === 1 ? "" : "s"} tracking · last 12mo`,
+          headline: `$${sym}`,
           sub: `${c.bullish} bull · ${c.bearish} bear`,
           accent: c.bullish > c.bearish ? "bull" : c.bearish > c.bullish ? "bear" : "neutral",
+          sym, // → OG 卡嵌入"净立场 vs 价格"迷你走势图
         })
       : undefined;
   return pageMetadata({ path: `/t/${encodeURIComponent(sym)}`, title, description, ogType: "website", noindex: n === 0, ogImage });

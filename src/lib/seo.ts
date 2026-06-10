@@ -83,12 +83,13 @@ export function pageMetadata(opts: { path: string; title?: string; description?:
 }
 
 // 构建动态 OG 图 URL(/api/og 用 @napi-rs/canvas 原生渲染,根治 next/og 502)。文案走拉丁/数字,勿传 CJK(字体仅 latin 子集)。
-export function ogImageUrl(spec: { brand: string; headline: string; sub?: string; accent?: "bull" | "bear" | "neutral" }): string {
+export function ogImageUrl(spec: { brand: string; headline: string; sub?: string; accent?: "bull" | "bear" | "neutral"; sym?: string }): string {
   const p = new URLSearchParams();
   p.set("brand", spec.brand);
   p.set("h", spec.headline);
   if (spec.sub) p.set("sub", spec.sub);
   if (spec.accent && spec.accent !== "neutral") p.set("a", spec.accent);
+  if (spec.sym) p.set("sym", spec.sym); // 个股页:OG 路由据此取"净立场 vs 价格"时序,嵌入迷你走势图
   return `/api/og?${p.toString()}`;
 }
 
