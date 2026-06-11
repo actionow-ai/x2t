@@ -45,6 +45,8 @@ RSSHub 同样支持 `/reddit/...`、`/stocktwits/...` 等大量路由（见 http
 
 ## 3. 生产部署（docker compose）
 
+> 一键完成本节全部步骤：仓库根目录执行 **`./deploy.sh`**（生成 .env + 随机 AUTH_SECRET → 构建启动全栈 → 建表 + 种子,幂等可重复执行）。下面是手动等价步骤。
+
 镜像见 `Dockerfile`（**单一合并镜像**：一个容器内由进程监督脚本同时跑 web `next start` 与后台 worker，任一退出则整体退出让平台重启）。早期的「多目标 app/worker」方案因 zbpack 限制已废弃,详见下方踩坑。
 
 ```bash
