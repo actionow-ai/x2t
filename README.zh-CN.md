@@ -7,7 +7,7 @@
 **追踪你关注的金融博主到底在说什么 —— 每条帖子由 AI 读成对个股的看多/看空判断,并用他们真实的历史战绩打分,中英双语呈现。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0c0c0c.svg)](LICENSE)
-[![LLM: multi-provider fallback](https://img.shields.io/badge/LLM-multi--provider%20fallback-4d6bfe)](#配置)
+[![LLM: multi-provider fallback](https://img.shields.io/badge/LLM-multi--provider%20fallback-4d6bfe)](#一键部署)
 [![Live demo](https://img.shields.io/badge/demo-x2t.actionow.ai-c9f24a?labelColor=0c0c0c)](https://x2t.actionow.ai)
 
 [**在线试用**](https://x2t.actionow.ai) · [English](README.md) · [简体中文](README.zh-CN.md) · [部署](DEPLOY.md)
@@ -18,25 +18,21 @@
 
 ## 概览
 
-X2T 盯着你在 X(Twitter)、Reddit、新闻/Substack 上关注的金融博主。博主一发帖,X2T 立刻抓取,用 AI agent 结合实时行情,把每条帖子读成对个股的看多/看空/中性判断,并产出中英双语摘要。再把这些判断聚合成个股**共识**、**多空辩论**、「博主 × 标的」**立场图谱**,以及别家没有的那一块 —— 诚实的**历史战绩**:跟随每个博主到底有没有跑赢大盘?有人立场转向时,第一时间推送给你。开源,可自托管。
+X2T 盯着你在 X(Twitter)、Reddit、新闻源上关注的金融博主,用 AI 结合实时行情,把每条帖子读成对个股的看多/看空/中性判断。判断聚合成个股共识、多空辩论与立场图谱;有人改口立刻推送;每条判断都拿市场结算,给每位博主一份诚实的、统计上站得住的历史战绩。开源,可自托管。
 
 > [!IMPORTANT]
 > **非投资建议。** X2T 聚合的是公开帖子与公开市场数据,仅供参考,不构成任何买卖建议。
 
-### 在线试用 —— 无需安装
-
-公开试用站点 **[x2t.actionow.ai](https://x2t.actionow.ai)**,内置约 24 个精选美股源。可直接在浏览器浏览信号流与 AI 分析、打开战绩榜、全站搜索、查看立场图谱与个股共识+辩论、切换中英文、关注博主、点赞分享 —— 什么都不用装。
-
-## 目录
-
-- [功能](#功能)
-- [工作原理](#工作原理)
-- [一键部署](#一键部署)
-- [配置](#配置)
-- [贡献](#贡献)
-- [许可证](#许可证)
+**在线试用:** [x2t.actionow.ai](https://x2t.actionow.ai) —— 内置约 24 个精选美股源,中英双语,什么都不用装。
 
 ## 功能
+
+<div align="center">
+<img src="docs/promo/features.png" alt="X2T 功能全景:AI 标立场、诚实战绩、转向雷达、立场图谱、共识与辩论、自带 LLM、全站搜索、推送与 RSS" width="830" />
+</div>
+
+<details>
+<summary><b>完整功能清单</b></summary>
 
 | | |
 | --- | --- |
@@ -54,38 +50,34 @@ X2T 盯着你在 X(Twitter)、Reddit、新闻/Substack 上关注的金融博主�
 | **双语 · 响应式 UI** | Cookie 中英切换、帖子三版本(原文 / 中文 / English)、刻意的 neo-brutalist *Tape* 设计语言、PC 多栏 / 移动单栏 + 抽屉导航。 |
 | **生产级加固** | Redis 可选限流、admin 与密钥 fail-closed、HMAC 会话带撤销、SSRF 防护的图片代理与价格抓取、CSP、复合索引 + 有界缓存查询、自愈 worker、完整 SEO(metadata / sitemap / robots / JSON-LD / OpenGraph)与分析。 |
 
+</details>
+
 ## 工作原理
 
 <div align="center">
 <img src="docs/promo/how-it-works.png" alt="X2T 流水线:抓取公开帖子 → AI 标立场 → 聚合视图 → 价格结算 → 诚实战绩,立场转向即时推送" width="830" />
 </div>
 
-一个容器同时跑 Web 与后台 worker。worker 每几分钟拉一轮新帖,AI 结合实时行情逐条标立场,立场转向即时推送,已结算的判断流入战绩榜与每位博主的校准面板 —— 用正经统计打分(Wilson 区间、FDR 校正),不是裸胜率。
+一个容器同时跑 Web 与后台 worker:每几分钟拉新帖、AI 逐条标立场、转向即时推送、判断按同期 SPY 结算 —— 用正经统计打分(Wilson 区间、FDR 校正),不是裸胜率。
 
 ## 一键部署
 
-唯一前置是 Docker:
-
 ```bash
-# clone 本仓库后
+# clone 本仓库后执行,唯一前置是 Docker
 ./deploy.sh
 ```
 
-脚本会生成带随机 `AUTH_SECRET` 的 `.env`,构建并启动全栈(Postgres + RSSHub + 应用,web 与 worker 同容器),建表并灌入约 24 个精选美股源。完成后打开 **http://localhost:53000**。
+<div align="center">
+<img src="docs/promo/deploy.png" alt="deploy.sh:生成 .env 与随机密钥 → 起 Postgres、RSSHub、应用 → 建表灌种子 → localhost:53000。零 key 全 mock 可跑,填 key 即变真" width="830" />
+</div>
 
-**一个 API key 都不填也能跑** —— AI 分析与行情自动降级为确定性 mock。往 `.env` 里填 key(LLM、行情、邮件……)后执行 `docker compose --profile full up -d` 即变真实数据。
-
-想部署到云上?[Zeabur](https://zeabur.com) 分步指南见 **[DEPLOY.md](DEPLOY.md)**。
+全部开关见 [`.env.example`](.env.example);云上部署([Zeabur](https://zeabur.com))分步指南见 **[DEPLOY.md](DEPLOY.md)**。
 
 > **需要服务器?** 在 [**Zeabur**](https://zeabur.com) 下单,结账时填邀请码 **`actionow.ai`** 享 9 折。
 
-## 配置
-
-每个集成只有一条规则:**env 留空就降级到 mock;填上就走真实。** 完整带注释列表见 [`.env.example`](.env.example),分组:Postgres、应用 URL、Google Analytics、抓取/轮询、RSSHub、web-push(VAPID)、LLM(多 provider 兜底链,OpenAI 与 Anthropic 双协议)、市场数据(Finnhub / Exa / Alpha Vantage)、账号 + 邮件、限流 Redis、每日摘要/告警开关、admin 白名单。几个值得一提的可选项:LLM 兜底端点按编号配置(`LLM_API_KEY_2`、`LLM_BASE_URL_2`、`LLM_MODEL_2`、`LLM_FORMAT_2=openai|anthropic`…)、`REDIS_URL`(跨实例限流)、`WORKER_RUN_DIGEST` + 邮件 provider(真正发摘要)、`PUSH_COOLDOWN_MINUTES` / `QUIET_HOURS_UTC`(通知治理)、`WINRATE_SHOW_SAMPLES`(战绩展示门槛)。
-
 ## 贡献
 
-欢迎 Issue 与 PR。较大改动请先开 Issue 讨论方向。本机开发(不重建镜像):`docker compose up -d db rsshub && pnpm install && pnpm db:push && pnpm db:seed && pnpm dev`(Web 在 :53000,worker 用 `pnpm worker`)。提交前跑 `npx tsc --noEmit` 与 `pnpm test`;CI 每次 push 都会跑这两项。
+欢迎 Issue 与 PR,较大改动请先开 Issue 讨论。本机开发:`docker compose up -d db rsshub && pnpm install && pnpm db:push && pnpm db:seed && pnpm dev`,提交前跑 `npx tsc --noEmit` 与 `pnpm test`。
 
 ## 许可证
 

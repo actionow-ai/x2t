@@ -7,7 +7,7 @@
 **Track what the financial influencers you follow are actually saying — every post read into a bullish / bearish call on specific tickers by AI, scored against their real track record, in Chinese and English.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0c0c0c.svg)](LICENSE)
-[![LLM: multi-provider fallback](https://img.shields.io/badge/LLM-multi--provider%20fallback-4d6bfe)](#configuration)
+[![LLM: multi-provider fallback](https://img.shields.io/badge/LLM-multi--provider%20fallback-4d6bfe)](#one-click-deploy)
 [![Live demo](https://img.shields.io/badge/demo-x2t.actionow.ai-c9f24a?labelColor=0c0c0c)](https://x2t.actionow.ai)
 
 [**Live demo**](https://x2t.actionow.ai) · [English](README.md) · [简体中文](README.zh-CN.md) · [Deploy](DEPLOY.md)
@@ -18,25 +18,21 @@
 
 ## Overview
 
-X2T watches the financial influencers you follow on X (Twitter), Reddit and news/Substack feeds. The moment one of them posts, X2T fetches it, runs an AI agent that grounds the post against live market data, reads it into a bullish / bearish / neutral call per ticker, and writes a bilingual summary. It then aggregates those calls into per-stock **consensus**, a **bull-vs-bear debate**, an influencer↔ticker **stance graph**, and — the part nobody else does — an honest **track record**: did following each influencer actually beat the market? It pushes you an alert the moment someone flips their stance. Open source, built to self-host.
+X2T watches the financial influencers you follow on X (Twitter), Reddit and news feeds, and reads every post — with AI, grounded in live market data — into a bullish / bearish / neutral call per ticker. Calls aggregate into per-stock consensus, bull-vs-bear debates and a stance graph; stance flips push to you instantly; and every call is settled against the market, so each influencer carries an honest, statistics-grade track record. Open source, built to self-host.
 
 > [!IMPORTANT]
 > **Not financial advice.** X2T aggregates public posts and public market data for reference only. Nothing here is a recommendation to buy or sell anything.
 
-### Try it live — no setup
-
-A public trial instance runs at **[x2t.actionow.ai](https://x2t.actionow.ai)** with ~24 curated US-stock sources. Browse the signal feed and AI analysis, open the leaderboard, search across everything, explore the stance graph and per-stock consensus + debate, switch between Chinese and English, follow influencers, react and share — all in the browser, nothing to install.
-
-## Table of contents
-
-- [Features](#features)
-- [How it works](#how-it-works)
-- [One-click deploy](#one-click-deploy)
-- [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
+**Try it live:** [x2t.actionow.ai](https://x2t.actionow.ai) — ~24 curated US-stock sources, bilingual, nothing to install.
 
 ## Features
+
+<div align="center">
+<img src="docs/promo/features.png" alt="X2T features: AI stance labeling, honest track record, flip radar, stance graph, consensus and debate, bring-your-own LLM, full-site search, push and RSS" width="830" />
+</div>
+
+<details>
+<summary><b>Full feature breakdown</b></summary>
 
 | | |
 | --- | --- |
@@ -54,38 +50,34 @@ A public trial instance runs at **[x2t.actionow.ai](https://x2t.actionow.ai)** w
 | **Bilingual, responsive UI** | Cookie-based zh / en, three-version post views (original / 中文 / English), a deliberate neo-brutalist *Tape* design system, PC multi-column / mobile single-column with a drawer nav. |
 | **Production-hardened** | Redis-optional rate limiting, fail-closed admin & secrets, HMAC sessions with revocation, SSRF-guarded image proxy & price fetch, CSP, composite indexes + bounded cached queries, a self-healing worker, full SEO (metadata, sitemap, robots, JSON-LD, OpenGraph) and analytics. |
 
+</details>
+
 ## How it works
 
 <div align="center">
 <img src="docs/promo/how-it-works.png" alt="X2T pipeline: ingest public posts, AI stance labeling, aggregate views, price settlement, honest track record — with instant push on stance flips" width="830" />
 </div>
 
-One container runs both the web app and a background worker. Every few minutes the worker pulls new posts, the AI labels each one against live market data, stance flips push out instantly, and settled calls feed the leaderboard and each influencer's calibration — scored with proper statistics (Wilson interval, FDR correction), not raw win rates.
+One container runs both the web app and a background worker: pull new posts every few minutes, label them with AI, push flips instantly, settle calls against the same-window SPY — scored with proper statistics (Wilson interval, FDR correction), not raw win rates.
 
 ## One-click deploy
 
-Docker is the only prerequisite:
-
 ```bash
-# after cloning this repo
+# after cloning this repo — Docker is the only prerequisite
 ./deploy.sh
 ```
 
-The script generates `.env` with a random `AUTH_SECRET`, builds and starts the full stack (Postgres + RSSHub + the app, web and worker in one container), creates the schema and seeds ~24 curated US-stock sources. Then open **http://localhost:53000**.
+<div align="center">
+<img src="docs/promo/deploy.png" alt="deploy.sh: generate .env with a random secret, start Postgres + RSSHub + app, create schema and seed sources, open localhost:53000. Runs on mocks with zero keys; fill keys in .env to go live" width="830" />
+</div>
 
-It runs with **zero API keys** — AI analysis and market data degrade to deterministic mocks. Fill keys into `.env` (LLM, market data, email, …) and rerun `docker compose --profile full up -d` to go live.
-
-Prefer a cloud host? A step-by-step [Zeabur](https://zeabur.com) guide is in **[DEPLOY.md](DEPLOY.md)**.
+Every switch is documented in [`.env.example`](.env.example); a step-by-step cloud guide ([Zeabur](https://zeabur.com)) is in **[DEPLOY.md](DEPLOY.md)**.
 
 > **Need a server?** Buy one on [**Zeabur**](https://zeabur.com) and enter referral code **`actionow.ai`** at checkout for 10% off.
 
-## Configuration
-
-Every integration follows one rule: **leave the env var blank and it degrades to mock; fill it in and it goes live.** See [`.env.example`](.env.example) for the full, commented list — grouped into Postgres, app URL, Google Analytics, ingestion / polling, RSSHub, web-push (VAPID), LLM (multi-provider fallback chain, OpenAI & Anthropic wire formats), market data (Finnhub / Exa / Alpha Vantage), accounts + email, rate-limit Redis, daily digest / alert gates, and the admin allowlist. Notable optional knobs: numbered LLM fallback endpoints (`LLM_API_KEY_2`, `LLM_BASE_URL_2`, `LLM_MODEL_2`, `LLM_FORMAT_2=openai|anthropic`, …), `REDIS_URL` (cross-instance rate limiting), `WORKER_RUN_DIGEST` + an email provider (to actually send digests), `PUSH_COOLDOWN_MINUTES` / `QUIET_HOURS_UTC` (notification governance), `WINRATE_SHOW_SAMPLES` (track-record display threshold).
-
 ## Contributing
 
-Issues and pull requests are welcome. For larger changes, open an issue first to discuss the direction. Local dev without Docker rebuilds: `docker compose up -d db rsshub && pnpm install && pnpm db:push && pnpm db:seed && pnpm dev` (web on :53000, worker via `pnpm worker`). Run `npx tsc --noEmit` and `pnpm test` before submitting; CI runs both on every push.
+Issues and pull requests are welcome — open an issue first for larger changes. Local dev: `docker compose up -d db rsshub && pnpm install && pnpm db:push && pnpm db:seed && pnpm dev`, then `npx tsc --noEmit` and `pnpm test` before submitting.
 
 ## License
 
