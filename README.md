@@ -79,6 +79,10 @@ Every switch is documented in [`.env.example`](.env.example); a step-by-step clo
 
 Issues and pull requests are welcome — open an issue first for larger changes. Local dev: `docker compose up -d db rsshub && pnpm install && pnpm db:push && pnpm db:seed && pnpm dev`, then `npx tsc --noEmit` and `pnpm test` before submitting.
 
+## Friendly Links
+
+[LINUX DO](https://linux.do/) — A new ideal-type community
+
 ## License
 
 [MIT](LICENSE) © actionow.ai
