@@ -26,7 +26,7 @@ try {
 //   pnpm worker --once   跑一轮退出（适合外部 cron 调度）
 const once = process.argv.includes("--once");
 const POLL_MS = Number(process.env.POLL_INTERVAL_MS ?? 180_000);
-const ANALYZE_BATCH = Number(process.env.ANALYZE_BATCH ?? 20);
+const ANALYZE_BATCH = Number(process.env.ANALYZE_BATCH ?? 8); // 每 tick 一批的大小(小内存机器默认 8,渐进消化积压;大机器可调高)
 const RUN_DIGEST = process.env.WORKER_RUN_DIGEST === "true";
 const DIGEST_HOUR = Number(process.env.DIGEST_HOUR_UTC ?? 13); // 每天 UTC 此小时后首个 tick 发摘要(默认美东早晨)
 
@@ -44,15 +44,11 @@ async function tick() {
   let stats: Record<string, number> = {};
   try {
     const ing = await ingestAll();
-    // 抓完立刻清空 pending（可能多批），上限 10 批防失控
-    let processed = 0,
-      ok = 0;
-    for (let round = 0; round < 10; round++) {
-      const r = await analyzePending(ANALYZE_BATCH);
-      processed += r.processed;
-      ok += r.ok;
-      if (r.processed < ANALYZE_BATCH) break;
-    }
+    // 每个 tick 只处理【一批】(不再一次抽干 pending):把积压摊到多个 tick 渐进消化,
+    // 避免在小内存机器上猛冲(大量并发 LLM+行情+DB 写)压垮 K3s/Postgres。
+    const r = await analyzePending(ANALYZE_BATCH);
+    const processed = r.processed,
+      ok = r.ok;
     stats = { influencers: ing.influencers, created: ing.created, analyzed: processed, analyzedOk: ok };
     console.log(`[worker] tick：源 ${ing.influencers}/新增 ${ing.created}，分析 ${processed}/成功 ${ok}，${Date.now() - start}ms`);
     await finishJob(jobId, true, stats);

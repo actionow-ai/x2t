@@ -92,7 +92,7 @@ export async function ingestInfluencer(influencerId: string): Promise<{ fetched:
 export async function ingestAll(): Promise<{ influencers: number; created: number }> {
   // 排除已申请移除(optedOut)的博主;小并发池抓取(原串行,100 源最坏超过轮询周期,性能 P1-6)
   const active = await prisma.influencer.findMany({ where: { active: true, optedOut: false }, select: { id: true, handle: true } });
-  const conc = Math.max(1, Math.min(8, Number(process.env.INGEST_CONCURRENCY ?? 5)));
+  const conc = Math.max(1, Math.min(8, Number(process.env.INGEST_CONCURRENCY ?? 2))); // 默认 2(小内存机器省连接/内存)
   let created = 0;
   let idx = 0;
   async function worker() {

@@ -171,7 +171,7 @@ export async function analyzePending(limit = 20): Promise<{ processed: number; o
     orderBy: { postedAt: "desc" },
     take,
   });
-  const conc = Math.max(1, Math.min(8, Number(process.env.ANALYZE_CONCURRENCY ?? 3)));
+  const conc = Math.max(1, Math.min(8, Number(process.env.ANALYZE_CONCURRENCY ?? 1))); // 默认 1=串行(小内存机器防猛冲);大机器可调高
   let ok = 0;
   let idx = 0;
   async function worker() {
