@@ -79,6 +79,10 @@ X2T 盯着你在 X(Twitter)、Reddit、新闻源上关注的金融博主,用 AI 
 
 欢迎 Issue 与 PR,较大改动请先开 Issue 讨论。本机开发:`docker compose up -d db rsshub && pnpm install && pnpm db:push && pnpm db:seed && pnpm dev`,提交前跑 `npx tsc --noEmit` 与 `pnpm test`。
 
+## 友情链接
+
+[LINUX DO](https://linux.do/) — 新的理想型社区
+
 ## 许可证
 
 [MIT](LICENSE) © actionow.ai
