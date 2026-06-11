@@ -16,7 +16,7 @@ export function createAnthropicCompatible(cfg: { apiKey: string; baseURL?: strin
   const client = new Anthropic({
     apiKey: cfg.apiKey,
     baseURL: cfg.baseURL,
-    timeout: Number(process.env.LLM_TIMEOUT_MS ?? 60_000), // 单次调用超时,防 worker 被卡死请求拖住
+    timeout: Number(process.env.LLM_TIMEOUT_MS ?? 120_000), // 单次调用超时(默认 2min:容纳推理模型并发下变慢),防 worker 被卡死请求拖住
     maxRetries: 1,
   });
 
