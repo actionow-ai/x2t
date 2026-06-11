@@ -44,6 +44,15 @@ describe("parseEndpoints(多 provider 解析)", () => {
     process.env.LLM_API_KEY_3 = "k3";
     expect(parseEndpoints()).toHaveLength(1);
   });
+
+  it("LLM_FORMAT=anthropic → format anthropic;缺省/其它 → openai", () => {
+    process.env.LLM_API_KEY = "k1";
+    process.env.LLM_API_KEY_2 = "k2";
+    process.env.LLM_FORMAT_2 = "anthropic";
+    const eps = parseEndpoints();
+    expect(eps[0].format).toBe("openai");
+    expect(eps[1].format).toBe("anthropic");
+  });
 });
 
 describe("createFallback(顺序兜底)", () => {

@@ -24,6 +24,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
     "@gsap/react": "^2.1.2",
     "@napi-rs/canvas": "^1.0.0",
     "@prisma/client": "^6.3.0",

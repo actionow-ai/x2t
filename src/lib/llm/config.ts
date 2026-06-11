@@ -1,16 +1,25 @@
 import type { LlmProvider } from "./types";
 import { createOpenAiCompatible } from "./openai-compatible";
+import { createAnthropicCompatible } from "./anthropic-compatible";
 
 // 多 provider 顺序兜底链。
 // 主端点 = 现有无后缀变量(LLM_API_KEY / LLM_BASE_URL / LLM_MODEL / TRANSLATE_MODEL,向后兼容);
 // 兜底端点 = 同名 + _2 / _3 … 后缀(要求连续编号,断档即停)。
 // 降级触发:provider 报错 / 超时 / 429 / 5xx / 空响应 → 顺延下一个端点(JSON 解析失败不在此层,由调用方重试兜)。
+// 端点协议格式:openai 兼容(OpenAI/DeepSeek/多数中转)或 anthropic(Claude 官方 / 中转 /claude 端点)。
+export type LlmFormat = "openai" | "anthropic";
 export type LlmEndpoint = {
   apiKey: string;
   baseURL?: string;
   model: string; // 分析模型(getLlmProvider 用)
   translateModel: string; // 翻译模型(translate 用;缺省回退到 model)
+  format: LlmFormat;
 };
+
+// 按格式选适配器(同一端点的 analysis / translate 共用格式)。
+function makeProvider(apiKey: string, baseURL: string | undefined, model: string, format: LlmFormat): LlmProvider {
+  return format === "anthropic" ? createAnthropicCompatible({ apiKey, baseURL, model }) : createOpenAiCompatible({ apiKey, baseURL, model });
+}
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 const MAX_ENDPOINTS = 9;
@@ -28,6 +37,7 @@ export function parseEndpoints(): LlmEndpoint[] {
       baseURL: process.env[`LLM_BASE_URL${s}`]?.trim() || undefined,
       model,
       translateModel: process.env[`TRANSLATE_MODEL${s}`]?.trim() || model,
+      format: process.env[`LLM_FORMAT${s}`]?.trim().toLowerCase() === "anthropic" ? "anthropic" : "openai",
     });
   }
   return out;
@@ -65,12 +75,12 @@ export function createFallback(providers: LlmProvider[]): LlmProvider {
 export function buildAnalysisProvider(): LlmProvider | null {
   const eps = parseEndpoints();
   if (!eps.length) return null;
-  return createFallback(eps.map((e) => createOpenAiCompatible({ apiKey: e.apiKey, baseURL: e.baseURL, model: e.model })));
+  return createFallback(eps.map((e) => makeProvider(e.apiKey, e.baseURL, e.model, e.format)));
 }
 
 // 翻译兜底链(各端点取 translate model)。无端点 → null(调用方回退原文)。
 export function buildTranslateProvider(): LlmProvider | null {
   const eps = parseEndpoints();
   if (!eps.length) return null;
-  return createFallback(eps.map((e) => createOpenAiCompatible({ apiKey: e.apiKey, baseURL: e.baseURL, model: e.translateModel })));
+  return createFallback(eps.map((e) => makeProvider(e.apiKey, e.baseURL, e.translateModel, e.format)));
 }
